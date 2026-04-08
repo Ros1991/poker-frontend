@@ -9,6 +9,7 @@ export interface Ranking {
   scoringFormula: string | null
   scoringTable: string | null // JSON: [{"position":1,"points":100},...]
   accumulatedPrize: number
+  discardCount: number
   createdAt: string
 }
 
@@ -38,4 +39,6 @@ export interface CreateRankingRequest {
   scoringMode: 'Formula' | 'Table'
   scoringFormula?: string
   scoringTable?: string // JSON string
+  accumulatedPrize?: number
+  discardCount?: number
 }

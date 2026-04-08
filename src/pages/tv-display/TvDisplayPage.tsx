@@ -349,9 +349,21 @@ export function TvDisplayPage() {
                 <p className="text-2xl font-bold text-white truncate">
                   {lastEliminated.person.nickname ?? lastEliminated.person.fullName}
                 </p>
-                <p className="mt-1 text-lg text-red-400">
-                  {lastEliminated.finalPosition}º lugar
-                </p>
+                <div className="mt-1 flex items-baseline gap-2">
+                  <span className="text-lg text-red-400">
+                    {lastEliminated.finalPosition}º lugar
+                  </span>
+                  {(() => {
+                    const prize = prizesList.find(
+                      (p) => p.position === lastEliminated.finalPosition,
+                    )
+                    return prize ? (
+                      <span className="text-lg font-semibold text-emerald-400">
+                        {formatCurrency(prize.amount)}
+                      </span>
+                    ) : null
+                  })()}
+                </div>
               </>
             ) : (
               <p className="text-sm text-slate-500">Nenhum eliminado ainda</p>

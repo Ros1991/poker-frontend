@@ -79,6 +79,7 @@ export function RankingFormPage() {
 
   // Accumulated prize (edição)
   const [accumulatedPrize, setAccumulatedPrize] = useState(0)
+  const [discardCount, setDiscardCount] = useState(0)
 
   // Carregar ranking existente
   const { data: existingRanking } = useQuery({
@@ -100,6 +101,7 @@ export function RankingFormPage() {
       } catch { /* keep defaults */ }
     }
     setAccumulatedPrize(existingRanking.accumulatedPrize || 0)
+    setDiscardCount(existingRanking.discardCount || 0)
     setInitialized(true)
   }
 
@@ -175,6 +177,7 @@ export function RankingFormPage() {
       scoringTable:
         scoringMode === 'Table' ? JSON.stringify(tableRows.sort((a, b) => a.position - b.position)) : undefined,
       accumulatedPrize: isEditing ? accumulatedPrize : undefined,
+      discardCount,
     }
 
     setIsSubmitting(true)
@@ -261,6 +264,25 @@ export function RankingFormPage() {
             </p>
           </div>
         )}
+
+        {/* Descartes */}
+        <div className="rounded-xl border border-border-default bg-bg-secondary p-6">
+          <h2 className="text-lg font-semibold text-text-primary mb-4">Descartes</h2>
+          <div className="flex items-center gap-3">
+            <input
+              type="number"
+              min={0}
+              step={1}
+              value={discardCount}
+              onChange={(e) => setDiscardCount(Math.max(0, Number(e.target.value) || 0))}
+              className="w-28 rounded-lg border border-border-default bg-bg-primary px-3 py-2 text-sm text-text-primary focus:border-border-focus focus:outline-none"
+            />
+            <span className="text-sm text-text-muted">piores resultados descartados por jogador</span>
+          </div>
+          <p className="text-xs text-text-muted mt-2">
+            Cada jogador pode descartar os N piores resultados ao calcular o total de pontos.
+          </p>
+        </div>
 
         {/* Modo de pontuacao */}
         <div className="rounded-xl border border-border-default bg-bg-secondary p-6">
