@@ -184,7 +184,42 @@ export function TvDisplayPage() {
 
         {/* Main Content */}
         <div className="flex flex-1 flex-col items-center justify-center gap-8 px-8 py-6">
-          {/* Blind Level + Timer */}
+          {tournament?.status === 'Finished' ? (
+            (() => {
+              const champion = entries
+                ?.slice()
+                .sort((a, b) => (a.finalPosition ?? 999) - (b.finalPosition ?? 999))
+                .find((e) => e.finalPosition === 1)
+                ?? entries?.find((e) => e.status === 'Awarded')
+              const name =
+                champion?.person.nickname ?? champion?.person.fullName ?? '—'
+              return (
+                <div className="flex flex-col items-center gap-4">
+                  <span className="text-3xl font-semibold uppercase tracking-[0.3em] text-yellow-400">
+                    Campeão
+                  </span>
+                  <div
+                    className="text-center font-bold text-white text-[7rem] leading-none"
+                    style={{
+                      textShadow:
+                        '0 0 80px rgba(234,179,8,0.5), 0 0 30px rgba(234,179,8,0.3)',
+                    }}
+                  >
+                    {name}
+                  </div>
+                  {champion?.prizeAmount ? (
+                    <div className="text-3xl font-semibold text-emerald-400">
+                      {new Intl.NumberFormat('pt-BR', {
+                        style: 'currency',
+                        currency: 'BRL',
+                      }).format(champion.prizeAmount)}
+                    </div>
+                  ) : null}
+                </div>
+              )
+            })()
+          ) : (
+          /* Blind Level + Timer */
           <div className="flex flex-col items-center gap-2">
             {timerState.isBreak ? (
               <div className="rounded-full bg-yellow-500/20 px-6 py-2 text-lg font-semibold text-yellow-400">
@@ -251,6 +286,7 @@ export function TvDisplayPage() {
               )}
             </div>
           </div>
+          )}
         </div>
 
         {/* Bottom Section - Info Cards */}
