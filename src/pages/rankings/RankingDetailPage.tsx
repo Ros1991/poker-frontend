@@ -257,7 +257,7 @@ export function RankingDetailPage() {
               <tbody>
                 {leaderboard.map((entry) => (
                   <tr
-                    key={entry.personId}
+                    key={entry.person.id}
                     className={`border-b border-border-default last:border-0 ${positionBg(entry.position)}`}
                   >
                     <td className="px-4 py-3">
@@ -270,12 +270,12 @@ export function RankingDetailPage() {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         <Avatar
-                          src={entry.personPhotoUrl}
-                          name={entry.personName}
+                          src={entry.person.photoUrl}
+                          name={entry.person.nickname ?? entry.person.fullName}
                           size="sm"
                         />
                         <span className="font-medium text-text-primary">
-                          {entry.personName}
+                          {entry.person.nickname ?? entry.person.fullName}
                         </span>
                       </div>
                     </td>
@@ -291,7 +291,7 @@ export function RankingDetailPage() {
                       {entry.bestPosition}o
                     </td>
                     <td className="px-4 py-3 text-right text-text-secondary hidden md:table-cell">
-                      {entry.averagePosition.toFixed(1)}
+                      {entry.averagePosition?.toFixed(1) ?? '-'}
                     </td>
                   </tr>
                 ))}
