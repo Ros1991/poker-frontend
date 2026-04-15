@@ -240,9 +240,18 @@ export function RankingDetailPage() {
                           name={entry.person.nickname ?? entry.person.fullName}
                           size="sm"
                         />
-                        <span className="font-medium text-text-primary">
-                          {entry.person.nickname ?? entry.person.fullName}
-                        </span>
+                        <div className="min-w-0">
+                          <span className="font-medium text-text-primary block truncate">
+                            {entry.person.nickname ?? entry.person.fullName}
+                          </span>
+                          <span className="text-[10px] text-text-muted sm:hidden">
+                            {entry.tournamentsPlayed} torneios · Melhor {entry.bestPosition}o
+                            {entry.discardedPoints > 0 && (
+                              <> · <span className="text-accent-red">-{entry.discardedPoints}</span></>
+                            )}
+                            {' '}· Media {entry.averagePoints.toFixed(1)}
+                          </span>
+                        </div>
                       </div>
                     </td>
                     <td className="px-4 py-3 text-right">
