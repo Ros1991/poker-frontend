@@ -245,7 +245,7 @@ export function RankingDetailPage() {
                             {entry.person.nickname ?? entry.person.fullName}
                           </span>
                           <span className="text-[10px] text-text-muted sm:hidden">
-                            {entry.tournamentsPlayed} torneios · Melhor {entry.bestPosition}o
+                            {entry.tournamentsPlayed} torneios · Melhor {entry.bestPosition}º
                             {entry.discardedPoints > 0 && (
                               <> · <span className="text-accent-red">-{entry.discardedPoints}</span></>
                             )}
@@ -263,7 +263,7 @@ export function RankingDetailPage() {
                       {entry.tournamentsPlayed}
                     </td>
                     <td className="px-4 py-3 text-right text-text-secondary hidden md:table-cell">
-                      {entry.bestPosition}o
+                      {entry.bestPosition}º
                     </td>
                     <td className="px-4 py-3 text-right text-text-secondary hidden md:table-cell">
                       {entry.discardedPoints > 0 ? (
