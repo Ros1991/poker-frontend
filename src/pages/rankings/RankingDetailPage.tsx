@@ -145,7 +145,7 @@ export function RankingDetailPage() {
           {canManage && (
             <Button variant="secondary" onClick={() => navigate(rankingEditPath(ranking.id))}>
               <Edit className="h-4 w-4" />
-              Editar
+              <span className="hidden sm:inline">Editar</span>
             </Button>
           )}
         </div>
