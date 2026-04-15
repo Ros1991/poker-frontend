@@ -204,10 +204,10 @@ export function RankingDetailPage() {
                     Melhor Pos.
                   </th>
                   <th className="px-4 py-3 text-right font-medium text-text-muted hidden md:table-cell">
-                    Descartados
+                    Media/Torneio
                   </th>
                   <th className="px-4 py-3 text-right font-medium text-text-muted hidden md:table-cell">
-                    Media/Torneio
+                    Descartados
                   </th>
                 </tr>
               </thead>
@@ -245,11 +245,10 @@ export function RankingDetailPage() {
                             {entry.person.nickname ?? entry.person.fullName}
                           </span>
                           <span className="text-[10px] text-text-muted sm:hidden">
-                            {entry.tournamentsPlayed} torneios · Melhor {entry.bestPosition}º
+                            {entry.tournamentsPlayed} torneios · Melhor {entry.bestPosition}º · Media {entry.averagePoints.toFixed(1)}
                             {entry.discardedPoints > 0 && (
-                              <> · <span className="text-accent-red">-{entry.discardedPoints}</span></>
+                              <> · <span className="text-accent-red">Desc. -{entry.discardedPoints}</span></>
                             )}
-                            {' '}· Media {entry.averagePoints.toFixed(1)}
                           </span>
                         </div>
                       </div>
@@ -266,12 +265,12 @@ export function RankingDetailPage() {
                       {entry.bestPosition}º
                     </td>
                     <td className="px-4 py-3 text-right text-text-secondary hidden md:table-cell">
+                      {entry.averagePoints.toFixed(1)}
+                    </td>
+                    <td className="px-4 py-3 text-right text-text-secondary hidden md:table-cell">
                       {entry.discardedPoints > 0 ? (
                         <span className="text-accent-red">-{entry.discardedPoints}</span>
                       ) : '-'}
-                    </td>
-                    <td className="px-4 py-3 text-right text-text-secondary hidden md:table-cell">
-                      {entry.averagePoints.toFixed(1)}
                     </td>
                   </tr>
                 ))}

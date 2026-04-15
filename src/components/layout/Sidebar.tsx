@@ -16,13 +16,14 @@ import { ROUTES, homeGameDetailPath } from '../../constants/routes'
 
 interface SidebarProps {
   className?: string
+  onNavigate?: () => void
 }
 
 const adminItems = [
   { to: ROUTES.USERS, label: 'Usuarios', icon: Shield },
 ]
 
-export function Sidebar({ className }: SidebarProps) {
+export function Sidebar({ className, onNavigate }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false)
   const { user } = useAuth()
   const { homeGames, selectedHomeGame, selectHomeGame, isLoading } = useHomeGame()
@@ -34,6 +35,7 @@ export function Sidebar({ className }: SidebarProps) {
     if (homeGame) {
       selectHomeGame(homeGame)
       navigate(homeGameDetailPath(homeGame.id))
+      onNavigate?.()
     }
   }
 

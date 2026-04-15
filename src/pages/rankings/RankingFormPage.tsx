@@ -441,7 +441,7 @@ export function RankingFormPage() {
                                   : 'text-text-muted'
                           }`}
                         >
-                          {row.position}o
+                          {row.position}º
                         </span>
                         <span
                           className={`text-sm font-semibold ${

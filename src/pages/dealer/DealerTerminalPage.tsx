@@ -460,7 +460,7 @@ export function DealerTerminalPage() {
                         </p>
                         <p className="text-[11px] text-text-muted">
                           {entry.finalPosition
-                            ? `${entry.finalPosition}o lugar`
+                            ? `${entry.finalPosition}º lugar`
                             : entry.status}
                         </p>
                       </div>

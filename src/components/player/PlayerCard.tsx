@@ -83,7 +83,7 @@ export function PlayerCard({
           </div>
           <div>
             <p className="text-lg font-bold text-text-primary">
-              {stats.bestPosition != null ? `${stats.bestPosition}o` : '-'}
+              {stats.bestPosition != null ? `${stats.bestPosition}º` : '-'}
             </p>
             <p className="text-xs text-text-muted">Melhor</p>
           </div>

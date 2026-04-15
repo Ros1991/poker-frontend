@@ -143,7 +143,7 @@ export function PlayerDetailPage() {
         <StatCard
           icon={<Target className="h-5 w-5 text-yellow-400" />}
           label="Melhor Posição"
-          value={bestPosition != null ? `${bestPosition}o` : '-'}
+          value={bestPosition != null ? `${bestPosition}º` : '-'}
         />
         <StatCard
           icon={<DollarSign className="h-5 w-5 text-accent-red" />}
@@ -210,7 +210,7 @@ export function PlayerDetailPage() {
                                 : 'gray'
                         }
                       >
-                        {entry.position}o
+                        {entry.position}º
                       </Badge>
                     </td>
                     <td className="px-6 py-3 text-right text-accent-green font-medium whitespace-nowrap">

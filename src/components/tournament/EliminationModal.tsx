@@ -86,7 +86,7 @@ export function EliminationModal({
           </div>
           <div className="text-center">
             <p className="font-semibold text-text-primary text-lg">
-              {resultPosition ? `${resultPosition}o lugar` : 'Eliminado'}
+              {resultPosition ? `${resultPosition}º lugar` : 'Eliminado'}
             </p>
             <p className="text-sm text-text-muted">
               {entry.person.nickname ?? entry.person.fullName}
@@ -111,7 +111,7 @@ export function EliminationModal({
               </p>
               <p className="text-xs text-text-muted">
                 {entry.person.nickname ?? entry.person.fullName} sera eliminado
-                na posicao {calculatedPosition}o.
+                na posicao {calculatedPosition}º.
               </p>
             </div>
           </div>
