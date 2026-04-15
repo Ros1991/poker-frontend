@@ -30,7 +30,8 @@ export interface RankingLeaderboardEntry {
   totalPoints: number
   tournamentsPlayed: number
   bestPosition: number
-  averagePosition?: number
+  discardedPoints: number
+  averagePoints: number
 }
 
 export interface CreateRankingRequest {

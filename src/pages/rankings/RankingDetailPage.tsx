@@ -154,17 +154,6 @@ export function RankingDetailPage() {
             {ranking.description}
           </p>
         )}
-        {ranking.scoringMode === 'Formula' && ranking.scoringFormula && (
-          <p className="text-sm text-text-muted mt-2">
-            Formula:{' '}
-            <code className="bg-bg-tertiary px-1.5 py-0.5 rounded font-mono text-text-secondary">
-              {ranking.scoringFormula}
-            </code>
-          </p>
-        )}
-        {ranking.scoringMode === 'Table' && (
-          <p className="text-sm text-text-muted mt-2">Pontuacao por posicao (tabela fixa)</p>
-        )}
         {ranking.accumulatedPrize > 0 && (
           <div className="mt-3 inline-flex items-center gap-2 rounded-lg bg-accent-green/10 px-4 py-2">
             <span className="text-sm font-medium text-accent-green">
@@ -173,6 +162,13 @@ export function RankingDetailPage() {
           </div>
         )}
       </div>
+
+      {leaderboard && leaderboard.length > 0 && (
+        <div className="flex items-center gap-2 mb-3 text-xs text-text-muted">
+          <span className="inline-block w-2 h-2 rounded-full bg-yellow-400" />
+          <span>Top 9 — classificados para a Mesa Final</span>
+        </div>
+      )}
 
       {!leaderboard || leaderboard.length === 0 ? (
         <div className="space-y-4">
@@ -185,48 +181,6 @@ export function RankingDetailPage() {
               Os resultados aparecerão aqui apos a conclusao dos torneios.
             </p>
           </div>
-          {ranking.scoringFormula && formulaPreview.length > 0 && (
-            <div className="rounded-xl border border-border-default bg-bg-secondary p-6">
-              <h3 className="text-base font-semibold text-text-primary mb-3">
-                Simulacao de pontuacao (20 jogadores)
-              </h3>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border-default">
-                      <th className="px-4 py-2 text-left font-medium text-text-muted">
-                        Posicao
-                      </th>
-                      <th className="px-4 py-2 text-right font-medium text-text-muted">
-                        Pontos
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {formulaPreview.map((row) => (
-                      <tr
-                        key={row.position}
-                        className="border-b border-border-default last:border-0"
-                      >
-                        <td className="px-4 py-2 text-text-primary">
-                          {row.position}o
-                        </td>
-                        <td className="px-4 py-2 text-right font-mono">
-                          {row.points !== null ? (
-                            <span className="text-text-primary">
-                              {row.points}
-                            </span>
-                          ) : (
-                            <span className="text-accent-red">Erro</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
         </div>
       ) : (
         <div className="rounded-xl border border-border-default bg-bg-secondary overflow-hidden">
@@ -250,22 +204,34 @@ export function RankingDetailPage() {
                     Melhor Pos.
                   </th>
                   <th className="px-4 py-3 text-right font-medium text-text-muted hidden md:table-cell">
-                    Media Pos.
+                    Descartados
+                  </th>
+                  <th className="px-4 py-3 text-right font-medium text-text-muted hidden md:table-cell">
+                    Media/Torneio
                   </th>
                 </tr>
               </thead>
               <tbody>
-                {leaderboard.map((entry) => (
+                {leaderboard.map((entry, idx) => (
                   <tr
                     key={entry.person.id}
-                    className={`border-b border-border-default last:border-0 ${positionBg(entry.position)}`}
+                    className={`border-b last:border-0 ${positionBg(entry.position)} ${
+                      entry.position <= 9
+                        ? 'border-border-default'
+                        : 'border-border-default opacity-60'
+                    } ${entry.position === 9 ? 'border-b-2 border-b-yellow-500/50' : ''}`}
                   >
                     <td className="px-4 py-3">
-                      <span
-                        className={`text-base font-bold ${positionColor(entry.position)}`}
-                      >
-                        {entry.position}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          className={`text-base font-bold ${positionColor(entry.position)}`}
+                        >
+                          {entry.position}
+                        </span>
+                        {entry.position <= 9 && (
+                          <span className="inline-block w-2 h-2 rounded-full bg-yellow-400" title="Mesa Final" />
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
@@ -291,7 +257,12 @@ export function RankingDetailPage() {
                       {entry.bestPosition}o
                     </td>
                     <td className="px-4 py-3 text-right text-text-secondary hidden md:table-cell">
-                      {entry.averagePosition?.toFixed(1) ?? '-'}
+                      {entry.discardedPoints > 0 ? (
+                        <span className="text-accent-red">-{entry.discardedPoints}</span>
+                      ) : '-'}
+                    </td>
+                    <td className="px-4 py-3 text-right text-text-secondary hidden md:table-cell">
+                      {entry.averagePoints.toFixed(1)}
                     </td>
                   </tr>
                 ))}
