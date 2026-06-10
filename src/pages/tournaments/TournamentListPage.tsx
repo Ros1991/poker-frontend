@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
-import { Plus, Calendar, Users, Trophy, ArrowLeft } from 'lucide-react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { Plus, Calendar, Users, Trophy, ArrowLeft, Trash2 } from 'lucide-react'
+import { toast } from 'sonner'
 import * as tournamentsApi from '../../api/tournaments.api'
 import { Button } from '../../components/ui/Button'
 import { Badge } from '../../components/ui/Badge'
@@ -44,6 +45,16 @@ export function TournamentListPage() {
   const navigate = useNavigate()
   const [statusFilter, setStatusFilter] = useState<TournamentStatus | 'all'>('all')
   const [search, setSearch] = useState('')
+  const queryClient = useQueryClient()
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => tournamentsApi.remove(homeGameId!, id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['tournaments', homeGameId] })
+      toast.success('Torneio excluído.')
+    },
+    onError: () => toast.error('Erro ao excluir torneio.'),
+  })
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['tournaments', homeGameId, search],

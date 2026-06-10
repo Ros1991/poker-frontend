@@ -13,7 +13,6 @@ interface EliminationModalProps {
   entry: TournamentEntry | null
   activeEntries: TournamentEntry[]
   tournamentId: string
-  totalEntries: number
 }
 
 export function EliminationModal({
@@ -22,12 +21,12 @@ export function EliminationModal({
   entry,
   activeEntries,
   tournamentId,
-  totalEntries,
 }: EliminationModalProps) {
   const queryClient = useQueryClient()
   const [eliminatedBy, setEliminatedBy] = useState('')
   const [showResult, setShowResult] = useState(false)
   const [resultPosition, setResultPosition] = useState<number | null>(null)
+  const [resultIsItm, setResultIsItm] = useState(false)
 
   const eliminateMutation = useMutation({
     mutationFn: (vars: { entryId: string; eliminatedByEntryId?: string }) =>
@@ -39,7 +38,9 @@ export function EliminationModal({
       queryClient.invalidateQueries({ queryKey: ['entries', tournamentId] })
       queryClient.invalidateQueries({ queryKey: ['tournament', tournamentId] })
       queryClient.invalidateQueries({ queryKey: ['tables', tournamentId] })
-      setResultPosition((data as { position?: number }).position ?? null)
+      const result = data as { position?: number; isInTheMoney?: boolean }
+      setResultPosition(result.position ?? null)
+      setResultIsItm(result.isInTheMoney ?? false)
       setShowResult(true)
       toast.success(
         `${entry?.person.nickname ?? entry?.person.fullName} eliminado!`,
@@ -55,6 +56,7 @@ export function EliminationModal({
     setEliminatedBy('')
     setShowResult(false)
     setResultPosition(null)
+    setResultIsItm(false)
     onClose()
   }
 
@@ -69,7 +71,6 @@ export function EliminationModal({
   if (!entry) return null
 
   const calculatedPosition = activeEntries.length
-  const isItm = totalEntries > 0 && calculatedPosition <= Math.ceil(totalEntries * 0.3)
 
   const otherActive = activeEntries.filter((e) => e.id !== entry.id)
 
@@ -78,10 +79,10 @@ export function EliminationModal({
       {showResult ? (
         <div className="flex flex-col items-center gap-4 py-4">
           <div
-            className={`rounded-full p-4 ${isItm ? 'bg-accent-green/20' : 'bg-bg-tertiary'}`}
+            className={`rounded-full p-4 ${resultIsItm ? 'bg-accent-green/20' : 'bg-bg-tertiary'}`}
           >
             <Trophy
-              className={`h-8 w-8 ${isItm ? 'text-accent-green' : 'text-text-muted'}`}
+              className={`h-8 w-8 ${resultIsItm ? 'text-accent-green' : 'text-text-muted'}`}
             />
           </div>
           <div className="text-center">
@@ -91,7 +92,7 @@ export function EliminationModal({
             <p className="text-sm text-text-muted">
               {entry.person.nickname ?? entry.person.fullName}
             </p>
-            {isItm && (
+            {resultIsItm && (
               <p className="text-sm font-semibold text-accent-green mt-1">
                 ITM! (In The Money)
               </p>

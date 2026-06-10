@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod/v4'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -51,6 +51,7 @@ export function RankingFormPage() {
   const { homeGameId, id } = useParams<{ homeGameId?: string; id?: string }>()
   const isEditing = Boolean(id)
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [initialized, setInitialized] = useState(!isEditing)
 
@@ -188,6 +189,12 @@ export function RankingFormPage() {
       } else {
         await rankingsApi.create(effectiveHomeGameId, payload)
         toast.success('Ranking criado com sucesso!')
+      }
+      // B1: invalidar caches para a página de origem refletir a edição (ex.: prêmio acumulado)
+      await queryClient.invalidateQueries({ queryKey: ['rankings'] })
+      if (id) {
+        await queryClient.invalidateQueries({ queryKey: ['ranking', id] })
+        await queryClient.invalidateQueries({ queryKey: ['ranking-leaderboard', id] })
       }
       if (effectiveHomeGameId) {
         navigate(`/home-games/${effectiveHomeGameId}?tab=rankings`)

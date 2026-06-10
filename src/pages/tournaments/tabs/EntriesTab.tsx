@@ -260,10 +260,10 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
           {filtered.map((entry) => (
             <div
               key={entry.id}
-              className={`flex flex-wrap items-center gap-3 rounded-lg border p-3 ${getRowBorderColor(entry)}`}
+              className={`flex flex-col gap-3 rounded-lg border p-3 sm:flex-row sm:flex-wrap sm:items-center ${getRowBorderColor(entry)}`}
             >
               {/* Player info */}
-              <div className="flex items-center gap-3 flex-1 min-w-[200px]">
+              <div className="flex items-center gap-3 w-full sm:flex-1 sm:min-w-[200px]">
                 <Avatar
                   src={entry.person.photoUrl}
                   name={entry.person.nickname ?? entry.person.fullName}
@@ -298,7 +298,7 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
               </div>
 
               {/* Financial info */}
-              <div className="flex items-center gap-4 text-xs text-text-muted">
+              <div className="grid grid-cols-3 gap-2 w-full text-xs text-text-muted sm:flex sm:w-auto sm:items-center sm:gap-4">
                 <div className="text-center">
                   <p>Buy-in</p>
                   <p className="font-semibold text-text-primary">
@@ -368,7 +368,7 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
               </div>
 
               {/* Action buttons */}
-              <div className="flex items-center gap-1 flex-shrink-0">
+              <div className="flex items-center gap-1 w-full justify-end sm:w-auto sm:flex-shrink-0">
                 {(entry.status === 'Eliminated' || entry.status === 'Awarded') && (
                   <Button
                     variant="ghost"
@@ -461,7 +461,6 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
         entry={eliminateEntry}
         activeEntries={activeEntries}
         tournamentId={tournament.id}
-        totalEntries={tournament.totalEntries}
       />
 
       <ConfirmDialog
