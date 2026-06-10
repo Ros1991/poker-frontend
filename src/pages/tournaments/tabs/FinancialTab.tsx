@@ -53,7 +53,7 @@ export function FinancialTab({ tournament, entries }: FinancialTabProps) {
   const paymentPct = totalDue > 0 ? (totalPaid / totalDue) * 100 : 0
 
   const pendingEntries = entries.filter(
-    (e) => e.paymentStatus !== 'Pago' && e.balance > 0,
+    (e) => e.paymentStatus !== 'Paid' && e.balance > 0,
   )
 
   return (

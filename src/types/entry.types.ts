@@ -51,5 +51,5 @@ export interface AddonRequest {
 export interface EliminateRequest {
   entryId: string
   position?: number
-  eliminatedByPersonId?: string
+  eliminatedByEntryId?: string
 }

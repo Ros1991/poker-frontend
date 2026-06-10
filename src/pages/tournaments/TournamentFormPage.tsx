@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
-import { useForm } from 'react-hook-form'
+import { useForm, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -60,7 +60,7 @@ export function TournamentFormPage() {
     reset,
     formState: { errors },
   } = useForm<TournamentFormData>({
-    resolver: zodResolver(tournamentSchema),
+    resolver: zodResolver(tournamentSchema) as Resolver<TournamentFormData>,
     defaultValues: {
       name: '',
       date: '',
@@ -167,7 +167,7 @@ export function TournamentFormPage() {
     mutationFn: (data: Record<string, unknown>) =>
       tournamentsApi.create(
         homeGameId!,
-        data as Parameters<typeof tournamentsApi.create>[1],
+        data as unknown as Parameters<typeof tournamentsApi.create>[1],
       ),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['tournaments'] })
@@ -187,7 +187,7 @@ export function TournamentFormPage() {
       tournamentsApi.update(
         homeGameId!,
         tournamentId!,
-        data as Parameters<typeof tournamentsApi.update>[2],
+        data as unknown as Parameters<typeof tournamentsApi.update>[2],
       ),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['tournaments'] })

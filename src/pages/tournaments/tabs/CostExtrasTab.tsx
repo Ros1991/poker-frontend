@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useForm } from 'react-hook-form'
+import { useForm, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
@@ -42,7 +42,7 @@ export function CostExtrasTab({ tournament }: CostExtrasTabProps) {
     reset,
     formState: { errors },
   } = useForm<CostExtraFormData>({
-    resolver: zodResolver(costExtraSchema),
+    resolver: zodResolver(costExtraSchema) as Resolver<CostExtraFormData>,
     defaultValues: {
       description: '',
       amount: 0,

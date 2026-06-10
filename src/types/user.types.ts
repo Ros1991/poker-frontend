@@ -2,23 +2,27 @@ export type UserRole = 'Admin' | 'TournamentDirector' | 'Dealer' | 'Player'
 
 export interface User {
   id: string
-  personId: string
-  personName: string
   email: string
+  name: string
   role: UserRole
   isActive: boolean
-  createdAt: string
+  photoUrl: string | null
 }
 
 export interface CreateUserRequest {
-  personId: string
+  fullName: string
+  nickname?: string
   email: string
+  whatsapp?: string
   password: string
   role: UserRole
 }
 
 export interface UpdateUserRequest {
+  fullName?: string
+  nickname?: string
   email?: string
+  whatsapp?: string
   password?: string
   role?: UserRole
   isActive?: boolean

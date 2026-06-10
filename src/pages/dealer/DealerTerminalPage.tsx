@@ -23,7 +23,6 @@ import * as tournamentDealersApi from '../../api/tournamentDealers.api'
 import * as timerApi from '../../api/timer.api'
 import { useBlindTimer } from '../../hooks/useBlindTimer'
 import { useWebSocket } from '../../hooks/useWebSocket'
-import { useAuth } from '../../hooks/useAuth'
 import { Button } from '../../components/ui/Button'
 import { Avatar } from '../../components/ui/Avatar'
 import { Badge } from '../../components/ui/Badge'
@@ -44,7 +43,6 @@ function formatCurrency(value: number): string {
 export function DealerTerminalPage() {
   const { tournamentId } = useParams<{ tournamentId: string }>()
   const queryClient = useQueryClient()
-  const { user } = useAuth()
   const [selectedTableId, setSelectedTableId] = useState<string | null>(null)
   const [tableModalOpen, setTableModalOpen] = useState(false)
   const [paymentEntry, setPaymentEntry] = useState<TournamentEntry | null>(null)
@@ -71,7 +69,7 @@ export function DealerTerminalPage() {
     enabled: !!tournamentId,
   })
 
-  const { data: dealers } = useQuery({
+  useQuery({
     queryKey: ['tournamentDealers', tournamentId],
     queryFn: () => tournamentDealersApi.getAll(tournamentId!),
     enabled: !!tournamentId,
@@ -96,20 +94,11 @@ export function DealerTerminalPage() {
     onTimerUpdate: (state) => syncFromServer(state as TimerState),
   })
 
-  // Auto-select default table
+  // Auto-select default table (sem vínculo user->dealer no modelo atual)
   useEffect(() => {
     if (selectedTableId || !tables || tables.length === 0) return
-    // Dealer's own table?
-    const myDealer = dealers?.find((d) => d.personId === user?.personId)
-    if (myDealer) {
-      const myTable = tables.find((t) => t.dealerPersonId === user?.personId)
-      if (myTable) {
-        setSelectedTableId(myTable.id)
-        return
-      }
-    }
     setSelectedTableId(tables[0].id)
-  }, [tables, dealers, user, selectedTableId])
+  }, [tables, selectedTableId])
 
   const selectedTable = tables?.find((t) => t.id === selectedTableId) ?? null
 
@@ -503,7 +492,7 @@ export function DealerTerminalPage() {
                   e.tableId === t.id &&
                   (e.status === 'Active' || e.status === 'Registered'),
               ).length ?? 0
-            const isMine = t.dealerPersonId === user?.personId
+            const isMine = false
             return (
               <button
                 key={t.id}

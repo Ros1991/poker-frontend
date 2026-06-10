@@ -16,10 +16,10 @@ import type { TournamentStatus } from '../../types/tournament.types'
 
 const STATUS_FILTERS: { key: TournamentStatus | 'all'; label: string }[] = [
   { key: 'all', label: 'Todos' },
-  { key: 'Criado', label: 'Rascunho' },
-  { key: 'InscricoesAbertas', label: 'Aberto' },
-  { key: 'EmAndamento', label: 'Em Andamento' },
-  { key: 'Finalizado', label: 'Encerrado' },
+  { key: 'Draft', label: 'Rascunho' },
+  { key: 'OpenForRegistration', label: 'Aberto' },
+  { key: 'InProgress', label: 'Em Andamento' },
+  { key: 'Finished', label: 'Encerrado' },
 ]
 
 function formatCurrency(value: number): string {
@@ -48,11 +48,11 @@ export function TournamentListPage() {
   const { data, isLoading, isError } = useQuery({
     queryKey: ['tournaments', homeGameId, search],
     queryFn: () =>
-      tournamentsApi.getAll({
-        homeGameId,
+      tournamentsApi.getAll(homeGameId!, {
         search: search || undefined,
         pageSize: 100,
       }),
+    enabled: Boolean(homeGameId),
   })
 
   const tournaments = data?.data ?? []

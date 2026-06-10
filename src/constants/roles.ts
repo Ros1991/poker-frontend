@@ -1,15 +1,15 @@
 export const USER_ROLES = {
   ADMIN: 'Admin',
-  ORGANIZADOR: 'Organizador',
+  TOURNAMENT_DIRECTOR: 'TournamentDirector',
   DEALER: 'Dealer',
-  JOGADOR: 'Jogador',
+  PLAYER: 'Player',
 } as const
 
 export type UserRole = (typeof USER_ROLES)[keyof typeof USER_ROLES]
 
 export const ROLE_LABELS: Record<UserRole, string> = {
   Admin: 'Administrador',
-  Organizador: 'Organizador',
+  TournamentDirector: 'Organizador',
   Dealer: 'Dealer',
-  Jogador: 'Jogador',
+  Player: 'Jogador',
 }

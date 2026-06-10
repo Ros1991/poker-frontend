@@ -114,7 +114,7 @@ export function UserListPage() {
                       <div className="flex items-center gap-2">
                         <Shield className="h-4 w-4 text-text-muted" />
                         <span className="font-medium text-text-primary">
-                          {user.personName}
+                          {user.name}
                         </span>
                       </div>
                     </td>

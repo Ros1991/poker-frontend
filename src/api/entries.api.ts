@@ -2,8 +2,6 @@ import apiClient from './client'
 import type {
   TournamentEntry,
   CreateEntryRequest,
-  RebuyRequest,
-  AddonRequest,
   EliminateRequest,
 } from '../types/entry.types'
 

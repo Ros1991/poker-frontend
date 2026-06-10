@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation } from '@tanstack/react-query'
@@ -45,7 +45,7 @@ export function HomeGameFormModal({
     reset,
     formState: { errors },
   } = useForm<HomeGameFormData>({
-    resolver: zodResolver(homeGameSchema),
+    resolver: zodResolver(homeGameSchema) as Resolver<HomeGameFormData>,
     defaultValues: {
       name: '',
       description: '',
@@ -105,7 +105,6 @@ export function HomeGameFormModal({
   const updateMutation = useMutation({
     mutationFn: (data: HomeGameFormData) =>
       homeGamesApi.update(homeGame!.id, {
-        id: homeGame!.id,
         name: data.name,
         description: data.description || undefined,
         location: data.location || undefined,

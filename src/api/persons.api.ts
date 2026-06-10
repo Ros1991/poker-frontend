@@ -49,3 +49,19 @@ export async function uploadPhoto(id: string, file: File): Promise<Person> {
   )
   return response.data
 }
+
+export interface PlayerHistoryItem {
+  tournamentId: string
+  tournamentName: string
+  date: string
+  position: number
+  prize: number
+  points: number
+}
+
+export async function getHistory(id: string): Promise<PlayerHistoryItem[]> {
+  const response = await apiClient.get<PlayerHistoryItem[]>(
+    `/Persons/${id}/history`,
+  )
+  return response.data
+}

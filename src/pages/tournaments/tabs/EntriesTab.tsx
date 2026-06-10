@@ -174,8 +174,6 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
   const activeEntries = entries.filter((e) => (e.status === 'Active' || e.status === 'Registered'))
   const isSettlement = tournament.settlementClosed
   const isInProgress =
-    tournament.status === 'EmAndamento' ||
-    tournament.status === 'InscricoesAbertas' ||
     tournament.status === 'Draft' ||
     tournament.status === 'OpenForRegistration' ||
     tournament.status === 'InProgress'

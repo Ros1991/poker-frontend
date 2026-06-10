@@ -1,4 +1,3 @@
-import { useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowLeft, Trophy, Edit } from 'lucide-react'
@@ -10,22 +9,6 @@ import { Avatar } from '../../components/ui/Avatar'
 import { Badge } from '../../components/ui/Badge'
 import { LoadingSpinner } from '../../components/common/LoadingSpinner'
 import { useAuth } from '../../hooks/useAuth'
-
-function evaluateFormula(
-  formula: string,
-  posicao: number,
-  jogadores: number,
-): number | null {
-  try {
-    const fn = new Function('posicao', 'jogadores', `return ${formula}`)
-    const result = fn(posicao, jogadores) as unknown
-    return typeof result === 'number' && isFinite(result)
-      ? Math.round((result as number) * 100) / 100
-      : null
-  } catch {
-    return null
-  }
-}
 
 function positionColor(position: number): string {
   if (position === 1) return 'text-yellow-400'
@@ -82,19 +65,6 @@ export function RankingDetailPage() {
   })
 
   const isLoading = rankingLoading || leaderboardLoading
-
-  const formulaPreview = useMemo(() => {
-    if (!ranking?.scoringFormula) return []
-    const rows: { position: number; points: number | null }[] = []
-    const playerCount = 20
-    for (let i = 1; i <= 10; i++) {
-      rows.push({
-        position: i,
-        points: evaluateFormula(ranking.scoringFormula, i, playerCount),
-      })
-    }
-    return rows
-  }, [ranking?.scoringFormula])
 
   if (isLoading) {
     return (
@@ -212,7 +182,7 @@ export function RankingDetailPage() {
                 </tr>
               </thead>
               <tbody>
-                {leaderboard.map((entry, idx) => (
+                {leaderboard.map((entry) => (
                   <tr
                     key={entry.person.id}
                     className={`border-b last:border-0 ${positionBg(entry.position)} ${

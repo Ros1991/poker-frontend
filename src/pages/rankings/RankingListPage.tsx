@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Plus, Trophy, Calendar, Hash } from 'lucide-react'

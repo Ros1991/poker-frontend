@@ -1,7 +1,6 @@
-import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useForm } from 'react-hook-form'
+import { useForm, type Resolver } from 'react-hook-form'
 import { z } from 'zod/v4'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ArrowLeft } from 'lucide-react'
@@ -15,9 +14,9 @@ import { ROUTES } from '../../constants/routes'
 
 const roleOptions = [
   { value: 'Admin', label: 'Administrador' },
-  { value: 'Organizador', label: 'Organizador' },
+  { value: 'TournamentDirector', label: 'Organizador' },
   { value: 'Dealer', label: 'Dealer' },
-  { value: 'Jogador', label: 'Jogador' },
+  { value: 'Player', label: 'Jogador' },
 ]
 
 const createUserSchema = z
@@ -28,7 +27,7 @@ const createUserSchema = z
     whatsapp: z.string().optional(),
     password: z.string().min(6, 'Senha deve ter pelo menos 6 caracteres'),
     confirmPassword: z.string().min(1, 'Confirme a senha'),
-    role: z.enum(['Admin', 'Organizador', 'Dealer', 'Jogador']),
+    role: z.enum(['Admin', 'TournamentDirector', 'Dealer', 'Player']),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: 'As senhas nao coincidem',
@@ -43,7 +42,7 @@ const editUserSchema = z
     whatsapp: z.string().optional(),
     password: z.string().optional(),
     confirmPassword: z.string().optional(),
-    role: z.enum(['Admin', 'Organizador', 'Dealer', 'Jogador']),
+    role: z.enum(['Admin', 'TournamentDirector', 'Dealer', 'Player']),
   })
   .refine(
     (data) => {
@@ -79,7 +78,9 @@ export function UserFormPage() {
     handleSubmit,
     formState: { errors },
   } = useForm<UserFormData>({
-    resolver: zodResolver(isEditing ? editUserSchema : createUserSchema),
+    resolver: zodResolver(
+      isEditing ? editUserSchema : createUserSchema,
+    ) as Resolver<UserFormData>,
     values: user
       ? {
           fullName: user.name,
