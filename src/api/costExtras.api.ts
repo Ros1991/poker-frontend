@@ -53,3 +53,10 @@ export async function unpay(
     `/tournaments/${tournamentId}/cost-extras/${costId}/unpay`,
   )
 }
+
+export async function remove(
+  tournamentId: string,
+  costId: string,
+): Promise<void> {
+  await apiClient.delete(`/tournaments/${tournamentId}/cost-extras/${costId}`)
+}

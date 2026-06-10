@@ -160,10 +160,16 @@ export function TournamentListPage() {
               TOURNAMENT_STATUS_LABELS[tournament.status] ?? tournament.status
 
             return (
-              <button
+              <div
                 key={tournament.id}
+                role="button"
+                tabIndex={0}
                 onClick={() => navigate(tournamentDashboardPath(tournament.id))}
-                className="flex flex-col gap-3 rounded-xl border border-border-default bg-bg-secondary p-4 text-left transition-colors hover:border-accent-blue/50 hover:bg-bg-secondary/80"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter')
+                    navigate(tournamentDashboardPath(tournament.id))
+                }}
+                className="flex flex-col gap-3 rounded-xl border border-border-default bg-bg-secondary p-4 text-left transition-colors cursor-pointer hover:border-accent-blue/50 hover:bg-bg-secondary/80"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
@@ -174,7 +180,25 @@ export function TournamentListPage() {
                       {tournament.homeGameName}
                     </p>
                   </div>
-                  <Badge className={statusColor}>{statusLabel}</Badge>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Badge className={statusColor}>{statusLabel}</Badge>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        if (
+                          window.confirm(
+                            `Excluir o torneio "${tournament.name}"? Ele deixará de contar para o ranking.`,
+                          )
+                        )
+                          deleteMutation.mutate(tournament.id)
+                      }}
+                      className="p-1 rounded text-text-muted hover:text-accent-red hover:bg-red-500/10 transition-colors"
+                      title="Excluir torneio"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-4 text-xs text-text-muted">
@@ -202,7 +226,7 @@ export function TournamentListPage() {
                     </p>
                   </div>
                 </div>
-              </button>
+              </div>
             )
           })}
         </div>

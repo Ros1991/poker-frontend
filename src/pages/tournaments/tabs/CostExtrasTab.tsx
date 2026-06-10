@@ -4,7 +4,7 @@ import { useForm, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
-import { Plus, DollarSign, Check, Banknote, Building2, X } from 'lucide-react'
+import { Plus, DollarSign, Check, Banknote, Building2, X, Pencil, Trash2 } from 'lucide-react'
 import * as costExtrasApi from '../../../api/costExtras.api'
 import { Button } from '../../../components/ui/Button'
 import { Input } from '../../../components/ui/Input'
@@ -12,6 +12,7 @@ import { Modal } from '../../../components/ui/Modal'
 import { Badge } from '../../../components/ui/Badge'
 import { LoadingSpinner } from '../../../components/common/LoadingSpinner'
 import type { Tournament } from '../../../types/tournament.types'
+import type { CostExtra } from '../../../types/costExtra.types'
 
 interface CostExtrasTabProps {
   tournament: Tournament
@@ -35,6 +36,7 @@ function formatCurrency(value: number): string {
 export function CostExtrasTab({ tournament }: CostExtrasTabProps) {
   const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
+  const [editingCost, setEditingCost] = useState<CostExtra | null>(null)
 
   const {
     register,
@@ -98,6 +100,42 @@ export function CostExtrasTab({ tournament }: CostExtrasTabProps) {
     onError: () => toast.error('Erro ao reverter pagamento.'),
   })
 
+  const removeMutation = useMutation({
+    mutationFn: (id: string) => costExtrasApi.remove(tournament.id, id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['costExtras', tournament.id] })
+      queryClient.invalidateQueries({ queryKey: ['tournament', tournament.id] })
+      toast.success('Custo excluído.')
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+      toast.error(msg || 'Erro ao excluir custo.')
+    },
+  })
+
+  const editMutation = useMutation({
+    mutationFn: (vars: { id: string; data: CostExtraFormData }) =>
+      costExtrasApi.update(tournament.id, vars.id, {
+        description: vars.data.description,
+        amount: vars.data.amount,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['costExtras', tournament.id] })
+      queryClient.invalidateQueries({ queryKey: ['tournament', tournament.id] })
+      toast.success('Custo atualizado!')
+      setShowForm(false)
+      setEditingCost(null)
+      reset()
+    },
+    onError: () => toast.error('Erro ao atualizar custo.'),
+  })
+
+  function openEdit(cost: CostExtra) {
+    setEditingCost(cost)
+    reset({ description: cost.description, amount: cost.amount, paidByPersonId: '' })
+    setShowForm(true)
+  }
+
   const totalCosts =
     costs?.reduce((sum, c) => sum + c.amount, 0) ?? 0
 
@@ -116,7 +154,14 @@ export function CostExtrasTab({ tournament }: CostExtrasTabProps) {
             Total: {formatCurrency(totalCosts)}
           </p>
         </div>
-        <Button size="sm" onClick={() => setShowForm(true)}>
+        <Button
+          size="sm"
+          onClick={() => {
+            setEditingCost(null)
+            reset()
+            setShowForm(true)
+          }}
+        >
           <Plus className="h-4 w-4" />
           Adicionar Custo
         </Button>
@@ -203,6 +248,29 @@ export function CostExtrasTab({ tournament }: CostExtrasTabProps) {
                     </button>
                   </div>
                 )}
+                <div className="flex items-center gap-0.5 shrink-0">
+                  {!isPaid && (
+                    <button
+                      type="button"
+                      onClick={() => openEdit(cost)}
+                      className="p-1 rounded text-text-muted hover:text-accent-blue hover:bg-accent-blue/10 transition-colors"
+                      title="Editar custo"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (window.confirm(`Excluir o custo "${cost.description}"?`))
+                        removeMutation.mutate(cost.id)
+                    }}
+                    className="p-1 rounded text-text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                    title="Excluir custo"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </div>
             )
           })}
@@ -214,13 +282,17 @@ export function CostExtrasTab({ tournament }: CostExtrasTabProps) {
         isOpen={showForm}
         onClose={() => {
           setShowForm(false)
+          setEditingCost(null)
           reset()
         }}
-        title="Adicionar Custo Extra"
+        title={editingCost ? 'Editar Custo Extra' : 'Adicionar Custo Extra'}
         size="sm"
       >
         <form
-          onSubmit={handleSubmit((data) => createMutation.mutate(data))}
+          onSubmit={handleSubmit((data) => {
+            if (editingCost) editMutation.mutate({ id: editingCost.id, data })
+            else createMutation.mutate(data)
+          })}
           className="flex flex-col gap-4"
         >
           <Input
@@ -242,14 +314,18 @@ export function CostExtrasTab({ tournament }: CostExtrasTabProps) {
               variant="ghost"
               onClick={() => {
                 setShowForm(false)
+                setEditingCost(null)
                 reset()
               }}
-              disabled={createMutation.isPending}
+              disabled={createMutation.isPending || editMutation.isPending}
             >
               Cancelar
             </Button>
-            <Button type="submit" loading={createMutation.isPending}>
-              Adicionar
+            <Button
+              type="submit"
+              loading={createMutation.isPending || editMutation.isPending}
+            >
+              {editingCost ? 'Salvar' : 'Adicionar'}
             </Button>
           </div>
         </form>
