@@ -41,6 +41,7 @@ export function TablesTab({ tournament }: TablesTabProps) {
     tableNumber: number
     seatNumber: number
   } | null>(null)
+  const [draggedEntryId, setDraggedEntryId] = useState<string | null>(null)
 
   const {
     data: tables,
@@ -307,6 +308,22 @@ export function TablesTab({ tournament }: TablesTabProps) {
                     <button
                       type="button"
                       key={seatNum}
+                      draggable={!!player}
+                      onDragStart={() => player && setDraggedEntryId(player.id)}
+                      onDragEnd={() => setDraggedEntryId(null)}
+                      onDragOver={(e) => {
+                        if (draggedEntryId) e.preventDefault()
+                      }}
+                      onDrop={() => {
+                        if (draggedEntryId && draggedEntryId !== player?.id) {
+                          moveMutation.mutate({
+                            entryId: draggedEntryId,
+                            toTableId: table.id,
+                            toSeat: seatNum,
+                          })
+                        }
+                        setDraggedEntryId(null)
+                      }}
                       onClick={() => {
                         if (player) {
                           setMovePlayerEntry({
