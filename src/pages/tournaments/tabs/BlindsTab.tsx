@@ -20,7 +20,6 @@ import { tournamentEditPath } from '../../../constants/routes'
 import * as timerApi from '../../../api/timer.api'
 import * as tournamentBlindsApi from '../../../api/tournamentBlinds.api'
 import type { TournamentBlindLevel } from '../../../api/tournamentBlinds.api'
-import { useBlindTimer } from '../../../hooks/useBlindTimer'
 import { Button } from '../../../components/ui/Button'
 import { LoadingSpinner } from '../../../components/common/LoadingSpinner'
 import type { Tournament } from '../../../types/tournament.types'
@@ -43,7 +42,14 @@ export function BlindsTab({
 }: BlindsTabProps) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
-  const { formattedTime: _formattedTime, progressPercentage } = useBlindTimer()
+  // RT-04: derivar o progresso do timerState recebido por props (antes era uma
+  // 2ª instância morta de useBlindTimer que nunca sincronizava → barra travada em 0%)
+  const progressPercentage =
+    timerState.totalSeconds > 0
+      ? ((timerState.totalSeconds - timerState.remainingSeconds) /
+          timerState.totalSeconds) *
+        100
+      : 0
 
   const [editMode, setEditMode] = useState(false)
   const [draft, setDraft] = useState<TournamentBlindLevel[]>([])

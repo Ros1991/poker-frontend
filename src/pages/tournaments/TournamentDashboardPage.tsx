@@ -156,6 +156,9 @@ export function TournamentDashboardPage() {
       queryClient.invalidateQueries({ queryKey: ['tournament', id] })
       queryClient.invalidateQueries({ queryKey: ['tournaments'] })
       queryClient.invalidateQueries({ queryKey: ['tournaments', vars.homeGameId] })
+      // RT-03: o leaderboard do ranking depende do status do torneio (Finished)
+      queryClient.invalidateQueries({ queryKey: ['ranking-leaderboard'] })
+      queryClient.invalidateQueries({ queryKey: ['rankings'] })
       toast.success('Status atualizado!')
       setStatusConfirm(null)
       // Se cancelou, voltar para a lista de torneios do home game

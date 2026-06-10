@@ -55,18 +55,21 @@ export function DealerTerminalPage() {
     queryKey: ['tournament', tournamentId],
     queryFn: () => tournamentsApi.getById(tournamentId!),
     enabled: !!tournamentId,
+    refetchInterval: 8000,
   })
 
   const { data: entries, isLoading: entriesLoading } = useQuery({
     queryKey: ['entries', tournamentId],
     queryFn: () => entriesApi.getAll(tournamentId!),
     enabled: !!tournamentId,
+    refetchInterval: 8000,
   })
 
   const { data: tables } = useQuery({
     queryKey: ['tables', tournamentId],
     queryFn: () => tablesApi.getAll(tournamentId!),
     enabled: !!tournamentId,
+    refetchInterval: 8000,
   })
 
   useQuery({
