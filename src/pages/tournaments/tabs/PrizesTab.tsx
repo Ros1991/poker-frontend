@@ -56,6 +56,7 @@ export function PrizesTab({ tournament, entries }: PrizesTabProps) {
       ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tournament', tournament.id] })
+      queryClient.invalidateQueries({ queryKey: ['entries', tournament.id] })
       toast.success('Premiação confirmada!')
     },
     onError: (err: unknown) => {
@@ -65,9 +66,31 @@ export function PrizesTab({ tournament, entries }: PrizesTabProps) {
     },
   })
 
-  // Calcular automaticamente ao montar
+  // Carregar prêmios SALVOS quando a premiação já foi confirmada (em vez de recalcular)
+  const savedMutation = useMutation({
+    mutationFn: () => prizesApi.getSaved(tournament.id),
+    onSuccess: (data) => {
+      setPrizes(
+        data.map((p) => ({
+          position: p.position,
+          amount: p.amount,
+          percentage: p.percentage,
+        })),
+      )
+      setCalculation({
+        grossPrizePool: tournament.totalPrizePool,
+        totalCosts: tournament.totalCosts,
+        netPrizePool: tournament.netPrizePool,
+      })
+    },
+  })
+
+  // Ao montar: se a premiação foi confirmada, lê os prêmios salvos; senão, calcula
   useEffect(() => {
-    if (prizes.length === 0 && !calculateMutation.isPending) {
+    if (prizes.length > 0) return
+    if (tournament.prizeConfirmed) {
+      if (!savedMutation.isPending) savedMutation.mutate()
+    } else if (!calculateMutation.isPending) {
       calculateMutation.mutate(numWinners)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

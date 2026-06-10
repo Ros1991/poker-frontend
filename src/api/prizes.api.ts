@@ -34,3 +34,21 @@ export async function confirm(
     prizes,
   })
 }
+
+export interface SavedPrize {
+  id: string
+  position: number
+  amount: number
+  percentage: number
+  entryId: string | null
+  paid: boolean
+  paidAt: string | null
+  playerName: string | null
+}
+
+export async function getSaved(tournamentId: string): Promise<SavedPrize[]> {
+  const response = await apiClient.get<SavedPrize[]>(
+    `/tournaments/${tournamentId}/prizes`,
+  )
+  return response.data
+}
