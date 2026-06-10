@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { useParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Users, Trophy, Clock, Skull } from 'lucide-react'
 import * as tournamentsApi from '../../api/tournaments.api'
 import * as entriesApi from '../../api/entries.api'
@@ -21,6 +21,7 @@ function formatCurrency(value: number): string {
 
 export function TvDisplayPage() {
   const { tournamentId } = useParams<{ tournamentId: string }>()
+  const queryClient = useQueryClient()
 
   const { data: tournament } = useQuery({
     queryKey: ['tournament', tournamentId],
@@ -52,7 +53,9 @@ export function TvDisplayPage() {
   })
 
   const { timerState, syncFromServer, formattedTime, progressPercentage } =
-    useBlindTimer()
+    useBlindTimer(() => {
+      void queryClient.invalidateQueries({ queryKey: ['timer', tournamentId] })
+    })
 
   // Initial fetch of timer state (and periodic refresh as fallback)
   useQuery({

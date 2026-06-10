@@ -99,7 +99,9 @@ export function TournamentDashboardPage() {
     enabled: !!id,
   })
 
-  const { timerState, formattedTime, syncFromServer } = useBlindTimer()
+  const { timerState, formattedTime, syncFromServer } = useBlindTimer(() => {
+    void queryClient.invalidateQueries({ queryKey: ['timer', id] })
+  })
 
   // Buscar estado inicial do timer + refresh periodico
   useQuery({

@@ -16,16 +16,23 @@ const DEFAULT_TIMER_STATE: TimerState = {
   isBreak: false,
 }
 
-export function useBlindTimer() {
+export function useBlindTimer(onExpire?: () => void) {
   const [timerState, setTimerState] = useState<TimerState>(DEFAULT_TIMER_STATE)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const lastServerSyncRef = useRef<number>(Date.now())
   const serverRemainingRef = useRef<number>(0)
+  const expiredRef = useRef<boolean>(false)
+  const onExpireRef = useRef(onExpire)
+
+  useEffect(() => {
+    onExpireRef.current = onExpire
+  }, [onExpire])
 
   const syncFromServer = useCallback((serverState: TimerState) => {
     setTimerState(serverState)
     lastServerSyncRef.current = Date.now()
     serverRemainingRef.current = serverState.remainingSeconds
+    if (serverState.remainingSeconds > 0) expiredRef.current = false
   }, [])
 
   useEffect(() => {
@@ -49,6 +56,13 @@ export function useBlindTimer() {
           0,
           serverRemainingRef.current - elapsedSinceSync,
         )
+
+        // B4: ao zerar (nível acabou), dispara onExpire uma vez para ressincronizar
+        // com o servidor, que auto-avança o nível (server-authoritative).
+        if (correctedRemaining === 0 && !expiredRef.current) {
+          expiredRef.current = true
+          setTimeout(() => onExpireRef.current?.(), 0)
+        }
 
         return {
           ...prev,
