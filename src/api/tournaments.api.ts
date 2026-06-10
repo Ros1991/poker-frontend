@@ -55,3 +55,7 @@ export async function updateStatus(
   )
   return response.data
 }
+
+export async function remove(homeGameId: string, id: string): Promise<void> {
+  await apiClient.delete(`/home-games/${homeGameId}/Tournaments/${id}`)
+}
