@@ -67,6 +67,30 @@ export function TablesTab({ tournament }: TablesTabProps) {
     Math.ceil(activePlayerCount / seatsNum),
   )
 
+  // B6: detectar desbalanceamento de mesas (diferença >= 2 entre a maior e a menor)
+  const tableCounts = (tables ?? []).map((t) => ({
+    t,
+    count: entries.filter(
+      (e) =>
+        e.tableId === t.id &&
+        (e.status === 'Active' || e.status === 'Registered'),
+    ).length,
+  }))
+  const occupiedTables = tableCounts.filter((tc) => tc.count > 0)
+  let imbalance: { from: number; to: number; move: number } | null = null
+  if (occupiedTables.length >= 2) {
+    const maxTc = occupiedTables.reduce((a, b) => (b.count > a.count ? b : a))
+    const minTc = occupiedTables.reduce((a, b) => (b.count < a.count ? b : a))
+    const diff = maxTc.count - minTc.count
+    if (diff >= 2) {
+      imbalance = {
+        from: maxTc.t.tableNumber,
+        to: minTc.t.tableNumber,
+        move: Math.floor(diff / 2),
+      }
+    }
+  }
+
   const moveMutation = useMutation({
     mutationFn: (vars: { entryId: string; toTableId: string; toSeat: number }) =>
       tablesApi.movePlayer(tournament.id, vars),
@@ -81,6 +105,18 @@ export function TablesTab({ tournament }: TablesTabProps) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
       toast.error(msg || 'Erro ao mover jogador.')
     },
+  })
+
+  const unseatMutation = useMutation({
+    mutationFn: (entryId: string) =>
+      tablesApi.unseatPlayer(tournament.id, entryId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tables', tournament.id] })
+      queryClient.invalidateQueries({ queryKey: ['entries', tournament.id] })
+      toast.success('Jogador removido da mesa.')
+      setMovePlayerEntry(null)
+    },
+    onError: () => toast.error('Erro ao remover jogador da mesa.'),
   })
 
   const setDealerMutation = useMutation({
@@ -201,6 +237,19 @@ export function TablesTab({ tournament }: TablesTabProps) {
           </Button>
         </div>
       </div>
+
+      {imbalance && (
+        <div className="flex items-start gap-3 rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3">
+          <Users className="h-5 w-5 text-yellow-400 flex-shrink-0 mt-0.5" />
+          <div className="text-sm">
+            <p className="font-medium text-text-primary">Mesas desbalanceadas</p>
+            <p className="text-text-secondary">
+              Mova {imbalance.move} jogador(es) da Mesa {imbalance.from} para a
+              Mesa {imbalance.to}.
+            </p>
+          </div>
+        </div>
+      )}
 
       {(!tables || tables.length === 0) && (
         <div className="text-center py-12">
@@ -520,6 +569,20 @@ export function TablesTab({ tournament }: TablesTabProps) {
             </div>
 
             <div className="flex gap-3 justify-end">
+              <Button
+                variant="danger"
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      `Remover ${movePlayerEntry.name} da mesa? Ele continua ativo, mas sem assento.`,
+                    )
+                  )
+                    unseatMutation.mutate(movePlayerEntry.entryId)
+                }}
+                loading={unseatMutation.isPending}
+              >
+                Remover da mesa
+              </Button>
               <Button
                 variant="ghost"
                 onClick={() => {

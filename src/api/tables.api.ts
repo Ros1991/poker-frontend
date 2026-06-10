@@ -70,3 +70,10 @@ export async function movePlayer(
     data,
   )
 }
+
+export async function unseatPlayer(
+  tournamentId: string,
+  entryId: string,
+): Promise<void> {
+  await apiClient.post(`/tournaments/${tournamentId}/tables/unseat`, { entryId })
+}
