@@ -35,6 +35,7 @@ export interface Tournament {
   settlementClosed: boolean
   blindStructureId: string | null
   seatsPerTable: number
+  responsiblePixKey: string | null
   createdAt: string
   updatedAt: string
 }
@@ -53,6 +54,7 @@ export interface CreateTournamentRequest {
   addonDoubleAllowed?: boolean
   blindStructureId?: string
   seatsPerTable?: number
+  responsiblePixKey?: string
 }
 
 export interface UpdateTournamentRequest extends Partial<CreateTournamentRequest> {

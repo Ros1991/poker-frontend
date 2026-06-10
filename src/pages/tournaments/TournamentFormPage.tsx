@@ -28,6 +28,7 @@ const tournamentSchema = z.object({
   addonAllowed: z.boolean(),
   addonDoubleAllowed: z.boolean(),
   seatsPerTable: z.coerce.number().min(2, 'Mínimo 2').max(12, 'Máximo 12'),
+  responsiblePixKey: z.string().optional(),
 })
 
 type TournamentFormData = z.infer<typeof tournamentSchema>
@@ -74,6 +75,7 @@ export function TournamentFormPage() {
       addonAllowed: true,
       addonDoubleAllowed: false,
       seatsPerTable: 9,
+      responsiblePixKey: '',
     },
   })
 
@@ -160,6 +162,7 @@ export function TournamentFormPage() {
       addonAllowed: existingTournament.addonAllowed,
       addonDoubleAllowed: existingTournament.addonDoubleAllowed,
       seatsPerTable: existingTournament.seatsPerTable,
+      responsiblePixKey: existingTournament.responsiblePixKey ?? '',
     })
   }, [isEditMode, existingTournament, reset])
 
@@ -272,6 +275,14 @@ export function TournamentFormPage() {
             error={errors.date?.message}
           />
         </div>
+
+        {/* PIX do responsável pelo torneio no dia (opcional) */}
+        <Input
+          label="PIX do responsável (no dia) — opcional"
+          {...register('responsiblePixKey')}
+          error={errors.responsiblePixKey?.message}
+          placeholder="CPF, e-mail, telefone ou chave aleatória"
+        />
 
         {/* Estrutura e Ranking */}
         <div className="grid gap-4 sm:grid-cols-2">
