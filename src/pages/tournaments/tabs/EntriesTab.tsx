@@ -157,17 +157,16 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
     })
     .slice()
     .sort((a, b) => {
-      const aEliminated = a.status === 'Eliminated' || a.status === 'Awarded'
-      const bEliminated = b.status === 'Eliminated' || b.status === 'Awarded'
-      // Ativos vem primeiro
-      if (aEliminated !== bEliminated) return aEliminated ? 1 : -1
-      // Entre eliminados: ultimo eliminado primeiro (mais recente no topo dos eliminados)
-      if (aEliminated && bEliminated) {
-        const aTime = a.eliminatedAt ? new Date(a.eliminatedAt).getTime() : 0
-        const bTime = b.eliminatedAt ? new Date(b.eliminatedAt).getTime() : 0
-        return bTime - aTime
+      const finishedStatuses = ['Eliminated', 'Awarded', 'PaidOut']
+      const aFinished = finishedStatuses.includes(a.status)
+      const bFinished = finishedStatuses.includes(b.status)
+      // Ativos vem primeiro; ao terminar, sobram so finalizados (1º no topo)
+      if (aFinished !== bFinished) return aFinished ? 1 : -1
+      // Entre finalizados: por posicao final crescente (1º, 2º, 3º...)
+      if (aFinished && bFinished) {
+        return (a.finalPosition ?? 9999) - (b.finalPosition ?? 9999)
       }
-      // Entre ativos: ordem original (por id ou nome)
+      // Entre ativos: ordem original
       return 0
     })
 
@@ -281,6 +280,14 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
                     >
                       {ENTRY_STATUS_LABELS[entry.status as EntryStatus] ??
                         entry.status}
+                      {entry.finalPosition
+                        ? ` ${entry.finalPosition}º`
+                        : ''}
+                      {(entry.status === 'Awarded' ||
+                        entry.status === 'PaidOut') &&
+                      entry.prizeAmount
+                        ? ` · ${formatCurrency(entry.prizeAmount)}`
+                        : ''}
                     </Badge>
                     <Badge
                       className={

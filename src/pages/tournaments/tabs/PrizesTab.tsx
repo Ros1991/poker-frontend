@@ -57,7 +57,7 @@ export function PrizesTab({ tournament, entries }: PrizesTabProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tournament', tournament.id] })
       queryClient.invalidateQueries({ queryKey: ['entries', tournament.id] })
-      toast.success('Premiação confirmada!')
+      toast.success('Premiação salva!')
     },
     onError: (err: unknown) => {
       const msg = (err as { response?: { data?: { message?: string } } })
@@ -162,30 +162,28 @@ export function PrizesTab({ tournament, entries }: PrizesTabProps) {
         </div>
       </div>
 
-      {/* Calculate section */}
-      {!tournament.prizeConfirmed && (
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-text-secondary">
-              Quantidade de premiados
-            </label>
-            <input
-              type="number"
-              value={numWinners}
-              onChange={(e) => setNumWinners(Math.max(1, parseInt(e.target.value) || 1))}
-              min={1}
-              className="w-32 rounded-lg border border-border-default bg-bg-input px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-border-focus"
-            />
-          </div>
-          <Button
-            onClick={() => calculateMutation.mutate(numWinners)}
-            loading={calculateMutation.isPending}
-          >
-            <Calculator className="h-4 w-4" />
-            Calcular Premiação
-          </Button>
+      {/* Calculo — sempre disponivel; confirmar funciona como salvar */}
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-text-secondary">
+            Quantidade de premiados
+          </label>
+          <input
+            type="number"
+            value={numWinners}
+            onChange={(e) => setNumWinners(Math.max(1, parseInt(e.target.value) || 1))}
+            min={1}
+            className="w-32 rounded-lg border border-border-default bg-bg-input px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-border-focus"
+          />
         </div>
-      )}
+        <Button
+          onClick={() => calculateMutation.mutate(numWinners)}
+          loading={calculateMutation.isPending}
+        >
+          <Calculator className="h-4 w-4" />
+          Recalcular
+        </Button>
+      </div>
 
       {/* Allocations table */}
       {prizes.length > 0 && (
@@ -208,7 +206,7 @@ export function PrizesTab({ tournament, entries }: PrizesTabProps) {
                       Vencedor
                     </th>
                   )}
-                  {!tournament.prizeConfirmed && <th className="px-3 py-2 w-12"></th>}
+                  <th className="px-3 py-2 w-12"></th>
                 </tr>
               </thead>
               <tbody>
@@ -238,21 +236,15 @@ export function PrizesTab({ tournament, entries }: PrizesTabProps) {
                         </span>
                       </td>
                       <td className="px-3 py-2 text-right">
-                        {tournament.prizeConfirmed ? (
-                          <span className="font-semibold text-accent-green">
-                            {formatCurrency(prize.amount)}
-                          </span>
-                        ) : (
-                          <input
-                            type="number"
-                            step="50"
-                            value={prize.amount}
-                            onChange={(e) =>
-                              updatePrize(index, parseFloat(e.target.value) || 0)
-                            }
-                            className="w-32 rounded border border-border-default bg-bg-input px-2 py-1 text-right text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-border-focus"
-                          />
-                        )}
+                        <input
+                          type="number"
+                          step="50"
+                          value={prize.amount}
+                          onChange={(e) =>
+                            updatePrize(index, parseFloat(e.target.value) || 0)
+                          }
+                          className="w-32 rounded border border-border-default bg-bg-input px-2 py-1 text-right text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-border-focus"
+                        />
                       </td>
                       <td className="px-3 py-2 text-right text-text-muted">
                         {prize.percentage.toFixed(1)}%
@@ -270,18 +262,16 @@ export function PrizesTab({ tournament, entries }: PrizesTabProps) {
                           )}
                         </td>
                       )}
-                      {!tournament.prizeConfirmed && (
-                        <td className="px-3 py-2">
-                          <button
-                            type="button"
-                            onClick={() => removePrize(index)}
-                            className="p-1 rounded text-text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                            title="Remover"
-                          >
-                            <Minus className="h-4 w-4" />
-                          </button>
-                        </td>
-                      )}
+                      <td className="px-3 py-2">
+                        <button
+                          type="button"
+                          onClick={() => removePrize(index)}
+                          className="p-1 rounded text-text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                          title="Remover"
+                        >
+                          <Minus className="h-4 w-4" />
+                        </button>
+                      </td>
                     </tr>
                   )
                 })}
@@ -290,51 +280,48 @@ export function PrizesTab({ tournament, entries }: PrizesTabProps) {
           </div>
 
           {/* Total + diff */}
-          {!tournament.prizeConfirmed && (
-            <div className="mt-2 flex items-center justify-between text-sm">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={addPrize}
-              >
-                <Plus className="h-4 w-4" />
-                Adicionar posicao
-              </Button>
-              <div className="text-text-secondary">
-                Total: <strong className="text-text-primary">{formatCurrency(totalAlloc)}</strong>
-                {Math.abs(diff) > 0.01 && (
-                  <span className={diff > 0 ? 'ml-3 text-yellow-400' : 'ml-3 text-red-400'}>
-                    {diff > 0
-                      ? `Faltam ${formatCurrency(diff)}`
-                      : `Excede ${formatCurrency(Math.abs(diff))}`}
-                  </span>
-                )}
-              </div>
+          <div className="mt-2 flex items-center justify-between text-sm">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={addPrize}
+            >
+              <Plus className="h-4 w-4" />
+              Adicionar posicao
+            </Button>
+            <div className="text-text-secondary">
+              Total: <strong className="text-text-primary">{formatCurrency(totalAlloc)}</strong>
+              {Math.abs(diff) > 0.01 && (
+                <span className={diff > 0 ? 'ml-3 text-yellow-400' : 'ml-3 text-red-400'}>
+                  {diff > 0
+                    ? `Faltam ${formatCurrency(diff)}`
+                    : `Excede ${formatCurrency(Math.abs(diff))}`}
+                </span>
+              )}
             </div>
-          )}
+          </div>
 
-          {/* Confirm button */}
-          {!tournament.prizeConfirmed && (
-            <div className="flex gap-3 justify-end mt-4">
-              <Button
-                variant="success"
-                onClick={() => confirmMutation.mutate()}
-                loading={confirmMutation.isPending}
-                disabled={Math.abs(diff) > 0.01}
-              >
+          {/* Confirmar = salvar (sempre disponivel, inclusive apos confirmar) */}
+          <div className="flex items-center justify-between gap-3 mt-4">
+            {tournament.prizeConfirmed ? (
+              <span className="flex items-center gap-2 text-sm text-accent-green">
                 <Lock className="h-4 w-4" />
-                Confirmar Premiação
-              </Button>
-            </div>
-          )}
-
-          {tournament.prizeConfirmed && (
-            <div className="flex items-center gap-2 mt-3 text-sm text-accent-green">
+                Premiação confirmada — pode editar e salvar de novo
+              </span>
+            ) : (
+              <span />
+            )}
+            <Button
+              variant="success"
+              onClick={() => confirmMutation.mutate()}
+              loading={confirmMutation.isPending}
+              disabled={Math.abs(diff) > 0.01}
+            >
               <Lock className="h-4 w-4" />
-              Premiação confirmada
-            </div>
-          )}
+              {tournament.prizeConfirmed ? 'Salvar Premiação' : 'Confirmar Premiação'}
+            </Button>
+          </div>
         </div>
       )}
 
