@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { UserPlus, Phone, Plus, Users } from 'lucide-react'
+import { UserPlus, Phone, Plus, Users, Check } from 'lucide-react'
 import * as personsApi from '../../api/persons.api'
 import * as entriesApi from '../../api/entries.api'
 import { Modal } from '../ui/Modal'
@@ -24,15 +24,6 @@ function formatPhone(value: string): string {
   return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`
 }
 
-function displayPhone(phone: string): string {
-  const digits = phone.replace(/\D/g, '')
-  let local = digits.startsWith('55') && digits.length > 11 ? digits.slice(2) : digits
-  if (local.length > 11) local = local.slice(0, 11)
-  if (local.length === 11) return `(${local.slice(0, 2)}) ${local.slice(2, 7)}-${local.slice(7)}`
-  if (local.length === 10) return `(${local.slice(0, 2)}) ${local.slice(2, 6)}-${local.slice(6)}`
-  return phone
-}
-
 export function AddPlayerModal({
   isOpen,
   onClose,
@@ -41,7 +32,7 @@ export function AddPlayerModal({
 }: AddPlayerModalProps) {
   const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
-  const [selectedPerson, setSelectedPerson] = useState<Person | null>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [payNow, setPayNow] = useState(false)
   const [showCreateForm, setShowCreateForm] = useState(false)
 
@@ -64,33 +55,50 @@ export function AddPlayerModal({
   })
 
   // IDs de pessoas ja inscritas no torneio (qualquer status, inclusive eliminados)
-  const enrolledPersonIds = new Set(
-    (entriesData ?? []).map((e) => e.personId),
+  const enrolledPersonIds = new Set((entriesData ?? []).map((e) => e.personId))
+
+  const availablePersons = (personsData ?? []).filter(
+    (p) => !enrolledPersonIds.has(p.id),
   )
 
-  const filteredPersons = (personsData ?? [])
-    .filter((p) => !enrolledPersonIds.has(p.id))
-    .filter((p) => {
-      if (!search.trim()) return true
-      const q = search.toLowerCase().trim()
-      return (
-        p.fullName?.toLowerCase().includes(q) ||
-        (p.nickname && p.nickname.toLowerCase().includes(q))
-      )
-    })
+  const filteredPersons = availablePersons.filter((p) => {
+    if (!search.trim()) return true
+    const q = search.toLowerCase().trim()
+    return (
+      p.fullName?.toLowerCase().includes(q) ||
+      (p.nickname && p.nickname.toLowerCase().includes(q))
+    )
+  })
 
-  const createEntryMutation = useMutation({
-    mutationFn: (data: { personId: string; paid: boolean }) =>
-      entriesApi.create(tournamentId, {
-        tournamentId,
-        personId: data.personId,
-        paid: data.paid,
-      }),
-    onSuccess: () => {
+  function toggle(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function selectAllVisible() {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      filteredPersons.forEach((p) => next.add(p.id))
+      return next
+    })
+  }
+
+  const bulkMutation = useMutation({
+    mutationFn: () =>
+      entriesApi.bulkCreate(tournamentId, [...selectedIds], payNow),
+    onSuccess: (created) => {
       queryClient.invalidateQueries({ queryKey: ['entries', tournamentId] })
       queryClient.invalidateQueries({ queryKey: ['tournament', tournamentId] })
+      queryClient.invalidateQueries({ queryKey: ['tables', tournamentId] })
+      const n = created.length
       toast.success(
-        `${selectedPerson?.nickname ?? selectedPerson?.fullName} adicionado ao torneio!`,
+        n === 1
+          ? '1 jogador adicionado ao torneio!'
+          : `${n} jogadores adicionados ao torneio!`,
       )
       handleClose()
     },
@@ -98,7 +106,7 @@ export function AddPlayerModal({
       const resp = (err as { response?: { data?: { message?: string } | string } })?.response
       const data = resp?.data
       const msg = typeof data === 'string' ? data : data?.message
-      toast.error(msg || 'Erro ao adicionar jogador.')
+      toast.error(msg || 'Erro ao adicionar jogadores.')
     },
   })
 
@@ -118,8 +126,8 @@ export function AddPlayerModal({
         queryKey: ['persons', homeGameId, 'Jogador'],
       })
       toast.success('Jogador cadastrado!')
-      // Selecionar automaticamente o jogador recem-criado
-      setSelectedPerson(created)
+      // Ja deixa o recem-criado selecionado para entrar no lote
+      setSelectedIds((prev) => new Set(prev).add(created.id))
       setShowCreateForm(false)
       setNewNickname('')
       setNewFullName('')
@@ -132,21 +140,13 @@ export function AddPlayerModal({
 
   function handleClose() {
     setSearch('')
-    setSelectedPerson(null)
+    setSelectedIds(new Set())
     setPayNow(false)
     setShowCreateForm(false)
     setNewNickname('')
     setNewFullName('')
     setNewWhatsapp('')
     onClose()
-  }
-
-  function handleConfirm() {
-    if (!selectedPerson) return
-    createEntryMutation.mutate({
-      personId: selectedPerson.id,
-      paid: payNow,
-    })
   }
 
   function handleCreatePerson() {
@@ -168,129 +168,185 @@ export function AddPlayerModal({
     })
   }
 
+  const selectedCount = selectedIds.size
+
   return (
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title="Adicionar Jogador"
+      title="Adicionar Jogadores"
       size="md"
     >
-      {!selectedPerson ? (
-        <div className="flex flex-col gap-4">
-          {/* Search + botão de novo */}
-          <div className="flex gap-2">
-            <div className="flex-1">
-              <SearchInput
-                value={search}
-                onChange={setSearch}
-                placeholder="Buscar por nome ou apelido..."
+      <div className="flex flex-col gap-4">
+        {/* Search + botão de novo */}
+        <div className="flex gap-2">
+          <div className="flex-1">
+            <SearchInput
+              value={search}
+              onChange={setSearch}
+              placeholder="Buscar por nome ou apelido..."
+            />
+          </div>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => setShowCreateForm((v) => !v)}
+            title="Cadastrar novo jogador"
+          >
+            <Plus className="h-4 w-4" />
+            Novo
+          </Button>
+        </div>
+
+        {/* Form inline de criação rápida */}
+        {showCreateForm && (
+          <div className="rounded-lg border border-accent-blue/30 bg-bg-secondary p-3 space-y-3">
+            <p className="text-xs font-semibold text-text-secondary uppercase">
+              Novo Jogador
+            </p>
+            <div className="grid gap-2 sm:grid-cols-3">
+              <input
+                type="text"
+                placeholder="Apelido *"
+                value={newNickname}
+                onChange={(e) => setNewNickname(e.target.value)}
+                className="rounded-lg border border-border-default bg-bg-primary px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-border-focus focus:outline-none"
+                autoFocus
+              />
+              <input
+                type="text"
+                placeholder="Nome completo"
+                value={newFullName}
+                onChange={(e) => setNewFullName(e.target.value)}
+                className="rounded-lg border border-border-default bg-bg-primary px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-border-focus focus:outline-none"
+              />
+              <input
+                type="text"
+                placeholder="(11) 99999-9999"
+                value={formatPhone(newWhatsapp)}
+                onChange={(e) => setNewWhatsapp(e.target.value)}
+                className="rounded-lg border border-border-default bg-bg-primary px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-border-focus focus:outline-none"
               />
             </div>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setShowCreateForm((v) => !v)}
-              title="Cadastrar novo jogador"
-            >
-              <Plus className="h-4 w-4" />
-              Novo
-            </Button>
-          </div>
-
-          {/* Form inline de criação rápida */}
-          {showCreateForm && (
-            <div className="rounded-lg border border-accent-blue/30 bg-bg-secondary p-3 space-y-3">
-              <p className="text-xs font-semibold text-text-secondary uppercase">
-                Novo Jogador
-              </p>
-              <div className="grid gap-2 sm:grid-cols-3">
-                <input
-                  type="text"
-                  placeholder="Apelido *"
-                  value={newNickname}
-                  onChange={(e) => setNewNickname(e.target.value)}
-                  className="rounded-lg border border-border-default bg-bg-primary px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-border-focus focus:outline-none"
-                  autoFocus
-                />
-                <input
-                  type="text"
-                  placeholder="Nome completo"
-                  value={newFullName}
-                  onChange={(e) => setNewFullName(e.target.value)}
-                  className="rounded-lg border border-border-default bg-bg-primary px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-border-focus focus:outline-none"
-                />
-                <input
-                  type="text"
-                  placeholder="(11) 99999-9999"
-                  value={formatPhone(newWhatsapp)}
-                  onChange={(e) => setNewWhatsapp(e.target.value)}
-                  className="rounded-lg border border-border-default bg-bg-primary px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-border-focus focus:outline-none"
-                />
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setShowCreateForm(false)
-                    setNewNickname('')
-                    setNewFullName('')
-                    setNewWhatsapp('')
-                  }}
-                  disabled={createPersonMutation.isPending}
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={handleCreatePerson}
-                  loading={createPersonMutation.isPending}
-                >
-                  Cadastrar
-                </Button>
-              </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setShowCreateForm(false)
+                  setNewNickname('')
+                  setNewFullName('')
+                  setNewWhatsapp('')
+                }}
+                disabled={createPersonMutation.isPending}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleCreatePerson}
+                loading={createPersonMutation.isPending}
+              >
+                Cadastrar
+              </Button>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* Lista de jogadores */}
-          {isLoading && (
-            <p className="text-sm text-text-muted text-center py-4">
-              Carregando jogadores...
-            </p>
-          )}
-
-          {!isLoading && filteredPersons.length === 0 && (
-            <div className="flex flex-col items-center justify-center gap-2 py-8 text-center">
-              <Users className="h-10 w-10 text-text-muted" />
-              <p className="text-sm text-text-muted">
-                {search
-                  ? 'Nenhum jogador encontrado com esse termo.'
-                  : 'Nenhum jogador cadastrado neste home game.'}
-              </p>
-              {!showCreateForm && (
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => setShowCreateForm(true)}
-                  className="mt-2"
+        {/* Barra de seleção em massa */}
+        {!isLoading && availablePersons.length > 0 && (
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-text-muted">
+              {filteredPersons.length} disponíve
+              {filteredPersons.length === 1 ? 'l' : 'is'}
+              {selectedCount > 0 && (
+                <span className="text-accent-blue font-medium">
+                  {' '}
+                  · {selectedCount} selecionado
+                  {selectedCount === 1 ? '' : 's'}
+                </span>
+              )}
+            </span>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={selectAllVisible}
+                className="text-accent-blue hover:underline"
+                disabled={filteredPersons.length === 0}
+              >
+                Selecionar todos
+              </button>
+              {selectedCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedIds(new Set())}
+                  className="text-text-muted hover:text-text-primary hover:underline"
                 >
-                  <Plus className="h-4 w-4" />
-                  Cadastrar Jogador
-                </Button>
+                  Limpar
+                </button>
               )}
             </div>
-          )}
+          </div>
+        )}
 
-          {!isLoading && filteredPersons.length > 0 && (
-            <div className="max-h-72 overflow-y-auto flex flex-col gap-1">
-              {filteredPersons.map((person) => (
+        {/* Lista de jogadores (multi-seleção) */}
+        {isLoading && (
+          <p className="text-sm text-text-muted text-center py-4">
+            Carregando jogadores...
+          </p>
+        )}
+
+        {!isLoading && filteredPersons.length === 0 && (
+          <div className="flex flex-col items-center justify-center gap-2 py-8 text-center">
+            <Users className="h-10 w-10 text-text-muted" />
+            <p className="text-sm text-text-muted">
+              {search
+                ? 'Nenhum jogador encontrado com esse termo.'
+                : availablePersons.length === 0 && (personsData?.length ?? 0) > 0
+                  ? 'Todos os jogadores já estão inscritos.'
+                  : 'Nenhum jogador cadastrado neste home game.'}
+            </p>
+            {!showCreateForm && (
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => setShowCreateForm(true)}
+                className="mt-2"
+              >
+                <Plus className="h-4 w-4" />
+                Cadastrar Jogador
+              </Button>
+            )}
+          </div>
+        )}
+
+        {!isLoading && filteredPersons.length > 0 && (
+          <div className="max-h-80 overflow-y-auto flex flex-col gap-1 -mx-1 px-1">
+            {filteredPersons.map((person: Person) => {
+              const selected = selectedIds.has(person.id)
+              return (
                 <button
                   key={person.id}
-                  onClick={() => setSelectedPerson(person)}
-                  className="flex items-center gap-3 rounded-lg p-3 text-left transition-colors hover:bg-bg-tertiary"
+                  type="button"
+                  onClick={() => toggle(person.id)}
+                  className={`flex items-center gap-3 rounded-lg p-3 text-left transition-colors min-h-[56px] border ${
+                    selected
+                      ? 'bg-accent-blue/10 border-accent-blue/50'
+                      : 'border-transparent hover:bg-bg-tertiary'
+                  }`}
                 >
+                  {/* Indicador de seleção */}
+                  <span
+                    className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
+                      selected
+                        ? 'border-accent-blue bg-accent-blue text-white'
+                        : 'border-border-default'
+                    }`}
+                  >
+                    {selected && <Check className="h-3.5 w-3.5" strokeWidth={3} />}
+                  </span>
                   <Avatar
                     src={person.photoUrl}
                     name={person.nickname ?? person.fullName}
@@ -312,41 +368,13 @@ export function AddPlayerModal({
                     <Phone className="h-3.5 w-3.5 text-accent-green flex-shrink-0" />
                   )}
                 </button>
-              ))}
-            </div>
-          )}
-        </div>
-      ) : (
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-3 rounded-lg bg-bg-primary p-4">
-            <Avatar
-              src={selectedPerson.photoUrl}
-              name={selectedPerson.nickname ?? selectedPerson.fullName}
-              size="lg"
-            />
-            <div className="flex-1">
-              <p className="font-semibold text-text-primary">
-                {selectedPerson.nickname ?? selectedPerson.fullName}
-              </p>
-              {selectedPerson.nickname && (
-                <p className="text-sm text-text-muted">
-                  {selectedPerson.fullName}
-                </p>
-              )}
-              {selectedPerson.whatsapp && (
-                <a
-                  href={`https://wa.me/${selectedPerson.whatsapp.replace(/\D/g, '')}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-accent-green hover:underline flex items-center gap-1 mt-1"
-                >
-                  <Phone className="h-3 w-3" />
-                  {displayPhone(selectedPerson.whatsapp)}
-                </a>
-              )}
-            </div>
+              )
+            })}
           </div>
+        )}
 
+        {/* Rodapé fixo de ação */}
+        <div className="flex flex-col gap-3 border-t border-border-default pt-3">
           <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="checkbox"
@@ -355,28 +383,32 @@ export function AddPlayerModal({
               className="h-5 w-5 rounded border-border-default bg-bg-input text-accent-blue focus:ring-accent-blue"
             />
             <span className="text-sm text-text-primary">
-              Buy-in pago na entrada
+              Buy-in pago na entrada (todos os selecionados)
             </span>
           </label>
-
           <div className="flex gap-3 justify-end">
             <Button
               variant="ghost"
-              onClick={() => setSelectedPerson(null)}
-              disabled={createEntryMutation.isPending}
+              onClick={handleClose}
+              disabled={bulkMutation.isPending}
             >
-              Voltar
+              Cancelar
             </Button>
             <Button
-              onClick={handleConfirm}
-              loading={createEntryMutation.isPending}
+              onClick={() => bulkMutation.mutate()}
+              loading={bulkMutation.isPending}
+              disabled={selectedCount === 0}
             >
               <UserPlus className="h-4 w-4" />
-              Adicionar
+              {selectedCount === 0
+                ? 'Adicionar'
+                : selectedCount === 1
+                  ? 'Adicionar 1 jogador'
+                  : `Adicionar ${selectedCount} jogadores`}
             </Button>
           </div>
         </div>
-      )}
+      </div>
     </Modal>
   )
 }

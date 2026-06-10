@@ -26,6 +26,18 @@ export async function create(
   return response.data
 }
 
+export async function bulkCreate(
+  tournamentId: string,
+  personIds: string[],
+  buyInPaid: boolean,
+): Promise<TournamentEntry[]> {
+  const response = await apiClient.post<TournamentEntry[]>(
+    `${base(tournamentId)}/bulk`,
+    { personIds, buyInPaid },
+  )
+  return response.data
+}
+
 export async function rebuy(
   tournamentId: string,
   entryId: string,
