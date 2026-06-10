@@ -46,6 +46,7 @@ export function DealerTerminalPage() {
   const [selectedTableId, setSelectedTableId] = useState<string | null>(null)
   const [tableModalOpen, setTableModalOpen] = useState(false)
   const [paymentEntry, setPaymentEntry] = useState<TournamentEntry | null>(null)
+  const [addonConfirm, setAddonConfirm] = useState<TournamentEntry | null>(null)
   const [confirmAction, setConfirmAction] = useState<{
     type: 'rebuy' | 'addon' | 'eliminate' | 'undo'
     entry: TournamentEntry
@@ -122,11 +123,12 @@ export function DealerTerminalPage() {
   })
 
   const addonMutation = useMutation({
-    mutationFn: (entryId: string) => entriesApi.addon(tournamentId!, entryId),
+    mutationFn: (vars: { entryId: string; isDouble: boolean }) =>
+      entriesApi.addon(tournamentId!, vars.entryId, { isDouble: vars.isDouble }),
     onSuccess: () => {
       invalidateAll()
       toast.success('Add-on registrado!')
-      setConfirmAction(null)
+      setAddonConfirm(null)
     },
     onError: () => toast.error('Erro ao registrar add-on.'),
   })
@@ -210,9 +212,6 @@ export function DealerTerminalPage() {
     switch (type) {
       case 'rebuy':
         rebuyMutation.mutate(entry.id)
-        break
-      case 'addon':
-        addonMutation.mutate(entry.id)
         break
       case 'eliminate':
         eliminateMutation.mutate(entry.id)
@@ -401,9 +400,7 @@ export function DealerTerminalPage() {
                             entry.addonPurchased ||
                             !(tournament?.addonAllowed ?? false)
                           }
-                          onClick={() =>
-                            setConfirmAction({ type: 'addon', entry })
-                          }
+                          onClick={() => setAddonConfirm(entry)}
                         >
                           <PlusCircle className="h-3.5 w-3.5" />
                         </Button>
@@ -572,6 +569,55 @@ export function DealerTerminalPage() {
         variant={confirmAction?.type === 'eliminate' ? 'danger' : 'warning'}
         loading={isActionLoading}
       />
+
+      {/* Addon Modal (Simples / Duplo) — antes só dava simples no terminal */}
+      {addonConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm rounded-xl border border-border-default bg-bg-secondary p-6 shadow-xl">
+            <h3 className="text-lg font-semibold text-text-primary mb-2">
+              Confirmar Add-on
+            </h3>
+            <p className="text-sm text-text-secondary mb-4">
+              {addonConfirm.person.nickname ?? addonConfirm.person.fullName}
+            </p>
+            <div className="flex flex-col gap-2">
+              <Button
+                onClick={() =>
+                  addonMutation.mutate({ entryId: addonConfirm.id, isDouble: false })
+                }
+                loading={addonMutation.isPending}
+                className="w-full"
+              >
+                <PlusCircle className="h-4 w-4" />
+                Addon Simples
+                {tournament ? ` — ${formatCurrency(tournament.addonAmount)}` : ''}
+              </Button>
+              {tournament?.addonDoubleAllowed && (
+                <Button
+                  variant="secondary"
+                  onClick={() =>
+                    addonMutation.mutate({ entryId: addonConfirm.id, isDouble: true })
+                  }
+                  loading={addonMutation.isPending}
+                  className="w-full"
+                >
+                  <PlusCircle className="h-4 w-4" />
+                  Addon Duplo
+                  {tournament ? ` — ${formatCurrency(tournament.addonAmount * 2)}` : ''}
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                onClick={() => setAddonConfirm(null)}
+                disabled={addonMutation.isPending}
+                className="w-full mt-1"
+              >
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
