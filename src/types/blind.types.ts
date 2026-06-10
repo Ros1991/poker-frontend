@@ -19,6 +19,9 @@ export interface BlindStructure {
   defaultLateRegistrationLevel?: number | null
   defaultRebuyUntilLevel?: number | null
   defaultSeatsPerTable?: number | null
+  defaultStaffAmount?: number | null
+  defaultRankingContribMode?: string | null
+  defaultRankingContribValue?: number | null
 }
 
 export interface BlindLevel {

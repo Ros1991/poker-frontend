@@ -144,6 +144,15 @@ export function TournamentFormPage() {
       setValue('addonDoubleAllowed', structure.defaultAddonDoubleAllowed)
     if (structure.defaultSeatsPerTable != null)
       setValue('seatsPerTable', structure.defaultSeatsPerTable)
+    if (structure.defaultStaffAmount != null)
+      setValue('staffAmount', structure.defaultStaffAmount)
+    if (structure.defaultRankingContribMode)
+      setValue(
+        'rankingContribMode',
+        structure.defaultRankingContribMode as 'PerPlayer' | 'Percent',
+      )
+    if (structure.defaultRankingContribValue != null)
+      setValue('rankingContribValue', structure.defaultRankingContribValue)
   }, [selectedBlindStructureId, blindStructures, setValue])
 
   // Pre-preencher campos em modo edicao

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { UserPlus, Phone, Plus, Users, Check } from 'lucide-react'
+import { UserPlus, Phone, Plus, Users, Check, AlertCircle } from 'lucide-react'
 import * as personsApi from '../../api/persons.api'
 import * as entriesApi from '../../api/entries.api'
 import { Modal } from '../ui/Modal'
@@ -41,7 +41,13 @@ export function AddPlayerModal({
   const [newFullName, setNewFullName] = useState('')
   const [newWhatsapp, setNewWhatsapp] = useState('')
 
-  const { data: personsData, isLoading } = useQuery({
+  const {
+    data: personsData,
+    isLoading,
+    isError,
+    isFetching,
+    refetch,
+  } = useQuery({
     queryKey: ['persons', homeGameId, 'Jogador'],
     queryFn: () => personsApi.getByHomeGame(homeGameId, 'Jogador'),
     enabled: isOpen && !!homeGameId,
@@ -256,7 +262,7 @@ export function AddPlayerModal({
         )}
 
         {/* Barra de seleção em massa */}
-        {!isLoading && availablePersons.length > 0 && (
+        {!isLoading && !isError && availablePersons.length > 0 && (
           <div className="flex items-center justify-between text-xs">
             <span className="text-text-muted">
               {filteredPersons.length} disponíve
@@ -292,13 +298,31 @@ export function AddPlayerModal({
         )}
 
         {/* Lista de jogadores (multi-seleção) */}
-        {isLoading && (
+        {(isLoading || (isFetching && !personsData)) && (
           <p className="text-sm text-text-muted text-center py-4">
             Carregando jogadores...
           </p>
         )}
 
-        {!isLoading && filteredPersons.length === 0 && (
+        {!isLoading && isError && (
+          <div className="flex flex-col items-center justify-center gap-3 py-8 text-center">
+            <AlertCircle className="h-10 w-10 text-accent-red" />
+            <p className="text-sm text-text-secondary">
+              Não foi possível carregar os jogadores. Verifique sua conexão e
+              tente novamente.
+            </p>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => refetch()}
+              loading={isFetching}
+            >
+              Tentar novamente
+            </Button>
+          </div>
+        )}
+
+        {!isLoading && !isError && filteredPersons.length === 0 && (
           <div className="flex flex-col items-center justify-center gap-2 py-8 text-center">
             <Users className="h-10 w-10 text-text-muted" />
             <p className="text-sm text-text-muted">
@@ -322,7 +346,7 @@ export function AddPlayerModal({
           </div>
         )}
 
-        {!isLoading && filteredPersons.length > 0 && (
+        {!isLoading && !isError && filteredPersons.length > 0 && (
           <div className="max-h-80 overflow-y-auto flex flex-col gap-1 -mx-1 px-1">
             {filteredPersons.map((person: Person) => {
               const selected = selectedIds.has(person.id)

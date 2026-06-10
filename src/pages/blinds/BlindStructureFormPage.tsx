@@ -60,6 +60,11 @@ export function BlindStructureFormPage() {
   const [defaultAddonDoubleAllowed, setDefaultAddonDoubleAllowed] = useState(false)
   const [defaultLateRegistrationLevel, setDefaultLateRegistrationLevel] = useState<string>('')
   const [defaultRebuyUntilLevel, setDefaultRebuyUntilLevel] = useState<string>('')
+  const [defaultStaffAmount, setDefaultStaffAmount] = useState<string>('')
+  const [defaultRankingContribMode, setDefaultRankingContribMode] = useState<
+    'PerPlayer' | 'Percent'
+  >('PerPlayer')
+  const [defaultRankingContribValue, setDefaultRankingContribValue] = useState<string>('')
   const [levels, setLevels] = useState<LevelRow[]>(() =>
     DEFAULT_LEVELS.map((l) => ({ ...l })),
   )
@@ -85,6 +90,11 @@ export function BlindStructureFormPage() {
       setDefaultAddonDoubleAllowed(existing.defaultAddonDoubleAllowed ?? false)
       setDefaultLateRegistrationLevel(existing.defaultLateRegistrationLevel != null ? String(existing.defaultLateRegistrationLevel) : '')
       setDefaultRebuyUntilLevel(existing.defaultRebuyUntilLevel != null ? String(existing.defaultRebuyUntilLevel) : '')
+      setDefaultStaffAmount(existing.defaultStaffAmount != null ? String(existing.defaultStaffAmount) : '')
+      setDefaultRankingContribMode(
+        (existing.defaultRankingContribMode as 'PerPlayer' | 'Percent') ?? 'PerPlayer',
+      )
+      setDefaultRankingContribValue(existing.defaultRankingContribValue != null ? String(existing.defaultRankingContribValue) : '')
       setLevels(
         existing.levels.map((l: BlindLevel, i: number) => ({
           key: i + 1,
@@ -118,6 +128,9 @@ export function BlindStructureFormPage() {
         defaultAddonDoubleAllowed: defaultAddonDoubleAllowed,
         defaultLateRegistrationLevel: toNum(defaultLateRegistrationLevel),
         defaultRebuyUntilLevel: toNum(defaultRebuyUntilLevel),
+        defaultStaffAmount: toNum(defaultStaffAmount),
+        defaultRankingContribMode: defaultRankingContribMode,
+        defaultRankingContribValue: toNum(defaultRankingContribValue),
         levels: levels.map((l, i) => ({
           levelNumber: i + 1,
           smallBlind: l.isBreak ? 0 : l.smallBlind,
@@ -352,6 +365,47 @@ export function BlindStructureFormPage() {
                 <span className="text-sm text-text-primary">Addon Duplo Permitido</span>
               </label>
             )}
+          </div>
+
+          {/* Staff e Ranking padrao */}
+          <div className="grid gap-4 sm:grid-cols-3 mt-4">
+            <Input
+              label="Staff por jogador (R$)"
+              type="number"
+              step="0.01"
+              value={defaultStaffAmount}
+              onChange={(e) => setDefaultStaffAmount(e.target.value)}
+              placeholder="Ex: 10.00"
+            />
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-text-secondary">
+                Contribuicao p/ ranking
+              </label>
+              <select
+                value={defaultRankingContribMode}
+                onChange={(e) =>
+                  setDefaultRankingContribMode(
+                    e.target.value as 'PerPlayer' | 'Percent',
+                  )
+                }
+                className="min-h-[44px] w-full rounded-lg border border-border-default bg-bg-input px-3 py-2.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-border-focus"
+              >
+                <option value="PerPlayer">Valor fixo por jogador</option>
+                <option value="Percent">% do liquido</option>
+              </select>
+            </div>
+            <Input
+              label={
+                defaultRankingContribMode === 'Percent'
+                  ? '% do liquido'
+                  : 'Ranking por jogador (R$)'
+              }
+              type="number"
+              step="0.01"
+              value={defaultRankingContribValue}
+              onChange={(e) => setDefaultRankingContribValue(e.target.value)}
+              placeholder={defaultRankingContribMode === 'Percent' ? 'Ex: 10' : 'Ex: 5.00'}
+            />
           </div>
         </div>
 

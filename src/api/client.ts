@@ -41,6 +41,9 @@ function processQueue(error: unknown, token: string | null = null) {
 
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL ?? '/api/v1',
+  // Timeout para a requisição não ficar pendurada pra sempre (ex.: durante um
+  // redeploy do backend). Sem isso, o axios espera indefinidamente.
+  timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
   },

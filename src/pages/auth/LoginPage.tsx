@@ -19,6 +19,24 @@ const loginSchema = z.object({
 type LoginFormData = z.infer<typeof loginSchema>
 
 const REMEMBERED_EMAIL_KEY = 'poker_remembered_email'
+const REMEMBERED_PASSWORD_KEY = 'poker_remembered_password'
+
+// Ofuscação leve (não é segurança — apenas evita senha em texto puro no localStorage).
+function encode(value: string): string {
+  try {
+    return btoa(encodeURIComponent(value))
+  } catch {
+    return ''
+  }
+}
+function decode(value: string | null): string {
+  if (!value) return ''
+  try {
+    return decodeURIComponent(atob(value))
+  } catch {
+    return ''
+  }
+}
 
 export function LoginPage() {
   const { login } = useAuth()
@@ -26,6 +44,7 @@ export function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
 
   const rememberedEmail = localStorage.getItem(REMEMBERED_EMAIL_KEY)
+  const rememberedPassword = decode(localStorage.getItem(REMEMBERED_PASSWORD_KEY))
 
   const {
     register,
@@ -35,6 +54,7 @@ export function LoginPage() {
     resolver: zodResolver(loginSchema),
     defaultValues: {
       email: rememberedEmail ?? '',
+      password: rememberedPassword,
       rememberMe: !!rememberedEmail,
     },
   })
@@ -44,8 +64,10 @@ export function LoginPage() {
     try {
       if (data.rememberMe) {
         localStorage.setItem(REMEMBERED_EMAIL_KEY, data.email)
+        localStorage.setItem(REMEMBERED_PASSWORD_KEY, encode(data.password))
       } else {
         localStorage.removeItem(REMEMBERED_EMAIL_KEY)
+        localStorage.removeItem(REMEMBERED_PASSWORD_KEY)
       }
       await login(data)
       navigate(ROUTES.HOME, { replace: true })
@@ -97,7 +119,9 @@ export function LoginPage() {
               className="h-4 w-4 rounded border-border-default bg-bg-input text-accent-blue focus:ring-accent-blue"
               {...register('rememberMe')}
             />
-            <span className="text-sm text-text-secondary">Lembrar meu e-mail</span>
+            <span className="text-sm text-text-secondary">
+              Lembrar e-mail e senha
+            </span>
           </label>
 
           <Button type="submit" loading={isLoading} className="mt-2">

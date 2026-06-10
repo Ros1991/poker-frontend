@@ -256,6 +256,16 @@ export function TournamentDashboardPage() {
             'Deseja finalizar o torneio? Certifique-se de que a premiacao esta confirmada.',
         })
         break
+      case 'Finished':
+        actions.push({
+          label: 'Cancelar Torneio',
+          status: 'Cancelled',
+          icon: XCircle,
+          variant: 'danger',
+          message:
+            'Este torneio esta finalizado. Cancelar ira marca-lo como cancelado e reverter o valor acumulado no ranking. Deseja continuar?',
+        })
+        break
     }
 
     if (
