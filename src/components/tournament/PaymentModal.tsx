@@ -16,7 +16,7 @@ interface PaymentModalProps {
   tournamentId: string
 }
 
-type PaymentMethod = 'Pix' | 'Dinheiro' | 'Transferencia'
+type PaymentMethod = 'Pix' | 'Dinheiro' | 'Transferencia' | 'Abater'
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat('pt-BR', {
@@ -42,7 +42,9 @@ export function PaymentModal({
   const { data: pixSuggestionsRaw } = useQuery({
     queryKey: ['pixSuggestions', tournamentId],
     queryFn: () => paymentsApi.getPixSuggestions(tournamentId),
-    enabled: isOpen && (method === 'Pix' || method === 'Transferencia'),
+    enabled:
+      isOpen &&
+      (method === 'Pix' || method === 'Transferencia' || method === 'Abater'),
   })
 
   // Pagamentos ja registrados deste jogador
@@ -85,6 +87,12 @@ export function PaymentModal({
       isCashBox: true,
     },
   ]
+
+  // No modo "Abater" só fazem sentido custos reais (não o caixa).
+  const destinations: PixSuggestion[] =
+    method === 'Abater'
+      ? (pixSuggestionsRaw ?? []).filter((s) => s.costExtraId)
+      : pixSuggestions
 
   // Pre-preencher amount com o valor pendente quando abre o modal
   useEffect(() => {
@@ -140,6 +148,31 @@ export function PaymentModal({
     },
   })
 
+  const settleMutation = useMutation({
+    mutationFn: (vars: { costExtraId: string; amount: number }) =>
+      paymentsApi.settleAgainstCost(
+        tournamentId,
+        entry!.id,
+        vars.costExtraId,
+        vars.amount,
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['entries', tournamentId] })
+      queryClient.invalidateQueries({ queryKey: ['paymentTotalsByMethod', tournamentId] })
+      queryClient.invalidateQueries({ queryKey: ['paymentSummary', tournamentId] })
+      queryClient.invalidateQueries({ queryKey: ['tournament', tournamentId] })
+      queryClient.invalidateQueries({ queryKey: ['payments', tournamentId, entry?.id] })
+      queryClient.invalidateQueries({ queryKey: ['costExtras', tournamentId] })
+      queryClient.invalidateQueries({ queryKey: ['pixSuggestions', tournamentId] })
+      toast.success('Abatimento registrado!')
+      setShowSuccess(true)
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+      toast.error(msg || 'Erro ao registrar abatimento.')
+    },
+  })
+
   function handleClose() {
     setMethod('Pix')
     setAmount('')
@@ -152,6 +185,23 @@ export function PaymentModal({
 
   function handleConfirm() {
     if (!entry) return
+
+    if (method === 'Abater') {
+      const settleAmount = parseFloat(amount || '0')
+      if (settleAmount <= 0) {
+        toast.error('Informe um valor valido.')
+        return
+      }
+      if (!selectedPix?.costExtraId) {
+        toast.error('Selecione o custo a abater.')
+        return
+      }
+      settleMutation.mutate({
+        costExtraId: selectedPix.costExtraId,
+        amount: settleAmount,
+      })
+      return
+    }
 
     const totalAmount =
       method === 'Transferencia'
@@ -254,12 +304,15 @@ export function PaymentModal({
             <label className="text-sm font-medium text-text-secondary">
               Metodo
             </label>
-            <div className="flex gap-2">
-              {(['Pix', 'Dinheiro', 'Transferencia'] as PaymentMethod[]).map(
+            <div className="flex flex-wrap gap-2">
+              {(['Pix', 'Dinheiro', 'Transferencia', 'Abater'] as PaymentMethod[]).map(
                 (m) => (
                   <button
                     key={m}
-                    onClick={() => setMethod(m)}
+                    onClick={() => {
+                      setMethod(m)
+                      setSelectedPix(null)
+                    }}
                     className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors min-h-[40px] ${
                       method === m
                         ? 'bg-accent-blue text-white'
@@ -271,6 +324,13 @@ export function PaymentModal({
                 ),
               )}
             </div>
+            {method === 'Abater' && (
+              <p className="text-xs text-text-muted">
+                Quita a dívida do jogador contra um custo de que ele é favorecido
+                (ex.: dono/staff que também jogou). Reduz o saldo do jogador e o
+                "a receber" do custo, sem dinheiro trocar de mãos.
+              </p>
+            )}
           </div>
 
           {/* Amount fields based on method */}
@@ -304,19 +364,26 @@ export function PaymentModal({
             />
           )}
 
-          {/* PIX destination suggestions */}
-          {(method === 'Pix' || method === 'Transferencia') &&
-            pixSuggestions.length > 0 && (
+          {/* PIX destination suggestions / custo a abater */}
+          {(method === 'Pix' || method === 'Transferencia' || method === 'Abater') &&
+            destinations.length > 0 && (
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-medium text-text-secondary">
-                  Destino PIX
+                  {method === 'Abater' ? 'Abater de qual custo' : 'Destino PIX'}
                 </label>
                 <div className="max-h-48 overflow-y-auto flex flex-col gap-1">
-                  {pixSuggestions.map((suggestion, idx) => (
+                  {destinations.map((suggestion, idx) => (
                     <button
                       key={idx}
                       type="button"
-                      onClick={() => setSelectedPix(suggestion)}
+                      onClick={() => {
+                        setSelectedPix(suggestion)
+                        if (method === 'Abater' && suggestion.pendingAmount > 0) {
+                          setAmount(
+                            Math.min(pending, suggestion.pendingAmount).toFixed(2),
+                          )
+                        }
+                      }}
                       className={`flex items-center justify-between rounded-lg p-2.5 text-left text-sm transition-colors ${
                         (selectedPix?.costExtraId ?? null) === (suggestion.costExtraId ?? null)
                           ? 'bg-accent-blue/10 border border-accent-blue/50'
@@ -400,20 +467,27 @@ export function PaymentModal({
             )}
           </div>
 
+          {method === 'Abater' && destinations.length === 0 && (
+            <p className="text-xs text-yellow-400">
+              Nenhum custo disponível para abatimento (precisa de um custo com
+              saldo a receber, como staff ou ranking).
+            </p>
+          )}
+
           <div className="flex gap-3 justify-end pt-2">
             <Button
               variant="ghost"
               onClick={handleClose}
-              disabled={paymentMutation.isPending}
+              disabled={paymentMutation.isPending || settleMutation.isPending}
             >
               Cancelar
             </Button>
             <Button
               variant="success"
               onClick={handleConfirm}
-              loading={paymentMutation.isPending}
+              loading={paymentMutation.isPending || settleMutation.isPending}
             >
-              Confirmar Pagamento
+              {method === 'Abater' ? 'Confirmar Abatimento' : 'Confirmar Pagamento'}
             </Button>
           </div>
         </div>

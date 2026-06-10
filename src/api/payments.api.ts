@@ -43,6 +43,18 @@ export async function getByEntry(
   return response.data
 }
 
+export async function settleAgainstCost(
+  tournamentId: string,
+  entryId: string,
+  costExtraId: string,
+  amount: number,
+): Promise<void> {
+  await apiClient.post(
+    `/tournaments/${tournamentId}/payments/entries/${entryId}/settle-against-cost`,
+    { costExtraId, amount },
+  )
+}
+
 export async function reversePayment(
   tournamentId: string,
   entryId: string,

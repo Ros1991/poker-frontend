@@ -29,6 +29,9 @@ const tournamentSchema = z.object({
   addonDoubleAllowed: z.boolean(),
   seatsPerTable: z.coerce.number().min(2, 'Mínimo 2').max(12, 'Máximo 12'),
   responsiblePixKey: z.string().optional(),
+  staffAmount: z.coerce.number().min(0, 'Valor invalido'),
+  rankingContribMode: z.enum(['PerPlayer', 'Percent']),
+  rankingContribValue: z.coerce.number().min(0, 'Valor invalido'),
 })
 
 type TournamentFormData = z.infer<typeof tournamentSchema>
@@ -76,6 +79,9 @@ export function TournamentFormPage() {
       addonDoubleAllowed: false,
       seatsPerTable: 9,
       responsiblePixKey: '',
+      staffAmount: 0,
+      rankingContribMode: 'PerPlayer',
+      rankingContribValue: 0,
     },
   })
 
@@ -163,6 +169,11 @@ export function TournamentFormPage() {
       addonDoubleAllowed: existingTournament.addonDoubleAllowed,
       seatsPerTable: existingTournament.seatsPerTable,
       responsiblePixKey: existingTournament.responsiblePixKey ?? '',
+      staffAmount: existingTournament.staffAmount ?? 0,
+      rankingContribMode:
+        (existingTournament.rankingContribMode as 'PerPlayer' | 'Percent') ??
+        'PerPlayer',
+      rankingContribValue: existingTournament.rankingContribValue ?? 0,
     })
   }, [isEditMode, existingTournament, reset])
 
@@ -207,10 +218,14 @@ export function TournamentFormPage() {
   })
 
   function onSubmit(data: TournamentFormData) {
+    const hasRanking = !!data.rankingId
     const payload = {
       ...data,
       rankingId: data.rankingId || undefined,
       blindStructureId: data.blindStructureId || undefined,
+      // Sem ranking vinculado, não faz sentido contribuição acumulada.
+      rankingContribMode: hasRanking ? data.rankingContribMode : undefined,
+      rankingContribValue: hasRanking ? data.rankingContribValue : 0,
     }
     if (isEditMode) {
       updateMutation.mutate(payload as Record<string, unknown>)
@@ -355,6 +370,58 @@ export function TournamentFormPage() {
               error={errors.addonAmount?.message}
             />
           </div>
+          <p className="mt-2 text-xs text-text-muted">
+            O valor cobrado de cada jogador é buy-in + staff
+            {watch('rankingId') && watch('rankingContribMode') === 'PerPlayer'
+              ? ' + ranking'
+              : ''}
+            . Tudo entra como receita; staff e ranking saem como custo do prêmio.
+          </p>
+        </div>
+
+        {/* Staff e Ranking (custos automáticos) */}
+        <div>
+          <h2 className="text-sm font-semibold text-text-secondary uppercase tracking-wider mb-3">
+            Staff e Ranking
+          </h2>
+          <Input
+            label="Staff por jogador (R$)"
+            type="number"
+            step="0.01"
+            {...register('staffAmount')}
+            error={errors.staffAmount?.message}
+          />
+          {watch('rankingId') ? (
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-medium text-text-secondary">
+                  Contribuição p/ ranking
+                </label>
+                <select
+                  {...register('rankingContribMode')}
+                  className="min-h-[44px] w-full rounded-lg border border-border-default bg-bg-input px-3 py-2.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-border-focus"
+                >
+                  <option value="PerPlayer">Valor fixo por jogador</option>
+                  <option value="Percent">% do líquido</option>
+                </select>
+              </div>
+              <Input
+                label={
+                  watch('rankingContribMode') === 'Percent'
+                    ? '% do líquido (arredonda p/ múltiplo de 10)'
+                    : 'Valor por jogador (R$)'
+                }
+                type="number"
+                step="0.01"
+                {...register('rankingContribValue')}
+                error={errors.rankingContribValue?.message}
+              />
+            </div>
+          ) : (
+            <p className="mt-2 text-xs text-text-muted">
+              Selecione um ranking acima para definir a contribuição acumulada.
+            </p>
+          )}
         </div>
 
         {/* Stack e Regras */}

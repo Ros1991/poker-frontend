@@ -181,14 +181,19 @@ export function CostExtrasTab({ tournament }: CostExtrasTabProps) {
             const isPartial = cost.paymentStatus === 'PartiallyPaid'
             const paidAmount = cost.paidAmount ?? 0
             const pending = cost.amount - paidAmount
+            const isStaff = cost.costType === 'Staff'
+            const isRanking = cost.costType === 'RankingAccumulated'
+            const isAuto = isStaff || isRanking
             return (
               <div
                 key={cost.id}
                 className="flex items-center justify-between gap-3 rounded-lg border border-border-default bg-bg-primary p-3"
               >
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-text-primary truncate">
+                  <p className="text-sm font-medium text-text-primary truncate flex items-center gap-2">
                     {cost.description}
+                    {isStaff && <Badge color="blue">Staff (auto)</Badge>}
+                    {isRanking && <Badge color="purple">Ranking (auto)</Badge>}
                   </p>
                   <div className="flex items-center gap-2 mt-0.5 text-xs text-text-muted">
                     {cost.beneficiary && <span>Para: {cost.beneficiary}</span>}
@@ -259,17 +264,19 @@ export function CostExtrasTab({ tournament }: CostExtrasTabProps) {
                       <Pencil className="h-3.5 w-3.5" />
                     </button>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (window.confirm(`Excluir o custo "${cost.description}"?`))
-                        removeMutation.mutate(cost.id)
-                    }}
-                    className="p-1 rounded text-text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                    title="Excluir custo"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
+                  {!isAuto && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (window.confirm(`Excluir o custo "${cost.description}"?`))
+                          removeMutation.mutate(cost.id)
+                      }}
+                      className="p-1 rounded text-text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                      title="Excluir custo"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
                 </div>
               </div>
             )

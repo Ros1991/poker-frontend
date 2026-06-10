@@ -36,6 +36,10 @@ export interface Tournament {
   blindStructureId: string | null
   seatsPerTable: number
   responsiblePixKey: string | null
+  staffAmount: number | null
+  rankingContribMode: string | null
+  rankingContribValue: number | null
+  rankingPrizeAccrued: number | null
   createdAt: string
   updatedAt: string
 }
@@ -55,6 +59,9 @@ export interface CreateTournamentRequest {
   blindStructureId?: string
   seatsPerTable?: number
   responsiblePixKey?: string
+  staffAmount?: number
+  rankingContribMode?: 'PerPlayer' | 'Percent'
+  rankingContribValue?: number
 }
 
 export interface UpdateTournamentRequest extends Partial<CreateTournamentRequest> {

@@ -3,6 +3,7 @@ export interface CostExtra {
   tournamentId?: string
   description: string
   amount: number
+  costType?: string
   beneficiary?: string | null
   pixKey?: string | null
   pixKeyType?: string | null
