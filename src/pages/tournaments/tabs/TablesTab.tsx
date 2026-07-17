@@ -8,6 +8,7 @@ import * as tournamentDealersApi from '../../../api/tournamentDealers.api'
 import * as entriesApi from '../../../api/entries.api'
 import { Button } from '../../../components/ui/Button'
 import { Modal } from '../../../components/ui/Modal'
+import { ConfirmDialog } from '../../../components/ui/ConfirmDialog'
 import { Input } from '../../../components/ui/Input'
 import { LoadingSpinner } from '../../../components/common/LoadingSpinner'
 import type { Tournament } from '../../../types/tournament.types'
@@ -28,6 +29,7 @@ export function TablesTab({ tournament }: TablesTabProps) {
   const [newTableSeats, setNewTableSeats] = useState('9')
   // Dealers selecionados para cada mesa (index = mesa - 1)
   const [drawDealers, setDrawDealers] = useState<(string | null)[]>([])
+  const [confirmUnseat, setConfirmUnseat] = useState(false)
   const [movePlayerEntry, setMovePlayerEntry] = useState<{
     entryId: string
     name: string
@@ -115,6 +117,7 @@ export function TablesTab({ tournament }: TablesTabProps) {
       queryClient.invalidateQueries({ queryKey: ['tables', tournament.id] })
       queryClient.invalidateQueries({ queryKey: ['entries', tournament.id] })
       toast.success('Jogador removido da mesa.')
+      setConfirmUnseat(false)
       setMovePlayerEntry(null)
     },
     onError: () => toast.error('Erro ao remover jogador da mesa.'),
@@ -588,14 +591,7 @@ export function TablesTab({ tournament }: TablesTabProps) {
             <div className="flex gap-3 justify-end">
               <Button
                 variant="danger"
-                onClick={() => {
-                  if (
-                    window.confirm(
-                      `Remover ${movePlayerEntry.name} da mesa? Ele continua ativo, mas sem assento.`,
-                    )
-                  )
-                    unseatMutation.mutate(movePlayerEntry.entryId)
-                }}
+                onClick={() => setConfirmUnseat(true)}
                 loading={unseatMutation.isPending}
               >
                 Remover da mesa
@@ -690,6 +686,19 @@ export function TablesTab({ tournament }: TablesTabProps) {
           )
         })()}
       </Modal>
+
+      <ConfirmDialog
+        isOpen={confirmUnseat && !!movePlayerEntry}
+        onClose={() => setConfirmUnseat(false)}
+        onConfirm={() => {
+          if (movePlayerEntry) unseatMutation.mutate(movePlayerEntry.entryId)
+        }}
+        title="Remover da Mesa"
+        message={`Remover ${movePlayerEntry?.name ?? ''} da mesa? Ele continua ativo, mas sem assento.`}
+        confirmLabel="Remover"
+        variant="danger"
+        loading={unseatMutation.isPending}
+      />
     </div>
   )
 }

@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import * as tournamentsApi from '../../api/tournaments.api'
 import { Button } from '../../components/ui/Button'
 import { Badge } from '../../components/ui/Badge'
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { SearchInput } from '../../components/ui/SearchInput'
 import { LoadingSpinner } from '../../components/common/LoadingSpinner'
 import {
@@ -46,6 +47,7 @@ export function TournamentListPage() {
   const navigate = useNavigate()
   const [statusFilter, setStatusFilter] = useState<TournamentStatus | 'all'>('all')
   const [search, setSearch] = useState('')
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null)
   const queryClient = useQueryClient()
 
   const deleteMutation = useMutation({
@@ -53,6 +55,7 @@ export function TournamentListPage() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['tournaments', homeGameId] })
       toast.success('Torneio excluído.')
+      setDeleteConfirm(null)
     },
     onError: () => toast.error('Erro ao excluir torneio.'),
   })
@@ -187,12 +190,7 @@ export function TournamentListPage() {
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation()
-                        if (
-                          window.confirm(
-                            `Excluir o torneio "${tournament.name}"? Ele deixará de contar para o ranking.`,
-                          )
-                        )
-                          deleteMutation.mutate(tournament.id)
+                        setDeleteConfirm({ id: tournament.id, name: tournament.name })
                       }}
                       className="p-1 rounded text-text-muted hover:text-accent-red hover:bg-red-500/10 transition-colors"
                       title="Excluir torneio"
@@ -241,6 +239,19 @@ export function TournamentListPage() {
           })}
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={!!deleteConfirm}
+        onClose={() => setDeleteConfirm(null)}
+        onConfirm={() => {
+          if (deleteConfirm) deleteMutation.mutate(deleteConfirm.id)
+        }}
+        title="Excluir Torneio"
+        message={`Excluir o torneio "${deleteConfirm?.name ?? ''}"? Ele deixará de contar para o ranking.`}
+        confirmLabel="Excluir"
+        variant="danger"
+        loading={deleteMutation.isPending}
+      />
     </div>
   )
 }

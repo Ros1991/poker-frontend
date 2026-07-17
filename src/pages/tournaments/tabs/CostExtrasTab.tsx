@@ -10,6 +10,7 @@ import { Button } from '../../../components/ui/Button'
 import { Input } from '../../../components/ui/Input'
 import { Modal } from '../../../components/ui/Modal'
 import { Badge } from '../../../components/ui/Badge'
+import { ConfirmDialog } from '../../../components/ui/ConfirmDialog'
 import { LoadingSpinner } from '../../../components/common/LoadingSpinner'
 import type { Tournament } from '../../../types/tournament.types'
 import type { CostExtra } from '../../../types/costExtra.types'
@@ -37,6 +38,7 @@ export function CostExtrasTab({ tournament }: CostExtrasTabProps) {
   const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
   const [editingCost, setEditingCost] = useState<CostExtra | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<CostExtra | null>(null)
 
   const {
     register,
@@ -106,6 +108,7 @@ export function CostExtrasTab({ tournament }: CostExtrasTabProps) {
       queryClient.invalidateQueries({ queryKey: ['costExtras', tournament.id] })
       queryClient.invalidateQueries({ queryKey: ['tournament', tournament.id] })
       toast.success('Custo excluído.')
+      setDeleteConfirm(null)
     },
     onError: (err: unknown) => {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
@@ -268,12 +271,7 @@ export function CostExtrasTab({ tournament }: CostExtrasTabProps) {
                   {!isStaff && (
                     <button
                       type="button"
-                      onClick={() => {
-                        const msg = isRanking
-                          ? `Excluir o custo "${cost.description}"? O valor de ${cost.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} VOLTA PARA O PRÊMIO e este torneio não acumula nada para o ranking.`
-                          : `Excluir o custo "${cost.description}"?`
-                        if (window.confirm(msg)) removeMutation.mutate(cost.id)
-                      }}
+                      onClick={() => setDeleteConfirm(cost)}
                       className="p-1 rounded text-text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors"
                       title={isRanking ? 'Excluir (valor volta pro prêmio)' : 'Excluir custo'}
                     >
@@ -340,6 +338,23 @@ export function CostExtrasTab({ tournament }: CostExtrasTabProps) {
           </div>
         </form>
       </Modal>
+
+      <ConfirmDialog
+        isOpen={!!deleteConfirm}
+        onClose={() => setDeleteConfirm(null)}
+        onConfirm={() => {
+          if (deleteConfirm) removeMutation.mutate(deleteConfirm.id)
+        }}
+        title="Excluir Custo"
+        message={
+          deleteConfirm?.costType === 'RankingAccumulated'
+            ? `Excluir o custo "${deleteConfirm.description}"? O valor de ${formatCurrency(deleteConfirm.amount)} volta para o prêmio e este torneio não acumula nada para o ranking.`
+            : `Excluir o custo "${deleteConfirm?.description ?? ''}"?`
+        }
+        confirmLabel="Excluir"
+        variant="danger"
+        loading={removeMutation.isPending}
+      />
     </div>
   )
 }
