@@ -227,41 +227,12 @@ export function TvDisplayPage() {
   // Lista da coluna esquerda: ativos primeiro (ordem original), eliminados por último
   const playerList = [...activeEntries, ...eliminatedEntries]
 
-  // Ultimo eliminado = o mais recente (por timestamp eliminatedAt)
-  const lastEliminated = eliminatedEntries.length > 0
-    ? [...eliminatedEntries]
-        .filter((e) => e.eliminatedAt)
-        .sort((a, b) => {
-          const aTime = a.eliminatedAt ? new Date(a.eliminatedAt).getTime() : 0
-          const bTime = b.eliminatedAt ? new Date(b.eliminatedAt).getTime() : 0
-          return bTime - aTime
-        })[0] ?? null
-    : null
-
   // Premiacao = total das entries - custos
   const totalDue = entries?.reduce((sum, e) => sum + (e.totalDue ?? 0), 0) ?? 0
   const totalCosts = costExtras?.reduce((sum, c) => sum + (c.amount ?? 0), 0) ?? 0
   const premiacao = totalDue - totalCosts
 
   const prizesList = prizeData?.prizes ?? []
-  const awardedEntries = eliminatedEntries.filter(
-    (e) => e.finalPosition && prizesList.some((p) => p.position === e.finalPosition),
-  )
-  const lastAwarded = awardedEntries.length > 0
-    ? [...awardedEntries]
-        .filter((e) => e.eliminatedAt)
-        .sort((a, b) => {
-          const aTime = a.eliminatedAt ? new Date(a.eliminatedAt).getTime() : 0
-          const bTime = b.eliminatedAt ? new Date(b.eliminatedAt).getTime() : 0
-          return bTime - aTime
-        })[0] ?? null
-    : null
-  const nextPrizePosition = prizesList.length > 0
-    ? prizesList[prizesList.length - 1].position
-    : null
-  const nextPrizeAmount = prizesList.length > 0
-    ? prizesList[prizesList.length - 1].amount
-    : 0
 
   // Fichas em jogo (por entry: stack inicial + rebuys + addon; addon duplo = 2x)
   const startingStack = tournament?.startingStack ?? 0
@@ -331,7 +302,7 @@ export function TvDisplayPage() {
         {/* Top Bar */}
         <header className="flex items-center justify-between border-b border-white/10 px-6 py-3">
           <div className="flex items-center gap-4">
-            <h1 className="text-2xl font-bold tracking-tight">
+            <h1 className="text-3xl font-bold tracking-tight">
               {tournament?.name ?? 'Torneio'}
             </h1>
             {statusInfo && (
@@ -340,7 +311,7 @@ export function TvDisplayPage() {
               </span>
             )}
           </div>
-          <div className="flex items-center gap-6 text-sm text-slate-400">
+          <div className="flex items-center gap-6 text-base text-slate-400">
             <span>Pressione F para tela cheia</span>
             <span>
               {now.toLocaleDateString('pt-BR', {
@@ -358,18 +329,18 @@ export function TvDisplayPage() {
           <aside className="flex min-h-0 flex-col rounded-xl border border-white/10 bg-white/5 p-4">
             <div className="mb-1 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Users className="h-5 w-5 text-blue-400" />
-                <h2 className="text-lg font-semibold text-slate-200">Jogadores</h2>
+                <Users className="h-6 w-6 text-blue-400" />
+                <h2 className="text-2xl font-semibold text-slate-200">Jogadores</h2>
               </div>
-              <p className="text-lg font-bold">
+              <p className="text-2xl font-bold">
                 <span className="text-emerald-400">{activeEntries.length}</span>
                 <span className="text-slate-500"> / {entries?.length ?? 0}</span>
               </p>
             </div>
-            <p className="mb-2 text-xs text-slate-500">
+            <p className="mb-2 text-base text-slate-500">
               {tournament?.totalRebuys ?? 0} rebuys | {tournament?.totalAddons ?? 0} add-ons
             </p>
-            <div className="mb-1 grid grid-cols-[minmax(0,1fr)_2.5rem_2.5rem_5.5rem] gap-1 px-2 text-[11px] uppercase tracking-wider text-slate-500">
+            <div className="mb-1 grid grid-cols-[minmax(0,1fr)_3rem_3rem_8rem] gap-1 px-2 text-sm uppercase tracking-wider text-slate-500">
               <span>Jogador</span>
               <span className="text-center">Reb</span>
               <span className="text-center">Add</span>
@@ -379,23 +350,31 @@ export function TvDisplayPage() {
               <div className="flex flex-col gap-1">
                 {playerList.map((e) => {
                   const finished = e.status !== 'Active' && e.status !== 'Registered'
+                  const isChampion = finished && e.finalPosition === 1
                   return (
                     <div
                       key={e.id}
-                      className={`grid grid-cols-[minmax(0,1fr)_2.5rem_2.5rem_5.5rem] items-center gap-1 rounded-lg px-2 py-1.5 text-sm ${
-                        finished
-                          ? 'bg-white/[0.03] opacity-60'
-                          : 'border border-white/10 bg-white/5'
+                      className={`grid grid-cols-[minmax(0,1fr)_3rem_3rem_8rem] items-center gap-1 rounded-lg px-2 py-2 text-xl ${
+                        isChampion
+                          ? 'border border-yellow-500/30 bg-yellow-500/10'
+                          : finished
+                            ? 'bg-white/[0.03] opacity-60'
+                            : 'border border-white/10 bg-white/5'
                       }`}
                     >
                       <span className="flex min-w-0 items-center gap-1.5">
-                        {finished && (
-                          <span className="flex shrink-0 items-center gap-0.5 font-bold text-red-400">
-                            <Skull className="h-3.5 w-3.5" />
+                        {isChampion ? (
+                          <span className="flex shrink-0 items-center gap-1 font-bold text-yellow-400">
+                            <Trophy className="h-5 w-5" />
+                            1º
+                          </span>
+                        ) : finished ? (
+                          <span className="flex shrink-0 items-center gap-1 font-bold text-red-400">
+                            <Skull className="h-5 w-5" />
                             {e.finalPosition ? `${e.finalPosition}º` : ''}
                           </span>
-                        )}
-                        <span className={`truncate font-semibold ${finished ? 'text-slate-400' : 'text-white'}`}>
+                        ) : null}
+                        <span className={`truncate font-semibold ${isChampion ? 'text-white' : finished ? 'text-slate-400' : 'text-white'}`}>
                           {e.person.nickname ?? e.person.fullName}
                         </span>
                       </span>
@@ -427,7 +406,7 @@ export function TvDisplayPage() {
                   champion?.person.nickname ?? champion?.person.fullName ?? '—'
                 return (
                   <div className="flex flex-col items-center gap-4">
-                    <span className="text-3xl font-semibold uppercase tracking-[0.3em] text-yellow-400">
+                    <span className="text-4xl font-semibold uppercase tracking-[0.3em] text-yellow-400">
                       Campeão
                     </span>
                     <div
@@ -440,7 +419,7 @@ export function TvDisplayPage() {
                       {name}
                     </div>
                     {champion?.prizeAmount ? (
-                      <div className="text-3xl font-semibold text-emerald-400">
+                      <div className="text-4xl font-semibold text-emerald-400">
                         {formatCurrency(champion.prizeAmount)}
                       </div>
                     ) : null}
@@ -450,13 +429,13 @@ export function TvDisplayPage() {
             ) : (
               <div className="flex flex-col items-center gap-2">
                 {timerState.isBreak ? (
-                  <div className="rounded-full bg-yellow-500/20 px-6 py-2 text-lg font-semibold text-yellow-400">
+                  <div className="rounded-full bg-yellow-500/20 px-8 py-2 text-2xl font-semibold text-yellow-400">
                     INTERVALO
                   </div>
                 ) : (
                   <div className="flex items-center gap-3 text-slate-400">
-                    <Clock className="h-5 w-5" />
-                    <span className="text-lg font-medium">
+                    <Clock className="h-6 w-6" />
+                    <span className="text-2xl font-medium">
                       Nivel {timerState.currentLevel}
                     </span>
                   </div>
@@ -464,7 +443,7 @@ export function TvDisplayPage() {
 
                 {/* Timer */}
                 <div
-                  className={`font-mono text-[9rem] font-bold leading-none tracking-tighter transition-colors duration-500 ${timerColor}`}
+                  className={`font-mono text-[10rem] font-bold leading-none tracking-tighter transition-colors duration-500 ${timerColor}`}
                   style={{
                     textShadow: `0 0 80px ${timerState.remainingSeconds <= 60 ? 'rgba(239,68,68,0.3)' : timerState.remainingSeconds <= 120 ? 'rgba(234,179,8,0.3)' : 'rgba(34,197,94,0.3)'}`,
                   }}
@@ -484,20 +463,20 @@ export function TvDisplayPage() {
                 <div className="mt-4 flex flex-col items-center gap-3">
                   <div className="flex items-end gap-10">
                     <div className="flex flex-col items-center">
-                      <span className="text-base uppercase tracking-wider text-slate-500">
+                      <span className="text-lg uppercase tracking-wider text-slate-500">
                         Blinds
                       </span>
-                      <span className="text-7xl font-bold text-white">
+                      <span className="text-8xl font-bold text-white">
                         {timerState.smallBlind.toLocaleString('pt-BR')} /{' '}
                         {timerState.bigBlind.toLocaleString('pt-BR')}
                       </span>
                     </div>
                     {timerState.ante > 0 && (
                       <div className="flex flex-col items-center">
-                        <span className="text-base uppercase tracking-wider text-slate-500">
+                        <span className="text-lg uppercase tracking-wider text-slate-500">
                           Ante
                         </span>
-                        <span className="text-6xl font-bold text-orange-400">
+                        <span className="text-7xl font-bold text-orange-400">
                           {timerState.ante.toLocaleString('pt-BR')}
                         </span>
                       </div>
@@ -505,10 +484,10 @@ export function TvDisplayPage() {
                   </div>
                   {timerState.nextSmallBlind != null && (
                     <div className="flex flex-col items-center opacity-70">
-                      <span className="text-sm uppercase tracking-wider text-slate-500">
+                      <span className="text-base uppercase tracking-wider text-slate-500">
                         Proximo
                       </span>
-                      <span className="text-3xl font-semibold text-slate-300">
+                      <span className="text-4xl font-semibold text-slate-300">
                         {timerState.nextSmallBlind.toLocaleString('pt-BR')} /{' '}
                         {timerState.nextBigBlind?.toLocaleString('pt-BR')}
                       </span>
@@ -524,10 +503,10 @@ export function TvDisplayPage() {
             {/* Hora atual */}
             <div className="rounded-xl border border-white/10 bg-white/5 p-4">
               <div className="mb-1 flex items-center gap-2 text-slate-400">
-                <Clock className="h-4 w-4" />
-                <span className="text-xs font-medium uppercase tracking-wider">Hora</span>
+                <Clock className="h-5 w-5" />
+                <span className="text-base font-medium uppercase tracking-wider">Hora</span>
               </div>
-              <p className="font-mono text-4xl font-bold text-white">
+              <p className="font-mono text-6xl font-bold text-white">
                 {now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
               </p>
             </div>
@@ -535,13 +514,13 @@ export function TvDisplayPage() {
             {/* Fichas */}
             <div className="rounded-xl border border-white/10 bg-white/5 p-4">
               <div className="mb-1 flex items-center gap-2 text-slate-400">
-                <Coins className="h-4 w-4" />
-                <span className="text-xs font-medium uppercase tracking-wider">Fichas em jogo</span>
+                <Coins className="h-5 w-5" />
+                <span className="text-base font-medium uppercase tracking-wider">Fichas em jogo</span>
               </div>
-              <p className="text-3xl font-bold text-white">
+              <p className="text-5xl font-bold text-white">
                 {totalChips.toLocaleString('pt-BR')}
               </p>
-              <p className="mt-1 text-sm text-slate-400">
+              <p className="mt-1 text-xl text-slate-400">
                 Média por jogador:{' '}
                 <span className="font-semibold text-emerald-400">
                   {avgStack.toLocaleString('pt-BR')}
@@ -552,10 +531,10 @@ export function TvDisplayPage() {
             {/* Próximo intervalo */}
             <div className="rounded-xl border border-white/10 bg-white/5 p-4">
               <div className="mb-1 flex items-center gap-2 text-slate-400">
-                <Hourglass className="h-4 w-4" />
-                <span className="text-xs font-medium uppercase tracking-wider">Próximo intervalo</span>
+                <Hourglass className="h-5 w-5" />
+                <span className="text-base font-medium uppercase tracking-wider">Próximo intervalo</span>
               </div>
-              <p className="font-mono text-3xl font-bold text-yellow-400">
+              <p className="font-mono text-5xl font-bold text-yellow-400">
                 {timerState.isBreak
                   ? 'Agora'
                   : secondsToBreak != null
@@ -568,10 +547,10 @@ export function TvDisplayPage() {
             <div className="mt-auto flex min-h-0 flex-col rounded-xl border border-white/10 bg-white/5 p-4">
               <div className="mb-2 flex items-center justify-between">
                 <div className="flex items-center gap-2 text-slate-400">
-                  <Trophy className="h-4 w-4 text-yellow-400" />
-                  <span className="text-xs font-medium uppercase tracking-wider">Premiação</span>
+                  <Trophy className="h-5 w-5 text-yellow-400" />
+                  <span className="text-base font-medium uppercase tracking-wider">Premiação</span>
                 </div>
-                <span className="text-sm font-bold text-emerald-400">{formatCurrency(premiacao)}</span>
+                <span className="text-xl font-bold text-emerald-400">{formatCurrency(premiacao)}</span>
               </div>
               <AutoScrollList className="min-h-0" anchorBottom>
                 <div className="flex flex-col gap-1">
@@ -580,9 +559,9 @@ export function TvDisplayPage() {
                     return (
                       <div
                         key={p.position}
-                        className="flex items-center gap-2 rounded-lg bg-white/[0.04] px-2 py-1.5 text-sm"
+                        className="flex items-center gap-2 rounded-lg bg-white/[0.04] px-2 py-2 text-xl"
                       >
-                        <span className="w-8 shrink-0 font-bold text-yellow-400">{p.position}º</span>
+                        <span className="w-12 shrink-0 font-bold text-yellow-400">{p.position}º</span>
                         <span className="shrink-0 font-semibold text-emerald-400">
                           {formatCurrency(p.amount)}
                         </span>
@@ -595,7 +574,7 @@ export function TvDisplayPage() {
                     )
                   })}
                   {prizesList.length === 0 && (
-                    <p className="py-3 text-center text-sm text-slate-500">Sem premiação calculada</p>
+                    <p className="py-3 text-center text-base text-slate-500">Sem premiação calculada</p>
                   )}
                 </div>
               </AutoScrollList>
@@ -603,58 +582,6 @@ export function TvDisplayPage() {
           </aside>
         </div>
 
-        {/* Rodapé compacto: último eliminado + último premiado / próxima premiação */}
-        <footer className="grid grid-cols-2 gap-4 border-t border-white/10 px-6 py-2.5">
-          <div className="flex items-center gap-3">
-            <Skull className="h-4 w-4 shrink-0 text-red-400" />
-            <span className="text-xs font-medium uppercase tracking-wider text-slate-500">
-              Último eliminado
-            </span>
-            {lastEliminated ? (
-              <span className="min-w-0 truncate text-sm text-white">
-                <span className="font-bold">
-                  {lastEliminated.person.nickname ?? lastEliminated.person.fullName}
-                </span>{' '}
-                <span className="text-red-400">{lastEliminated.finalPosition}º lugar</span>
-                {(() => {
-                  const prize = prizesList.find((p) => p.position === lastEliminated.finalPosition)
-                  return prize ? (
-                    <span className="font-semibold text-emerald-400"> {formatCurrency(prize.amount)}</span>
-                  ) : null
-                })()}
-              </span>
-            ) : (
-              <span className="text-sm text-slate-500">Nenhum eliminado ainda</span>
-            )}
-          </div>
-          <div className="flex items-center gap-3">
-            <Trophy className="h-4 w-4 shrink-0 text-yellow-400" />
-            <span className="text-xs font-medium uppercase tracking-wider text-slate-500">
-              {lastAwarded ? 'Último premiado' : 'Próxima premiação'}
-            </span>
-            {lastAwarded ? (
-              <span className="min-w-0 truncate text-sm text-white">
-                <span className="font-bold">
-                  {lastAwarded.person.nickname ?? lastAwarded.person.fullName}
-                </span>{' '}
-                <span className="text-yellow-400">{lastAwarded.finalPosition}º</span>
-                {(() => {
-                  const prize = prizesList.find((p) => p.position === lastAwarded.finalPosition)
-                  return prize ? (
-                    <span className="font-semibold text-emerald-400"> {formatCurrency(prize.amount)}</span>
-                  ) : null
-                })()}
-              </span>
-            ) : nextPrizePosition ? (
-              <span className="text-sm text-white">
-                <span className="font-bold">{nextPrizePosition}º lugar</span>{' '}
-                <span className="font-semibold text-emerald-400">{formatCurrency(nextPrizeAmount)}</span>
-              </span>
-            ) : (
-              <span className="text-sm text-slate-500">Sem premiação calculada</span>
-            )}
-          </div>
-        </footer>
       </div>
     </div>
   )
