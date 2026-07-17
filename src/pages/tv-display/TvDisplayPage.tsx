@@ -235,15 +235,18 @@ export function TvDisplayPage() {
   const prizesList = prizeData?.prizes ?? []
 
   // Fichas em jogo (por entry: stack inicial + rebuys + addon; addon duplo = 2x)
+  // + bônus de pontualidade (qtd de jogadores × fichas de bônus)
   const startingStack = tournament?.startingStack ?? 0
   const rebuyStack = tournament?.rebuyStack ?? startingStack
   const addonStack = tournament?.addonStack ?? startingStack
+  const bonusChipsTotal =
+    (tournament?.punctualityBonusCount ?? 0) * (tournament?.punctualityBonusChips ?? 0)
   const totalChips =
-    entries?.reduce((sum, e) => {
+    (entries?.reduce((sum, e) => {
       const rebuyChips = (e.rebuyCount ?? 0) * rebuyStack
       const addonChips = e.addonPurchased ? (e.addonDouble ? 2 : 1) * addonStack : 0
       return sum + startingStack + rebuyChips + addonChips
-    }, 0) ?? 0
+    }, 0) ?? 0) + bonusChipsTotal
   const avgStack = activeEntries.length > 0 ? Math.round(totalChips / activeEntries.length) : 0
 
   // Tempo até o próximo intervalo: restante do nível atual + níveis até o break

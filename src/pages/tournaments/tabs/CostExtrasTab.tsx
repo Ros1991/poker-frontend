@@ -183,7 +183,6 @@ export function CostExtrasTab({ tournament }: CostExtrasTabProps) {
             const pending = cost.amount - paidAmount
             const isStaff = cost.costType === 'Staff'
             const isRanking = cost.costType === 'RankingAccumulated'
-            const isAuto = isStaff || isRanking
             return (
               <div
                 key={cost.id}
@@ -264,15 +263,19 @@ export function CostExtrasTab({ tournament }: CostExtrasTabProps) {
                       <Pencil className="h-3.5 w-3.5" />
                     </button>
                   )}
-                  {!isAuto && (
+                  {/* Staff automático não pode ser excluído; o acumulado do ranking pode
+                      (o valor volta pro prêmio — pra quando não se quer acumular). */}
+                  {!isStaff && (
                     <button
                       type="button"
                       onClick={() => {
-                        if (window.confirm(`Excluir o custo "${cost.description}"?`))
-                          removeMutation.mutate(cost.id)
+                        const msg = isRanking
+                          ? `Excluir o custo "${cost.description}"? O valor de ${cost.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} VOLTA PARA O PRÊMIO e este torneio não acumula nada para o ranking.`
+                          : `Excluir o custo "${cost.description}"?`
+                        if (window.confirm(msg)) removeMutation.mutate(cost.id)
                       }}
                       className="p-1 rounded text-text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                      title="Excluir custo"
+                      title={isRanking ? 'Excluir (valor volta pro prêmio)' : 'Excluir custo'}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>

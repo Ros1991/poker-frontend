@@ -59,3 +59,15 @@ export async function updateStatus(
 export async function remove(homeGameId: string, id: string): Promise<void> {
   await apiClient.delete(`/home-games/${homeGameId}/Tournaments/${id}`)
 }
+
+export async function updatePunctualityBonus(
+  id: string,
+  count: number,
+  chips: number,
+): Promise<Tournament> {
+  const response = await apiClient.put<Tournament>(
+    `/tournaments/${id}/punctuality-bonus`,
+    { count, chips },
+  )
+  return response.data
+}

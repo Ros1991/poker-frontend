@@ -42,6 +42,8 @@ export interface Tournament {
   rankingContribMode: string | null
   rankingContribValue: number | null
   rankingPrizeAccrued: number | null
+  punctualityBonusCount: number | null
+  punctualityBonusChips: number | null
   createdAt: string
   updatedAt: string
 }
@@ -55,6 +57,8 @@ export interface CreateTournamentRequest {
   rebuyAmount: number
   addonAmount: number
   startingStack: number
+  rebuyStack?: number
+  addonStack?: number
   maxRebuys: number
   addonAllowed: boolean
   addonDoubleAllowed?: boolean

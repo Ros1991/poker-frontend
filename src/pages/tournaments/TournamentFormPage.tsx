@@ -24,6 +24,8 @@ const tournamentSchema = z.object({
   rebuyAmount: z.coerce.number().min(0, 'Valor invalido'),
   addonAmount: z.coerce.number().min(0, 'Valor invalido'),
   startingStack: z.coerce.number().min(1, 'Stack invalido'),
+  rebuyStack: z.coerce.number().min(0, 'Valor invalido'),
+  addonStack: z.coerce.number().min(0, 'Valor invalido'),
   maxRebuys: z.coerce.number().min(0, 'Valor invalido'),
   addonAllowed: z.boolean(),
   addonDoubleAllowed: z.boolean(),
@@ -74,6 +76,8 @@ export function TournamentFormPage() {
       rebuyAmount: 0,
       addonAmount: 0,
       startingStack: 0,
+      rebuyStack: 0,
+      addonStack: 0,
       maxRebuys: 0,
       addonAllowed: true,
       addonDoubleAllowed: false,
@@ -136,6 +140,10 @@ export function TournamentFormPage() {
       setValue('addonAmount', structure.defaultAddon)
     if (structure.defaultStartingStack != null)
       setValue('startingStack', structure.defaultStartingStack)
+    if (structure.defaultRebuyStack != null)
+      setValue('rebuyStack', structure.defaultRebuyStack)
+    if (structure.defaultAddonStack != null)
+      setValue('addonStack', structure.defaultAddonStack)
     if (structure.defaultMaxRebuys != null)
       setValue('maxRebuys', structure.defaultMaxRebuys)
     if (structure.defaultAddonAllowed != null)
@@ -173,6 +181,8 @@ export function TournamentFormPage() {
       rebuyAmount: existingTournament.rebuyAmount,
       addonAmount: existingTournament.addonAmount,
       startingStack: existingTournament.startingStack,
+      rebuyStack: existingTournament.rebuyStack ?? 0,
+      addonStack: existingTournament.addonStack ?? 0,
       maxRebuys: existingTournament.maxRebuys,
       addonAllowed: existingTournament.addonAllowed,
       addonDoubleAllowed: existingTournament.addonDoubleAllowed,
@@ -232,6 +242,9 @@ export function TournamentFormPage() {
       ...data,
       rankingId: data.rankingId || undefined,
       blindStructureId: data.blindStructureId || undefined,
+      // 0 = "não informado" → backend guarda null e o telão usa o stack inicial
+      rebuyStack: data.rebuyStack || undefined,
+      addonStack: data.addonStack || undefined,
       // Sem ranking vinculado, não faz sentido contribuição acumulada.
       rankingContribMode: hasRanking ? data.rankingContribMode : undefined,
       rankingContribValue: hasRanking ? data.rankingContribValue : 0,
@@ -444,6 +457,18 @@ export function TournamentFormPage() {
               type="number"
               {...register('startingStack')}
               error={errors.startingStack?.message}
+            />
+            <Input
+              label="Fichas do Rebuy (0 = igual ao inicial)"
+              type="number"
+              {...register('rebuyStack')}
+              error={errors.rebuyStack?.message}
+            />
+            <Input
+              label="Fichas do Add-on (0 = igual ao inicial)"
+              type="number"
+              {...register('addonStack')}
+              error={errors.addonStack?.message}
             />
             <Input
               label="Max Rebuys (0 = ilimitado)"

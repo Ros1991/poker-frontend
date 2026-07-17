@@ -11,8 +11,10 @@ import {
   Trash2,
   Undo2,
   MinusCircle,
+  AlarmClock,
 } from 'lucide-react'
 import * as entriesApi from '../../../api/entries.api'
+import * as tournamentsApi from '../../../api/tournaments.api'
 import { Button } from '../../../components/ui/Button'
 import { Badge } from '../../../components/ui/Badge'
 import { Avatar } from '../../../components/ui/Avatar'
@@ -51,6 +53,9 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
   const [rebuyConfirm, setRebuyConfirm] = useState<TournamentEntry | null>(null)
   const [addonConfirm, setAddonConfirm] = useState<TournamentEntry | null>(null)
   const [removeConfirm, setRemoveConfirm] = useState<TournamentEntry | null>(null)
+  const [showBonusModal, setShowBonusModal] = useState(false)
+  const [bonusCount, setBonusCount] = useState('')
+  const [bonusChips, setBonusChips] = useState('')
   const [successMessage, setSuccessMessage] = useState<{
     entry: TournamentEntry
     action: string
@@ -135,6 +140,20 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
     },
   })
 
+  const bonusMutation = useMutation({
+    mutationFn: ({ count, chips }: { count: number; chips: number }) =>
+      tournamentsApi.updatePunctualityBonus(tournament.id, count, chips),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tournament', tournament.id] })
+      toast.success('Bônus de pontualidade salvo!')
+      setShowBonusModal(false)
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+      toast.error(msg || 'Erro ao salvar bônus.')
+    },
+  })
+
   const removeMutation = useMutation({
     mutationFn: (entryId: string) => entriesApi.remove(tournament.id, entryId),
     onSuccess: () => {
@@ -192,6 +211,20 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
           Jogadores ({entries.length})
         </h2>
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setBonusCount(String(tournament.punctualityBonusCount ?? 0))
+              setBonusChips(String(tournament.punctualityBonusChips ?? 0))
+              setShowBonusModal(true)
+            }}
+            className="flex items-center gap-1.5 rounded-lg border border-border-default bg-bg-tertiary px-2.5 py-1.5 text-xs text-text-secondary hover:text-text-primary hover:border-accent-blue/50 transition-colors"
+            title="Bônus de pontualidade (fichas extras)"
+          >
+            <AlarmClock className="h-3.5 w-3.5 text-yellow-500" />
+            Bônus: {tournament.punctualityBonusCount ?? 0} ×{' '}
+            {(tournament.punctualityBonusChips ?? 0).toLocaleString('pt-BR')}
+          </button>
           <SearchInput
             value={search}
             onChange={setSearch}
@@ -500,6 +533,65 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
         variant="danger"
         loading={removeMutation.isPending}
       />
+
+      {/* Bônus de Pontualidade Modal */}
+      {showBonusModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm rounded-xl border border-border-default bg-bg-secondary p-6 shadow-xl">
+            <h3 className="text-lg font-semibold text-text-primary mb-1">
+              Bônus de Pontualidade
+            </h3>
+            <p className="text-sm text-text-secondary mb-4">
+              Fichas extras pra quem chegou no horário. Entram no total de
+              fichas exibido no telão.
+            </p>
+            <div className="flex flex-col gap-3">
+              <label className="text-sm text-text-secondary">
+                Jogadores que receberam
+                <input
+                  type="number"
+                  min={0}
+                  value={bonusCount}
+                  onChange={(e) => setBonusCount(e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-border-default bg-bg-input px-3 py-2 text-text-primary focus:border-accent-blue focus:outline-none"
+                />
+              </label>
+              <label className="text-sm text-text-secondary">
+                Fichas de bônus (por jogador)
+                <input
+                  type="number"
+                  min={0}
+                  step={500}
+                  value={bonusChips}
+                  onChange={(e) => setBonusChips(e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-border-default bg-bg-input px-3 py-2 text-text-primary focus:border-accent-blue focus:outline-none"
+                />
+              </label>
+              <div className="mt-1 flex gap-2">
+                <Button
+                  onClick={() =>
+                    bonusMutation.mutate({
+                      count: Number(bonusCount) || 0,
+                      chips: Number(bonusChips) || 0,
+                    })
+                  }
+                  loading={bonusMutation.isPending}
+                  className="flex-1"
+                >
+                  Salvar
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => setShowBonusModal(false)}
+                  disabled={bonusMutation.isPending}
+                >
+                  Cancelar
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Addon Modal */}
       {addonConfirm && (
