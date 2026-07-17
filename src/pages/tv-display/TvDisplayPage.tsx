@@ -1,12 +1,14 @@
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Users, Trophy, Clock, Skull } from 'lucide-react'
+import { Users, Trophy, Clock, Skull, Coins, Hourglass } from 'lucide-react'
 import * as tournamentsApi from '../../api/tournaments.api'
 import * as entriesApi from '../../api/entries.api'
 import * as timerApi from '../../api/timer.api'
 import * as costExtrasApi from '../../api/costExtras.api'
 import * as prizesApi from '../../api/prizes.api'
+import * as tournamentBlindsApi from '../../api/tournamentBlinds.api'
 import { useBlindTimer } from '../../hooks/useBlindTimer'
 import { useWebSocket } from '../../hooks/useWebSocket'
 import type { TimerState } from '../../types/blind.types'
@@ -17,6 +19,113 @@ function formatCurrency(value: number): string {
     style: 'currency',
     currency: 'BRL',
   }).format(value)
+}
+
+// O backend envia TimerStateResponse (durationMinutes + nextLevel aninhado);
+// o TimerState local espera totalSeconds e campos planos de próximo nível.
+interface RawTimerResponse {
+  currentLevel?: number | null
+  smallBlind?: number
+  bigBlind?: number
+  ante?: number
+  durationMinutes?: number
+  remainingSeconds?: number
+  isRunning?: boolean
+  isBreak?: boolean
+  nextLevel?: {
+    levelNumber?: number
+    smallBlind?: number
+    bigBlind?: number
+    ante?: number
+    isBreak?: boolean
+  } | null
+}
+
+function toTimerState(raw: unknown): TimerState {
+  const r = (raw ?? {}) as RawTimerResponse
+  return {
+    currentLevel: r.currentLevel ?? 1,
+    smallBlind: r.smallBlind ?? 0,
+    bigBlind: r.bigBlind ?? 0,
+    ante: r.ante ?? 0,
+    remainingSeconds: r.remainingSeconds ?? 0,
+    totalSeconds: (r.durationMinutes ?? 0) * 60,
+    isRunning: r.isRunning ?? false,
+    isPaused: false,
+    nextSmallBlind: r.nextLevel && !r.nextLevel.isBreak ? (r.nextLevel.smallBlind ?? null) : null,
+    nextBigBlind: r.nextLevel && !r.nextLevel.isBreak ? (r.nextLevel.bigBlind ?? null) : null,
+    nextAnte: r.nextLevel && !r.nextLevel.isBreak ? (r.nextLevel.ante ?? null) : null,
+    isBreak: r.isBreak ?? false,
+  }
+}
+
+function formatDuration(totalSeconds: number): string {
+  const h = Math.floor(totalSeconds / 3600)
+  const m = Math.floor((totalSeconds % 3600) / 60)
+  const s = totalSeconds % 60
+  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+}
+
+const SCROLL_GAP = 16
+
+// Lista que rola verticalmente em loop infinito QUANDO o conteúdo estoura o
+// container; caso contrário fica estática (ancorada embaixo se anchorBottom).
+function AutoScrollList({
+  children,
+  className = '',
+  speed = 26,
+  anchorBottom = false,
+}: {
+  children: ReactNode
+  className?: string
+  speed?: number
+  anchorBottom?: boolean
+}) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
+  const [scrollPx, setScrollPx] = useState(0)
+
+  useEffect(() => {
+    function measure() {
+      const container = containerRef.current
+      const content = contentRef.current
+      if (!container || !content) return
+      const overflows = content.scrollHeight > container.clientHeight + 2
+      setScrollPx(overflows ? content.scrollHeight + SCROLL_GAP : 0)
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    if (containerRef.current) ro.observe(containerRef.current)
+    if (contentRef.current) ro.observe(contentRef.current)
+    return () => ro.disconnect()
+  }, [children])
+
+  const scrolling = scrollPx > 0
+  return (
+    <div
+      ref={containerRef}
+      className={`overflow-hidden ${scrolling ? '' : anchorBottom ? 'flex flex-col justify-end' : ''} ${className}`}
+    >
+      <div
+        style={
+          scrolling
+            ? ({
+                animation: `tv-scroll ${Math.max(8, scrollPx / speed)}s linear infinite`,
+                '--tv-scroll-h': `${scrollPx}px`,
+              } as React.CSSProperties)
+            : undefined
+        }
+      >
+        <div ref={contentRef}>{children}</div>
+        {scrolling && (
+          <div aria-hidden style={{ paddingTop: SCROLL_GAP }}>
+            {children}
+          </div>
+        )}
+      </div>
+    </div>
+  )
 }
 
 export function TvDisplayPage() {
@@ -52,6 +161,14 @@ export function TvDisplayPage() {
     refetchInterval: 10000,
   })
 
+  // Níveis de blind do torneio — para calcular o tempo até o próximo intervalo
+  const { data: blindLevels } = useQuery({
+    queryKey: ['blindLevels', tournamentId],
+    queryFn: () => tournamentBlindsApi.getAll(tournament!.homeGameId, tournamentId!),
+    enabled: !!tournamentId && !!tournament?.homeGameId,
+    refetchInterval: 60000,
+  })
+
   const { timerState, syncFromServer, formattedTime, progressPercentage } =
     useBlindTimer(() => {
       void queryClient.invalidateQueries({ queryKey: ['timer', tournamentId] })
@@ -62,7 +179,7 @@ export function TvDisplayPage() {
     queryKey: ['timer', tournamentId],
     queryFn: async () => {
       const state = await timerApi.getState(tournamentId!)
-      syncFromServer(state as TimerState)
+      syncFromServer(toTimerState(state))
       return state
     },
     enabled: !!tournamentId,
@@ -72,8 +189,15 @@ export function TvDisplayPage() {
   useWebSocket({
     tournamentId: tournamentId ?? '',
     enabled: !!tournamentId,
-    onTimerUpdate: (state) => syncFromServer(state as TimerState),
+    onTimerUpdate: (state) => syncFromServer(toTimerState(state)),
   })
+
+  // Relógio de parede (coluna direita)
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 1000)
+    return () => clearInterval(t)
+  }, [])
 
   // Auto fullscreen
   useEffect(() => {
@@ -94,20 +218,24 @@ export function TvDisplayPage() {
     entries?.filter((e: TournamentEntry) => e.status === 'Active' || e.status === 'Registered') ?? []
   const eliminatedEntries =
     entries
-      ?.filter((e: TournamentEntry) => e.status === 'Eliminated' || e.status === 'Awarded')
+      ?.filter((e: TournamentEntry) => e.status === 'Eliminated' || e.status === 'Awarded' || e.status === 'PaidOut')
       .sort(
         (a: TournamentEntry, b: TournamentEntry) =>
           (a.finalPosition ?? 999) - (b.finalPosition ?? 999),
       ) ?? []
 
+  // Lista da coluna esquerda: ativos primeiro (ordem original), eliminados por último
+  const playerList = [...activeEntries, ...eliminatedEntries]
+
   // Ultimo eliminado = o mais recente (por timestamp eliminatedAt)
-  // Posicoes funcionam ao contrario: o primeiro a ser eliminado tem a MAIOR posicao numerica
   const lastEliminated = eliminatedEntries.length > 0
-    ? [...eliminatedEntries].sort((a, b) => {
-        const aTime = a.eliminatedAt ? new Date(a.eliminatedAt).getTime() : 0
-        const bTime = b.eliminatedAt ? new Date(b.eliminatedAt).getTime() : 0
-        return bTime - aTime
-      })[0]
+    ? [...eliminatedEntries]
+        .filter((e) => e.eliminatedAt)
+        .sort((a, b) => {
+          const aTime = a.eliminatedAt ? new Date(a.eliminatedAt).getTime() : 0
+          const bTime = b.eliminatedAt ? new Date(b.eliminatedAt).getTime() : 0
+          return bTime - aTime
+        })[0] ?? null
     : null
 
   // Premiacao = total das entries - custos
@@ -115,26 +243,54 @@ export function TvDisplayPage() {
   const totalCosts = costExtras?.reduce((sum, c) => sum + (c.amount ?? 0), 0) ?? 0
   const premiacao = totalDue - totalCosts
 
-  // Ja tem premiados? (jogadores eliminados em posicao premiada)
   const prizesList = prizeData?.prizes ?? []
   const awardedEntries = eliminatedEntries.filter(
     (e) => e.finalPosition && prizesList.some((p) => p.position === e.finalPosition),
   )
   const lastAwarded = awardedEntries.length > 0
-    ? [...awardedEntries].sort((a, b) => {
-        const aTime = a.eliminatedAt ? new Date(a.eliminatedAt).getTime() : 0
-        const bTime = b.eliminatedAt ? new Date(b.eliminatedAt).getTime() : 0
-        return bTime - aTime
-      })[0]
+    ? [...awardedEntries]
+        .filter((e) => e.eliminatedAt)
+        .sort((a, b) => {
+          const aTime = a.eliminatedAt ? new Date(a.eliminatedAt).getTime() : 0
+          const bTime = b.eliminatedAt ? new Date(b.eliminatedAt).getTime() : 0
+          return bTime - aTime
+        })[0] ?? null
     : null
-
-  // Proxima premiacao (se ninguem foi premiado ainda)
   const nextPrizePosition = prizesList.length > 0
     ? prizesList[prizesList.length - 1].position
     : null
   const nextPrizeAmount = prizesList.length > 0
     ? prizesList[prizesList.length - 1].amount
     : 0
+
+  // Fichas em jogo (por entry: stack inicial + rebuys + addon; addon duplo = 2x)
+  const startingStack = tournament?.startingStack ?? 0
+  const rebuyStack = tournament?.rebuyStack ?? startingStack
+  const addonStack = tournament?.addonStack ?? startingStack
+  const totalChips =
+    entries?.reduce((sum, e) => {
+      const rebuyChips = (e.rebuyCount ?? 0) * rebuyStack
+      const addonChips = e.addonPurchased ? (e.addonDouble ? 2 : 1) * addonStack : 0
+      return sum + startingStack + rebuyChips + addonChips
+    }, 0) ?? 0
+  const avgStack = activeEntries.length > 0 ? Math.round(totalChips / activeEntries.length) : 0
+
+  // Tempo até o próximo intervalo: restante do nível atual + níveis até o break
+  let secondsToBreak: number | null = null
+  if (!timerState.isBreak && blindLevels && blindLevels.length > 0) {
+    const nextBreak = blindLevels
+      .filter((l) => l.isBreak && l.levelNumber > timerState.currentLevel)
+      .sort((a, b) => a.levelNumber - b.levelNumber)[0]
+    if (nextBreak) {
+      let secs = timerState.remainingSeconds
+      for (const l of blindLevels) {
+        if (!l.isBreak && l.levelNumber > timerState.currentLevel && l.levelNumber < nextBreak.levelNumber) {
+          secs += l.durationMinutes * 60
+        }
+      }
+      secondsToBreak = secs
+    }
+  }
 
   // Status label
   const statusLabels: Record<string, { label: string; color: string }> = {
@@ -154,15 +310,26 @@ export function TvDisplayPage() {
         ? 'text-yellow-400'
         : 'text-emerald-400'
 
+  function renderBalance(e: TournamentEntry) {
+    if (e.balance > 0) {
+      return <span className="font-semibold text-red-400">{formatCurrency(e.balance)}</span>
+    }
+    if (e.balance < 0) {
+      return <span className="font-semibold text-blue-400">{formatCurrency(e.balance)}</span>
+    }
+    return <span className="font-semibold text-emerald-400">Pago</span>
+  }
+
   return (
-    <div className="min-h-screen bg-[#0a0f1c] text-white overflow-hidden select-none">
+    <div className="h-screen bg-[#0a0f1c] text-white overflow-hidden select-none">
+      <style>{`@keyframes tv-scroll { from { transform: translateY(0); } to { transform: translateY(calc(-1 * var(--tv-scroll-h))); } }`}</style>
       {/* Background gradient */}
       <div className="fixed inset-0 bg-gradient-to-br from-[#0a0f1c] via-[#0d1529] to-[#0a1628]" />
       <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top,rgba(59,130,246,0.08),transparent_60%)]" />
 
-      <div className="relative z-10 flex min-h-screen flex-col">
+      <div className="relative z-10 flex h-screen flex-col">
         {/* Top Bar */}
-        <header className="flex items-center justify-between border-b border-white/10 px-8 py-4">
+        <header className="flex items-center justify-between border-b border-white/10 px-6 py-3">
           <div className="flex items-center gap-4">
             <h1 className="text-2xl font-bold tracking-tight">
               {tournament?.name ?? 'Torneio'}
@@ -176,7 +343,7 @@ export function TvDisplayPage() {
           <div className="flex items-center gap-6 text-sm text-slate-400">
             <span>Pressione F para tela cheia</span>
             <span>
-              {new Date().toLocaleDateString('pt-BR', {
+              {now.toLocaleDateString('pt-BR', {
                 day: '2-digit',
                 month: 'long',
                 year: 'numeric',
@@ -185,237 +352,309 @@ export function TvDisplayPage() {
           </div>
         </header>
 
-        {/* Main Content */}
-        <div className="flex flex-1 flex-col items-center justify-center gap-8 px-8 py-6">
-          {tournament?.status === 'Finished' ? (
-            (() => {
-              const champion = entries
-                ?.slice()
-                .sort((a, b) => (a.finalPosition ?? 999) - (b.finalPosition ?? 999))
-                .find((e) => e.finalPosition === 1)
-                ?? entries?.find((e) => e.status === 'Awarded')
-              const name =
-                champion?.person.nickname ?? champion?.person.fullName ?? '—'
-              return (
-                <div className="flex flex-col items-center gap-4">
-                  <span className="text-3xl font-semibold uppercase tracking-[0.3em] text-yellow-400">
-                    Campeão
-                  </span>
-                  <div
-                    className="text-center font-bold text-white text-[7rem] leading-none"
-                    style={{
-                      textShadow:
-                        '0 0 80px rgba(234,179,8,0.5), 0 0 30px rgba(234,179,8,0.3)',
-                    }}
-                  >
-                    {name}
-                  </div>
-                  {champion?.prizeAmount ? (
-                    <div className="text-3xl font-semibold text-emerald-400">
-                      {new Intl.NumberFormat('pt-BR', {
-                        style: 'currency',
-                        currency: 'BRL',
-                      }).format(champion.prizeAmount)}
-                    </div>
-                  ) : null}
-                </div>
-              )
-            })()
-          ) : (
-          /* Blind Level + Timer */
-          <div className="flex flex-col items-center gap-2">
-            {timerState.isBreak ? (
-              <div className="rounded-full bg-yellow-500/20 px-6 py-2 text-lg font-semibold text-yellow-400">
-                INTERVALO
-              </div>
-            ) : (
-              <div className="flex items-center gap-3 text-slate-400">
-                <Clock className="h-5 w-5" />
-                <span className="text-lg font-medium">
-                  Nivel {timerState.currentLevel}
-                </span>
-              </div>
-            )}
-
-            {/* Timer */}
-            <div
-              className={`font-mono text-[10rem] font-bold leading-none tracking-tighter transition-colors duration-500 ${timerColor}`}
-              style={{
-                textShadow: `0 0 80px ${timerState.remainingSeconds <= 60 ? 'rgba(239,68,68,0.3)' : timerState.remainingSeconds <= 120 ? 'rgba(234,179,8,0.3)' : 'rgba(34,197,94,0.3)'}`,
-              }}
-            >
-              {formattedTime}
-            </div>
-
-            {/* Progress Bar */}
-            <div className="w-full max-w-2xl h-2 rounded-full bg-white/10 overflow-hidden">
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-blue-500 transition-all duration-1000 ease-linear"
-                style={{ width: `${progressPercentage}%` }}
-              />
-            </div>
-
-            {/* Blinds Info */}
-            <div className="mt-4 flex items-center gap-8">
-              <div className="flex flex-col items-center">
-                <span className="text-sm text-slate-500 uppercase tracking-wider">
-                  Blinds
-                </span>
-                <span className="text-4xl font-bold text-white">
-                  {timerState.smallBlind.toLocaleString('pt-BR')} /{' '}
-                  {timerState.bigBlind.toLocaleString('pt-BR')}
-                </span>
-              </div>
-              {timerState.ante > 0 && (
-                <div className="flex flex-col items-center">
-                  <span className="text-sm text-slate-500 uppercase tracking-wider">
-                    Ante
-                  </span>
-                  <span className="text-4xl font-bold text-orange-400">
-                    {timerState.ante.toLocaleString('pt-BR')}
-                  </span>
-                </div>
-              )}
-              {timerState.nextSmallBlind != null && (
-                <div className="flex flex-col items-center opacity-60">
-                  <span className="text-sm text-slate-500 uppercase tracking-wider">
-                    Proximo
-                  </span>
-                  <span className="text-2xl font-semibold text-slate-300">
-                    {timerState.nextSmallBlind.toLocaleString('pt-BR')} /{' '}
-                    {timerState.nextBigBlind?.toLocaleString('pt-BR')}
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-          )}
-        </div>
-
-        {/* Bottom Section - Info Cards */}
-        <div className="grid grid-cols-4 gap-4 border-t border-white/10 px-8 py-6">
-          {/* Players */}
-          <div className="rounded-xl bg-white/5 border border-white/10 p-5">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-500/20">
+        {/* Main: 3 colunas 25% / 50% / 25% */}
+        <div className="grid flex-1 min-h-0 grid-cols-[1fr_2fr_1fr] gap-4 px-6 py-4">
+          {/* ==== Coluna esquerda: jogadores ==== */}
+          <aside className="flex min-h-0 flex-col rounded-xl border border-white/10 bg-white/5 p-4">
+            <div className="mb-1 flex items-center justify-between">
+              <div className="flex items-center gap-2">
                 <Users className="h-5 w-5 text-blue-400" />
+                <h2 className="text-lg font-semibold text-slate-200">Jogadores</h2>
               </div>
-              <span className="text-sm font-medium text-slate-400">
-                Jogadores
-              </span>
+              <p className="text-lg font-bold">
+                <span className="text-emerald-400">{activeEntries.length}</span>
+                <span className="text-slate-500"> / {entries?.length ?? 0}</span>
+              </p>
             </div>
-            <p className="text-4xl font-bold">
-              <span className="text-emerald-400">
-                {activeEntries.length}
-              </span>
-              <span className="text-slate-500 text-2xl">
-                {' '}
-                / {tournament?.totalEntries ?? 0}
-              </span>
+            <p className="mb-2 text-xs text-slate-500">
+              {tournament?.totalRebuys ?? 0} rebuys | {tournament?.totalAddons ?? 0} add-ons
             </p>
-            <p className="mt-1 text-sm text-slate-500">
-              {tournament?.totalRebuys ?? 0} rebuys |{' '}
-              {tournament?.totalAddons ?? 0} add-ons
-            </p>
+            <div className="mb-1 grid grid-cols-[minmax(0,1fr)_2.5rem_2.5rem_5.5rem] gap-1 px-2 text-[11px] uppercase tracking-wider text-slate-500">
+              <span>Jogador</span>
+              <span className="text-center">Reb</span>
+              <span className="text-center">Add</span>
+              <span className="text-right">Deve</span>
+            </div>
+            <AutoScrollList className="min-h-0 flex-1">
+              <div className="flex flex-col gap-1">
+                {playerList.map((e) => {
+                  const finished = e.status !== 'Active' && e.status !== 'Registered'
+                  return (
+                    <div
+                      key={e.id}
+                      className={`grid grid-cols-[minmax(0,1fr)_2.5rem_2.5rem_5.5rem] items-center gap-1 rounded-lg px-2 py-1.5 text-sm ${
+                        finished
+                          ? 'bg-white/[0.03] opacity-60'
+                          : 'border border-white/10 bg-white/5'
+                      }`}
+                    >
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        {finished && (
+                          <span className="flex shrink-0 items-center gap-0.5 font-bold text-red-400">
+                            <Skull className="h-3.5 w-3.5" />
+                            {e.finalPosition ? `${e.finalPosition}º` : ''}
+                          </span>
+                        )}
+                        <span className={`truncate font-semibold ${finished ? 'text-slate-400' : 'text-white'}`}>
+                          {e.person.nickname ?? e.person.fullName}
+                        </span>
+                      </span>
+                      <span className="text-center text-slate-300">{e.rebuyCount || '-'}</span>
+                      <span className="text-center text-slate-300">
+                        {e.addonPurchased ? (e.addonDouble ? '2' : '1') : '-'}
+                      </span>
+                      <span className="text-right">{renderBalance(e)}</span>
+                    </div>
+                  )
+                })}
+                {playerList.length === 0 && (
+                  <p className="py-6 text-center text-sm text-slate-500">Nenhum jogador inscrito.</p>
+                )}
+              </div>
+            </AutoScrollList>
+          </aside>
+
+          {/* ==== Coluna central: timer / blinds / campeão ==== */}
+          <div className="flex min-h-0 flex-col items-center justify-center gap-6">
+            {tournament?.status === 'Finished' ? (
+              (() => {
+                const champion = entries
+                  ?.slice()
+                  .sort((a, b) => (a.finalPosition ?? 999) - (b.finalPosition ?? 999))
+                  .find((e) => e.finalPosition === 1)
+                  ?? entries?.find((e) => e.status === 'Awarded')
+                const name =
+                  champion?.person.nickname ?? champion?.person.fullName ?? '—'
+                return (
+                  <div className="flex flex-col items-center gap-4">
+                    <span className="text-3xl font-semibold uppercase tracking-[0.3em] text-yellow-400">
+                      Campeão
+                    </span>
+                    <div
+                      className="max-w-full break-words text-center text-[6rem] font-bold leading-none text-white"
+                      style={{
+                        textShadow:
+                          '0 0 80px rgba(234,179,8,0.5), 0 0 30px rgba(234,179,8,0.3)',
+                      }}
+                    >
+                      {name}
+                    </div>
+                    {champion?.prizeAmount ? (
+                      <div className="text-3xl font-semibold text-emerald-400">
+                        {formatCurrency(champion.prizeAmount)}
+                      </div>
+                    ) : null}
+                  </div>
+                )
+              })()
+            ) : (
+              <div className="flex flex-col items-center gap-2">
+                {timerState.isBreak ? (
+                  <div className="rounded-full bg-yellow-500/20 px-6 py-2 text-lg font-semibold text-yellow-400">
+                    INTERVALO
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3 text-slate-400">
+                    <Clock className="h-5 w-5" />
+                    <span className="text-lg font-medium">
+                      Nivel {timerState.currentLevel}
+                    </span>
+                  </div>
+                )}
+
+                {/* Timer */}
+                <div
+                  className={`font-mono text-[9rem] font-bold leading-none tracking-tighter transition-colors duration-500 ${timerColor}`}
+                  style={{
+                    textShadow: `0 0 80px ${timerState.remainingSeconds <= 60 ? 'rgba(239,68,68,0.3)' : timerState.remainingSeconds <= 120 ? 'rgba(234,179,8,0.3)' : 'rgba(34,197,94,0.3)'}`,
+                  }}
+                >
+                  {formattedTime}
+                </div>
+
+                {/* Progress Bar */}
+                <div className="h-2 w-full max-w-xl overflow-hidden rounded-full bg-white/10">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-blue-500 transition-all duration-1000 ease-linear"
+                    style={{ width: `${progressPercentage}%` }}
+                  />
+                </div>
+
+                {/* Blinds Info — fonte grande */}
+                <div className="mt-4 flex flex-col items-center gap-3">
+                  <div className="flex items-end gap-10">
+                    <div className="flex flex-col items-center">
+                      <span className="text-base uppercase tracking-wider text-slate-500">
+                        Blinds
+                      </span>
+                      <span className="text-7xl font-bold text-white">
+                        {timerState.smallBlind.toLocaleString('pt-BR')} /{' '}
+                        {timerState.bigBlind.toLocaleString('pt-BR')}
+                      </span>
+                    </div>
+                    {timerState.ante > 0 && (
+                      <div className="flex flex-col items-center">
+                        <span className="text-base uppercase tracking-wider text-slate-500">
+                          Ante
+                        </span>
+                        <span className="text-6xl font-bold text-orange-400">
+                          {timerState.ante.toLocaleString('pt-BR')}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  {timerState.nextSmallBlind != null && (
+                    <div className="flex flex-col items-center opacity-70">
+                      <span className="text-sm uppercase tracking-wider text-slate-500">
+                        Proximo
+                      </span>
+                      <span className="text-3xl font-semibold text-slate-300">
+                        {timerState.nextSmallBlind.toLocaleString('pt-BR')} /{' '}
+                        {timerState.nextBigBlind?.toLocaleString('pt-BR')}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Premiação */}
-          <div className="rounded-xl bg-white/5 border border-white/10 p-5">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/20">
-                <Trophy className="h-5 w-5 text-emerald-400" />
+          {/* ==== Coluna direita: hora / fichas / intervalo / premiação ==== */}
+          <aside className="flex min-h-0 flex-col gap-3">
+            {/* Hora atual */}
+            <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+              <div className="mb-1 flex items-center gap-2 text-slate-400">
+                <Clock className="h-4 w-4" />
+                <span className="text-xs font-medium uppercase tracking-wider">Hora</span>
               </div>
-              <span className="text-sm font-medium text-slate-400">
-                Premiação
-              </span>
+              <p className="font-mono text-4xl font-bold text-white">
+                {now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+              </p>
             </div>
-            <p className="text-4xl font-bold text-emerald-400">
-              {formatCurrency(premiacao)}
-            </p>
-            <p className="mt-1 text-sm text-slate-500">
-              Custos: {formatCurrency(totalCosts)}
-            </p>
-          </div>
 
-          {/* Ultimo Eliminado */}
-          <div className="rounded-xl bg-white/5 border border-white/10 p-5">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-500/20">
-                <Skull className="h-5 w-5 text-red-400" />
+            {/* Fichas */}
+            <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+              <div className="mb-1 flex items-center gap-2 text-slate-400">
+                <Coins className="h-4 w-4" />
+                <span className="text-xs font-medium uppercase tracking-wider">Fichas em jogo</span>
               </div>
-              <span className="text-sm font-medium text-slate-400">
-                Ultimo Eliminado
-              </span>
+              <p className="text-3xl font-bold text-white">
+                {totalChips.toLocaleString('pt-BR')}
+              </p>
+              <p className="mt-1 text-sm text-slate-400">
+                Média por jogador:{' '}
+                <span className="font-semibold text-emerald-400">
+                  {avgStack.toLocaleString('pt-BR')}
+                </span>
+              </p>
             </div>
-            {lastEliminated ? (
-              <>
-                <p className="text-2xl font-bold text-white truncate">
-                  {lastEliminated.person.nickname ?? lastEliminated.person.fullName}
-                </p>
-                <div className="mt-1 flex items-baseline gap-2">
-                  <span className="text-lg text-red-400">
-                    {lastEliminated.finalPosition}º lugar
-                  </span>
-                  {(() => {
-                    const prize = prizesList.find(
-                      (p) => p.position === lastEliminated.finalPosition,
+
+            {/* Próximo intervalo */}
+            <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+              <div className="mb-1 flex items-center gap-2 text-slate-400">
+                <Hourglass className="h-4 w-4" />
+                <span className="text-xs font-medium uppercase tracking-wider">Próximo intervalo</span>
+              </div>
+              <p className="font-mono text-3xl font-bold text-yellow-400">
+                {timerState.isBreak
+                  ? 'Agora'
+                  : secondsToBreak != null
+                    ? formatDuration(secondsToBreak)
+                    : '—'}
+              </p>
+            </div>
+
+            {/* Premiação por posição — o mais abaixo possível */}
+            <div className="mt-auto flex min-h-0 flex-col rounded-xl border border-white/10 bg-white/5 p-4">
+              <div className="mb-2 flex items-center justify-between">
+                <div className="flex items-center gap-2 text-slate-400">
+                  <Trophy className="h-4 w-4 text-yellow-400" />
+                  <span className="text-xs font-medium uppercase tracking-wider">Premiação</span>
+                </div>
+                <span className="text-sm font-bold text-emerald-400">{formatCurrency(premiacao)}</span>
+              </div>
+              <AutoScrollList className="min-h-0" anchorBottom>
+                <div className="flex flex-col gap-1">
+                  {prizesList.map((p) => {
+                    const winner = eliminatedEntries.find((e) => e.finalPosition === p.position)
+                    return (
+                      <div
+                        key={p.position}
+                        className="flex items-center gap-2 rounded-lg bg-white/[0.04] px-2 py-1.5 text-sm"
+                      >
+                        <span className="w-8 shrink-0 font-bold text-yellow-400">{p.position}º</span>
+                        <span className="shrink-0 font-semibold text-emerald-400">
+                          {formatCurrency(p.amount)}
+                        </span>
+                        {winner && (
+                          <span className="min-w-0 flex-1 truncate text-right text-slate-400">
+                            {winner.person.nickname ?? winner.person.fullName}
+                          </span>
+                        )}
+                      </div>
                     )
-                    return prize ? (
-                      <span className="text-lg font-semibold text-emerald-400">
-                        {formatCurrency(prize.amount)}
-                      </span>
-                    ) : null
-                  })()}
+                  })}
+                  {prizesList.length === 0 && (
+                    <p className="py-3 text-center text-sm text-slate-500">Sem premiação calculada</p>
+                  )}
                 </div>
-              </>
-            ) : (
-              <p className="text-sm text-slate-500">Nenhum eliminado ainda</p>
-            )}
-          </div>
-
-          {/* Premiados / Proxima premiacao */}
-          <div className="rounded-xl bg-white/5 border border-white/10 p-5">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-yellow-500/20">
-                <Trophy className="h-5 w-5 text-yellow-400" />
-              </div>
-              <span className="text-sm font-medium text-slate-400">
-                {lastAwarded ? 'Ultimo Premiado' : 'Proxima Premiacao'}
-              </span>
+              </AutoScrollList>
             </div>
-            {lastAwarded ? (
-              <>
-                <p className="text-2xl font-bold text-white truncate">
-                  {lastAwarded.person.nickname ?? lastAwarded.person.fullName}
-                </p>
-                <div className="mt-1 flex items-baseline gap-2">
-                  <span className="text-lg text-yellow-400">
-                    {lastAwarded.finalPosition}º
-                  </span>
-                  {(() => {
-                    const prize = prizesList.find((p) => p.position === lastAwarded.finalPosition)
-                    return prize ? (
-                      <span className="text-lg font-semibold text-emerald-400">
-                        {formatCurrency(prize.amount)}
-                      </span>
-                    ) : null
-                  })()}
-                </div>
-              </>
-            ) : nextPrizePosition ? (
-              <>
-                <p className="text-2xl font-bold text-white">
-                  {nextPrizePosition}º lugar
-                </p>
-                <p className="mt-1 text-lg font-semibold text-emerald-400">
-                  {formatCurrency(nextPrizeAmount)}
-                </p>
-              </>
+          </aside>
+        </div>
+
+        {/* Rodapé compacto: último eliminado + último premiado / próxima premiação */}
+        <footer className="grid grid-cols-2 gap-4 border-t border-white/10 px-6 py-2.5">
+          <div className="flex items-center gap-3">
+            <Skull className="h-4 w-4 shrink-0 text-red-400" />
+            <span className="text-xs font-medium uppercase tracking-wider text-slate-500">
+              Último eliminado
+            </span>
+            {lastEliminated ? (
+              <span className="min-w-0 truncate text-sm text-white">
+                <span className="font-bold">
+                  {lastEliminated.person.nickname ?? lastEliminated.person.fullName}
+                </span>{' '}
+                <span className="text-red-400">{lastEliminated.finalPosition}º lugar</span>
+                {(() => {
+                  const prize = prizesList.find((p) => p.position === lastEliminated.finalPosition)
+                  return prize ? (
+                    <span className="font-semibold text-emerald-400"> {formatCurrency(prize.amount)}</span>
+                  ) : null
+                })()}
+              </span>
             ) : (
-              <p className="text-sm text-slate-500">Sem premiação calculada</p>
+              <span className="text-sm text-slate-500">Nenhum eliminado ainda</span>
             )}
           </div>
-        </div>
+          <div className="flex items-center gap-3">
+            <Trophy className="h-4 w-4 shrink-0 text-yellow-400" />
+            <span className="text-xs font-medium uppercase tracking-wider text-slate-500">
+              {lastAwarded ? 'Último premiado' : 'Próxima premiação'}
+            </span>
+            {lastAwarded ? (
+              <span className="min-w-0 truncate text-sm text-white">
+                <span className="font-bold">
+                  {lastAwarded.person.nickname ?? lastAwarded.person.fullName}
+                </span>{' '}
+                <span className="text-yellow-400">{lastAwarded.finalPosition}º</span>
+                {(() => {
+                  const prize = prizesList.find((p) => p.position === lastAwarded.finalPosition)
+                  return prize ? (
+                    <span className="font-semibold text-emerald-400"> {formatCurrency(prize.amount)}</span>
+                  ) : null
+                })()}
+              </span>
+            ) : nextPrizePosition ? (
+              <span className="text-sm text-white">
+                <span className="font-bold">{nextPrizePosition}º lugar</span>{' '}
+                <span className="font-semibold text-emerald-400">{formatCurrency(nextPrizeAmount)}</span>
+              </span>
+            ) : (
+              <span className="text-sm text-slate-500">Sem premiação calculada</span>
+            )}
+          </div>
+        </footer>
       </div>
     </div>
   )

@@ -376,7 +376,8 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
 
               {/* Action buttons */}
               <div className="flex items-center gap-1 w-full justify-end sm:w-auto sm:flex-shrink-0">
-                {(entry.status === 'Eliminated' || entry.status === 'Awarded') && (
+                {/* Campeão (nunca eliminado, eliminatedAt nulo) não tem eliminação a desfazer */}
+                {(entry.status === 'Eliminated' || entry.status === 'Awarded') && entry.eliminatedAt && (
                   <Button
                     variant="ghost"
                     size="sm"

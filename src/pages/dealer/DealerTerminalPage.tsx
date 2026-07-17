@@ -453,15 +453,18 @@ export function DealerTerminalPage() {
                             : entry.status}
                         </p>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() =>
-                          setConfirmAction({ type: 'undo', entry })
-                        }
-                      >
-                        <Undo2 className="h-4 w-4" />
-                      </Button>
+                      {/* Campeão (nunca eliminado, eliminatedAt nulo) não tem eliminação a desfazer */}
+                      {entry.eliminatedAt && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            setConfirmAction({ type: 'undo', entry })
+                          }
+                        >
+                          <Undo2 className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   ))}
                 </div>

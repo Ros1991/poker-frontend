@@ -19,6 +19,8 @@ export interface Tournament {
   rebuyAmount: number
   addonAmount: number
   startingStack: number
+  rebuyStack: number | null
+  addonStack: number | null
   maxRebuys: number
   addonAllowed: boolean
   addonDoubleAllowed: boolean
