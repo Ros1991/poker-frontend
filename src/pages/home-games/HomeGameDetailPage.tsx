@@ -378,6 +378,7 @@ function TorneiosTab({
     totalEntries: number
     playersRemaining: number
     totalPrizePool: number
+    rankingName: string | null
   }[]
   isLoading: boolean
   search: string
@@ -447,6 +448,15 @@ function TorneiosTab({
                     <span>
                       {t.totalEntries} entrada{t.totalEntries !== 1 && 's'}
                     </span>
+                    {t.rankingName && (
+                      <span
+                        className="flex items-center gap-1 text-yellow-500"
+                        title={`Ranking: ${t.rankingName}`}
+                      >
+                        <Trophy className="h-3.5 w-3.5" />
+                        {t.rankingName}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="text-right shrink-0">

@@ -41,7 +41,8 @@ function formatDate(dateStr: string): string {
 }
 
 export function TournamentListPage() {
-  const { homeGameId } = useParams<{ homeGameId: string }>()
+  // A rota é '/home-games/:id/tournaments' — o param se chama 'id'
+  const { id: homeGameId } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [statusFilter, setStatusFilter] = useState<TournamentStatus | 'all'>('all')
   const [search, setSearch] = useState('')
@@ -201,7 +202,7 @@ export function TournamentListPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4 text-xs text-text-muted">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-text-muted">
                   <span className="flex items-center gap-1">
                     <Calendar className="h-3 w-3" />
                     {formatDate(tournament.date)}
@@ -210,6 +211,15 @@ export function TournamentListPage() {
                     <Users className="h-3 w-3" />
                     {tournament.totalEntries} jogadores
                   </span>
+                  {tournament.rankingName && (
+                    <span
+                      className="flex min-w-0 items-center gap-1 text-yellow-500"
+                      title={`Ranking: ${tournament.rankingName}`}
+                    >
+                      <Trophy className="h-3 w-3 shrink-0" />
+                      <span className="truncate">{tournament.rankingName}</span>
+                    </span>
+                  )}
                 </div>
 
                 <div className="flex items-center justify-between border-t border-border-default pt-3">
