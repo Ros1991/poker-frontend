@@ -2,9 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Users, Trophy, Clock, Skull, Coins, Hourglass } from 'lucide-react'
+import { Users, Trophy, Clock, Skull, Coins, Hourglass, LayoutGrid } from 'lucide-react'
 import * as tournamentsApi from '../../api/tournaments.api'
 import * as entriesApi from '../../api/entries.api'
+import * as tablesApi from '../../api/tables.api'
 import * as timerApi from '../../api/timer.api'
 import * as costExtrasApi from '../../api/costExtras.api'
 import * as prizesApi from '../../api/prizes.api'
@@ -132,6 +133,9 @@ export function TvDisplayPage() {
   const { tournamentId } = useParams<{ tournamentId: string }>()
   const queryClient = useQueryClient()
 
+  // Alternância entre o telão normal (relógio) e a grade de mesas/assentos
+  const [view, setView] = useState<'clock' | 'tables'>('clock')
+
   const { data: tournament } = useQuery({
     queryKey: ['tournament', tournamentId],
     queryFn: () => tournamentsApi.getById(tournamentId!),
@@ -157,6 +161,14 @@ export function TvDisplayPage() {
   const { data: prizeData } = useQuery({
     queryKey: ['prizes', tournamentId],
     queryFn: () => prizesApi.calculate(tournamentId!),
+    enabled: !!tournamentId,
+    refetchInterval: 10000,
+  })
+
+  // Mesas com assentos (visão "Ver Mesas")
+  const { data: tables } = useQuery({
+    queryKey: ['tables', tournamentId],
+    queryFn: () => tablesApi.getAll(tournamentId!),
     enabled: !!tournamentId,
     refetchInterval: 10000,
   })
@@ -199,7 +211,7 @@ export function TvDisplayPage() {
     return () => clearInterval(t)
   }, [])
 
-  // Auto fullscreen
+  // Auto fullscreen (F) + alternar telão/mesas (M)
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === 'f' || e.key === 'F') {
@@ -208,6 +220,9 @@ export function TvDisplayPage() {
         } else {
           void document.exitFullscreen()
         }
+      }
+      if (e.key === 'm' || e.key === 'M') {
+        setView((v) => (v === 'clock' ? 'tables' : 'clock'))
       }
     }
     document.addEventListener('keydown', handleKeyDown)
@@ -248,6 +263,11 @@ export function TvDisplayPage() {
       return sum + startingStack + rebuyChips + addonChips
     }, 0) ?? 0) + bonusChipsTotal
   const avgStack = activeEntries.length > 0 ? Math.round(totalChips / activeEntries.length) : 0
+
+  // Apelido por personId (pra grade de mesas usar o mesmo nome do resto do telão)
+  const nicknameByPersonId = new Map(
+    (entries ?? []).map((e) => [e.personId, e.person.nickname ?? e.person.fullName]),
+  )
 
   // Tempo até o próximo intervalo: restante do nível atual + níveis até o break
   let secondsToBreak: number | null = null
@@ -323,10 +343,95 @@ export function TvDisplayPage() {
                 year: 'numeric',
               })}
             </span>
+            <button
+              type="button"
+              onClick={() => setView(view === 'clock' ? 'tables' : 'clock')}
+              className="flex items-center gap-2 rounded-lg border border-white/15 bg-white/10 px-4 py-2 text-base font-semibold text-white transition-colors hover:bg-white/20"
+              title="Também alterna com a tecla M"
+            >
+              {view === 'clock' ? (
+                <>
+                  <LayoutGrid className="h-5 w-5" />
+                  Ver Mesas
+                </>
+              ) : (
+                <>
+                  <Clock className="h-5 w-5" />
+                  Voltar ao Telão
+                </>
+              )}
+            </button>
           </div>
         </header>
 
-        {/* Main: 3 colunas 25% / 50% / 25% */}
+        {/* Main: visão de MESAS (onde sentar) ou o telão de 3 colunas.
+            Assentos exibem o APELIDO (consistente com o resto do telão),
+            resolvido via entries; fallback pro nome vindo da API de mesas. */}
+        {view === 'tables' ? (
+          <div className="min-h-0 flex-1 overflow-hidden px-6 py-4">
+            {tables && tables.length > 0 ? (
+              <AutoScrollList className="h-full min-h-0" speed={20}>
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(22rem,1fr))] gap-4">
+                  {[...tables]
+                    .sort((a, b) => a.tableNumber - b.tableNumber)
+                    .map((table) => (
+                      <div
+                        key={table.id}
+                        className="rounded-xl border border-white/10 bg-white/5 p-5"
+                      >
+                        <div className="mb-3 flex items-baseline justify-between gap-2">
+                          <h3 className="text-3xl font-bold text-white">
+                            {table.tableName ?? `Mesa ${table.tableNumber}`}
+                          </h3>
+                          {table.dealerName && (
+                            <span className="truncate text-base text-slate-400">
+                              Dealer:{' '}
+                              <span className="font-semibold text-slate-200">
+                                {table.dealerName}
+                              </span>
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                          {Array.from({ length: table.maxSeats }, (_, i) => i + 1).map(
+                            (seat) => {
+                              const p = table.players?.find(
+                                (pl) => pl.seatNumber === seat,
+                              )
+                              return (
+                                <div
+                                  key={seat}
+                                  className={`flex items-center gap-3 rounded-lg px-3 py-1.5 text-xl ${
+                                    p ? 'bg-white/5' : 'opacity-35'
+                                  }`}
+                                >
+                                  <span className="w-8 shrink-0 text-right font-mono font-bold text-blue-400">
+                                    {seat}
+                                  </span>
+                                  <span
+                                    className={`truncate font-semibold ${
+                                      p ? 'text-white' : 'text-slate-500'
+                                    }`}
+                                  >
+                                    {p ? (nicknameByPersonId.get(p.personId) ?? p.name) : 'vago'}
+                                  </span>
+                                </div>
+                              )
+                            },
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </AutoScrollList>
+            ) : (
+              <div className="flex h-full flex-col items-center justify-center gap-3 text-slate-500">
+                <LayoutGrid className="h-12 w-12" />
+                <p className="text-2xl">Mesas ainda não sorteadas.</p>
+              </div>
+            )}
+          </div>
+        ) : (
         <div className="grid flex-1 min-h-0 grid-cols-[1fr_2fr_1fr] gap-4 px-6 py-4">
           {/* ==== Coluna esquerda: jogadores ==== */}
           <aside className="flex min-h-0 flex-col rounded-xl border border-white/10 bg-white/5 p-4">
@@ -584,7 +689,7 @@ export function TvDisplayPage() {
             </div>
           </aside>
         </div>
-
+        )}
       </div>
     </div>
   )
