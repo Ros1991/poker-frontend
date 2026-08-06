@@ -239,8 +239,46 @@ export function TvDisplayPage() {
           (a.finalPosition ?? 999) - (b.finalPosition ?? 999),
       ) ?? []
 
-  // Lista da coluna esquerda: ativos primeiro (ordem original), eliminados por último
-  const playerList = [...activeEntries, ...eliminatedEntries]
+  // Lista da coluna esquerda AGRUPADA POR MESA: "Mesa N" → jogadores por assento,
+  // ativos sem assento em "Sem mesa", eliminados por último. Sem mesas → lista plana.
+  const sortedTables = [...(tables ?? [])].sort((a, b) => a.tableNumber - b.tableNumber)
+  const playerGroups: {
+    key: string
+    label: string | null
+    players: TournamentEntry[]
+  }[] = []
+  if (sortedTables.length > 0) {
+    for (const table of sortedTables) {
+      const seated = activeEntries
+        .filter((e) => e.tableId === table.id)
+        .sort((a, b) => (a.seatNumber ?? 99) - (b.seatNumber ?? 99))
+      if (seated.length > 0) {
+        playerGroups.push({
+          key: table.id,
+          label: table.tableName ?? `Mesa ${table.tableNumber}`,
+          players: seated,
+        })
+      }
+    }
+    const tableIds = new Set(sortedTables.map((t) => t.id))
+    const unseated = activeEntries.filter(
+      (e) => !e.tableId || !tableIds.has(e.tableId),
+    )
+    if (unseated.length > 0) {
+      playerGroups.push({ key: 'sem-mesa', label: 'Sem mesa', players: unseated })
+    }
+    if (eliminatedEntries.length > 0) {
+      playerGroups.push({
+        key: 'eliminados',
+        label: 'Eliminados',
+        players: eliminatedEntries,
+      })
+    }
+  } else {
+    const flat = [...activeEntries, ...eliminatedEntries]
+    if (flat.length > 0) playerGroups.push({ key: 'todos', label: null, players: flat })
+  }
+  const totalListedPlayers = playerGroups.reduce((s, g) => s + g.players.length, 0)
 
   // Premiacao = total das entries - custos
   const totalDue = entries?.reduce((sum, e) => sum + (e.totalDue ?? 0), 0) ?? 0
@@ -456,7 +494,17 @@ export function TvDisplayPage() {
             </div>
             <AutoScrollList className="min-h-0 flex-1">
               <div className="flex flex-col gap-1">
-                {playerList.map((e) => {
+                {playerGroups.map((group) => (
+                  <div key={group.key} className="flex flex-col gap-1">
+                    {group.label && (
+                      <div className="mt-2 flex items-center gap-2 px-2 first:mt-0">
+                        <span className="text-lg font-bold uppercase tracking-wider text-blue-400">
+                          {group.label}
+                        </span>
+                        <span className="h-px flex-1 bg-white/10" />
+                      </div>
+                    )}
+                    {group.players.map((e) => {
                   const finished = e.status !== 'Active' && e.status !== 'Registered'
                   const isChampion = finished && e.finalPosition === 1
                   return (
@@ -494,7 +542,9 @@ export function TvDisplayPage() {
                     </div>
                   )
                 })}
-                {playerList.length === 0 && (
+                  </div>
+                ))}
+                {totalListedPlayers === 0 && (
                   <p className="py-6 text-center text-sm text-slate-500">Nenhum jogador inscrito.</p>
                 )}
               </div>
