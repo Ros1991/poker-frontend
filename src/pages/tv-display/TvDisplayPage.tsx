@@ -512,7 +512,11 @@ export function TvDisplayPage() {
                   return (
                     <div
                       key={e.id}
-                      className={`grid grid-cols-[minmax(0,1fr)_3rem_3rem_8rem] items-center gap-1 rounded-lg px-2 py-2 text-xl ${
+                      className={`grid items-center gap-1 rounded-lg px-2 py-2 text-xl ${
+                        finished
+                          ? 'grid-cols-[minmax(0,1fr)_8rem]'
+                          : 'grid-cols-[minmax(0,1fr)_3rem_3rem_8rem]'
+                      } ${
                         isChampion
                           ? 'border border-yellow-500/30 bg-yellow-500/10'
                           : finished
@@ -536,10 +540,14 @@ export function TvDisplayPage() {
                           {e.person.nickname ?? e.person.fullName}
                         </span>
                       </span>
-                      <span className="text-center text-slate-300">{e.rebuyCount || '-'}</span>
-                      <span className="text-center text-slate-300">
-                        {e.addonPurchased ? (e.addonDouble ? '2' : '1') : '-'}
-                      </span>
+                      {!finished && (
+                        <>
+                          <span className="text-center text-slate-300">{e.rebuyCount || '-'}</span>
+                          <span className="text-center text-slate-300">
+                            {e.addonPurchased ? (e.addonDouble ? '2' : '1') : '-'}
+                          </span>
+                        </>
+                      )}
                       <span className="text-right">{renderBalance(e)}</span>
                     </div>
                   )
