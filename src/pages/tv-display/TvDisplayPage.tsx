@@ -3,6 +3,8 @@ import type { ReactNode } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Users, Trophy, Clock, Skull, Coins, Hourglass, LayoutGrid } from 'lucide-react'
+import { QRCodeSVG } from 'qrcode.react'
+import { buildPixPayload } from '../../utils/pix'
 import * as tournamentsApi from '../../api/tournaments.api'
 import * as entriesApi from '../../api/entries.api'
 import * as tablesApi from '../../api/tables.api'
@@ -649,6 +651,26 @@ export function TvDisplayPage() {
                         {timerState.nextSmallBlind.toLocaleString('pt-BR')} /{' '}
                         {timerState.nextBigBlind?.toLocaleString('pt-BR')}
                       </span>
+                    </div>
+                  )}
+
+                  {/* PIX do dia: QR (copia e cola estático) + chave */}
+                  {tournament?.responsiblePixKey && (
+                    <div className="mt-4 flex items-center gap-5 rounded-xl border border-emerald-500/20 bg-white/5 px-6 py-4">
+                      <div className="shrink-0 rounded-lg bg-white p-2">
+                        <QRCodeSVG
+                          value={buildPixPayload(tournament.responsiblePixKey)}
+                          size={140}
+                        />
+                      </div>
+                      <div className="flex min-w-0 flex-col">
+                        <span className="text-lg font-semibold uppercase tracking-[0.2em] text-emerald-400">
+                          PIX
+                        </span>
+                        <span className="max-w-md break-all text-3xl font-bold text-white">
+                          {tournament.responsiblePixKey}
+                        </span>
+                      </div>
                     </div>
                   )}
                 </div>

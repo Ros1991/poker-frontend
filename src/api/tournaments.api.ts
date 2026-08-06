@@ -60,6 +60,16 @@ export async function remove(homeGameId: string, id: string): Promise<void> {
   await apiClient.delete(`/home-games/${homeGameId}/Tournaments/${id}`)
 }
 
+export async function updatePixKey(
+  id: string,
+  pixKey: string | null,
+): Promise<Tournament> {
+  const response = await apiClient.put<Tournament>(`/tournaments/${id}/pix-key`, {
+    pixKey,
+  })
+  return response.data
+}
+
 export async function updatePunctualityBonus(
   id: string,
   count: number,

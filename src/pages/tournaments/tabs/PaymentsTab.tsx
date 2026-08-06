@@ -1,7 +1,9 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { CreditCard, AlertCircle, Smartphone, Banknote, Receipt } from 'lucide-react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
+import { CreditCard, AlertCircle, Smartphone, Banknote, Receipt, Pencil, QrCode } from 'lucide-react'
 import * as paymentsApi from '../../../api/payments.api'
+import * as tournamentsApi from '../../../api/tournaments.api'
 import { Button } from '../../../components/ui/Button'
 import { Badge } from '../../../components/ui/Badge'
 import { LoadingSpinner } from '../../../components/common/LoadingSpinner'
@@ -23,7 +25,24 @@ function formatCurrency(value: number): string {
 }
 
 export function PaymentsTab({ tournament, entries }: PaymentsTabProps) {
+  const queryClient = useQueryClient()
   const [paymentEntry, setPaymentEntry] = useState<TournamentEntry | null>(null)
+  const [showPixModal, setShowPixModal] = useState(false)
+  const [pixKeyDraft, setPixKeyDraft] = useState('')
+
+  const pixKeyMutation = useMutation({
+    mutationFn: (pixKey: string) =>
+      tournamentsApi.updatePixKey(tournament.id, pixKey.trim() || null),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tournament', tournament.id] })
+      toast.success('Chave PIX atualizada!')
+      setShowPixModal(false)
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+      toast.error(msg || 'Erro ao salvar a chave PIX.')
+    },
+  })
 
   const { data: summary, isLoading } = useQuery({
     queryKey: ['paymentSummary', tournament.id],
@@ -49,6 +68,31 @@ export function PaymentsTab({ tournament, entries }: PaymentsTabProps) {
 
   return (
     <div className="flex flex-col gap-6">
+      {/* Chave PIX do dia (editável em qualquer fase; aparece no telão com QR) */}
+      <div className="flex items-center justify-between gap-3 rounded-lg border border-border-default bg-bg-primary p-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <QrCode className="h-5 w-5 shrink-0 text-accent-blue" />
+          <div className="min-w-0">
+            <p className="text-xs text-text-muted">Chave PIX do dia</p>
+            <p className="truncate text-sm font-semibold text-text-primary">
+              {tournament.responsiblePixKey || 'Não definida'}
+            </p>
+          </div>
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            setPixKeyDraft(tournament.responsiblePixKey ?? '')
+            setShowPixModal(true)
+          }}
+          title="Editar chave PIX"
+        >
+          <Pencil className="h-4 w-4" />
+          Editar
+        </Button>
+      </div>
+
       {/* Summary cards */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-lg bg-bg-primary p-4">
@@ -183,6 +227,46 @@ export function PaymentsTab({ tournament, entries }: PaymentsTabProps) {
         entry={paymentEntry}
         tournamentId={tournament.id}
       />
+
+      {/* Modal de edição da chave PIX */}
+      {showPixModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm rounded-xl border border-border-default bg-bg-secondary p-6 shadow-xl">
+            <h3 className="text-lg font-semibold text-text-primary mb-1">
+              Chave PIX do dia
+            </h3>
+            <p className="text-sm text-text-secondary mb-4">
+              Aparece no telão com QR Code. Chave de telefone deve incluir o
+              +55 (ex.: +5511999999999). Deixe vazio para remover.
+            </p>
+            <div className="flex flex-col gap-3">
+              <input
+                type="text"
+                value={pixKeyDraft}
+                onChange={(e) => setPixKeyDraft(e.target.value)}
+                placeholder="CPF, e-mail, +55 telefone ou chave aleatória"
+                className="w-full rounded-lg border border-border-default bg-bg-input px-3 py-2 text-text-primary focus:border-accent-blue focus:outline-none"
+              />
+              <div className="mt-1 flex gap-2">
+                <Button
+                  onClick={() => pixKeyMutation.mutate(pixKeyDraft)}
+                  loading={pixKeyMutation.isPending}
+                  className="flex-1"
+                >
+                  Salvar
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => setShowPixModal(false)}
+                  disabled={pixKeyMutation.isPending}
+                >
+                  Cancelar
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
