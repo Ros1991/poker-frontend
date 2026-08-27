@@ -159,11 +159,26 @@ export function TvDisplayPage() {
     refetchInterval: 10000,
   })
 
-  // Calcular premiação para mostrar valores das posições
+  // Premiação: se já foi confirmada, mostra os valores SALVOS do torneio;
+  // caso contrário, mostra a sugestão calculada (prévia).
+  const prizeConfirmed = tournament?.prizeConfirmed ?? false
   const { data: prizeData } = useQuery({
-    queryKey: ['prizes', tournamentId],
-    queryFn: () => prizesApi.calculate(tournamentId!),
-    enabled: !!tournamentId,
+    queryKey: ['prizes', tournamentId, prizeConfirmed],
+    queryFn: async () => {
+      if (prizeConfirmed) {
+        const saved = await prizesApi.getSaved(tournamentId!)
+        return {
+          prizes: saved.map(({ position, amount, percentage }) => ({
+            position,
+            amount,
+            percentage,
+          })),
+        }
+      }
+      const calc = await prizesApi.calculate(tournamentId!)
+      return { prizes: calc.prizes }
+    },
+    enabled: !!tournamentId && !!tournament,
     refetchInterval: 10000,
   })
 
@@ -282,12 +297,15 @@ export function TvDisplayPage() {
   }
   const totalListedPlayers = playerGroups.reduce((s, g) => s + g.players.length, 0)
 
-  // Premiacao = total das entries - custos
+  const prizesList = prizeData?.prizes ?? []
+
+  // Premiacao: confirmada = soma dos prêmios salvos (bate com a lista exibida);
+  // não confirmada = total das entries - custos (estimativa ao vivo)
   const totalDue = entries?.reduce((sum, e) => sum + (e.totalDue ?? 0), 0) ?? 0
   const totalCosts = costExtras?.reduce((sum, c) => sum + (c.amount ?? 0), 0) ?? 0
-  const premiacao = totalDue - totalCosts
-
-  const prizesList = prizeData?.prizes ?? []
+  const premiacao = prizeConfirmed
+    ? prizesList.reduce((sum, p) => sum + p.amount, 0)
+    : totalDue - totalCosts
 
   // Fichas em jogo (por entry: stack inicial + rebuys + addon; addon duplo = 2x)
   // + bônus de pontualidade (qtd de jogadores × fichas de bônus)
