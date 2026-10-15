@@ -2,6 +2,7 @@ export interface Ranking {
   id: string
   homeGameId: string
   name: string
+  slug: string | null // endereço público: /r/{slug}
   description: string | null
   season: string | null
   isActive: boolean

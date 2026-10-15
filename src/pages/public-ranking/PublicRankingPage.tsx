@@ -1,0 +1,210 @@
+import { Fragment, useEffect } from 'react'
+import { Link, useParams } from 'react-router-dom'
+import { ChevronRight, Share2, Trophy } from 'lucide-react'
+import { Avatar } from '../../components/ui/Avatar'
+import { FINAL_TABLE_SIZE } from '../../constants/ranking'
+import { publicRankingPlayerPath } from '../../constants/routes'
+import type { PublicRankingPlayer } from '../../types/publicRanking.types'
+import { cn } from '../../utils/cn'
+import { resolveMediaUrl } from '../../utils/mediaUrl'
+import { PublicLoading, PublicMessage, PublicShell } from './PublicLayout'
+import {
+  focusRingClass,
+  formatCurrency,
+  formatPoints,
+  formatTime,
+  plural,
+  pointsRule,
+  positionTone,
+  publicButtonClass,
+  scoringRule,
+  shareLink,
+  stagesSummary,
+  usePublicRanking,
+} from './publicRanking.utils'
+
+export function PublicRankingPage() {
+  const { slug } = useParams<{ slug: string }>()
+  const { data: ranking, isLoading, isFetching, notFound, refetch } = usePublicRanking(slug)
+
+  useEffect(() => {
+    if (ranking) document.title = `${ranking.name} · Ranking`
+  }, [ranking])
+
+  if (isLoading) return <PublicLoading />
+
+  if (notFound) {
+    return (
+      <PublicMessage
+        variant="not-found"
+        title="Ranking não encontrado"
+        description="Confira se o endereço está completo. Ele pode ter sido digitado errado, ou o ranking foi removido."
+      />
+    )
+  }
+
+  // Sem dados: erro de verdade. Com dados em cache, uma falha de refetch em
+  // segundo plano (rede ruim, redeploy) não pode apagar a classificação da tela.
+  if (!ranking) {
+    return (
+      <PublicMessage
+        variant="error"
+        title="Não foi possível carregar o ranking"
+        description="Verifique sua conexão e tente de novo."
+        action={
+          <button
+            type="button"
+            onClick={() => void refetch()}
+            disabled={isFetching}
+            className={publicButtonClass}
+          >
+            {isFetching ? 'Carregando…' : 'Tentar de novo'}
+          </button>
+        }
+      />
+    )
+  }
+
+  const showFinalTable = ranking.leaderboard.length > FINAL_TABLE_SIZE
+
+  return (
+    <PublicShell>
+      <header className="mb-5 flex items-start gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-300/80">
+            {ranking.homeGameName}
+          </p>
+          <h1 className="mt-1.5 text-balance text-[1.75rem] font-bold leading-tight tracking-tight text-white">
+            {ranking.name}
+          </h1>
+          <p className="mt-1 text-sm text-slate-400">{stagesSummary(ranking)}</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => void shareLink(ranking.name, window.location.href)}
+          className={cn(
+            '-mr-2 inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg text-slate-300 transition-colors hover:bg-white/10 hover:text-white',
+            focusRingClass,
+          )}
+          aria-label="Compartilhar ranking"
+        >
+          <Share2 className="h-5 w-5" aria-hidden="true" />
+        </button>
+      </header>
+
+      {ranking.accumulatedPrize > 0 && (
+        <div className="mb-5 flex items-center gap-3 rounded-2xl border border-emerald-400/20 bg-emerald-400/[0.07] px-4 py-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-400/15">
+            <Trophy className="h-5 w-5 text-emerald-300" aria-hidden="true" />
+          </span>
+          <span className="min-w-0">
+            <span className="block text-xs font-medium uppercase tracking-wider text-emerald-300/80">
+              Prêmio acumulado
+            </span>
+            <span className="block text-xl font-bold tabular-nums text-emerald-300">
+              {formatCurrency(ranking.accumulatedPrize)}
+            </span>
+          </span>
+        </div>
+      )}
+
+      {ranking.leaderboard.length === 0 ? (
+        <div className="rounded-2xl border border-white/10 bg-white/[0.035] px-6 py-12 text-center">
+          <Trophy className="mx-auto mb-3 h-10 w-10 text-slate-600" aria-hidden="true" />
+          <p className="font-semibold text-slate-200">Nenhuma etapa finalizada ainda</p>
+          <p className="mt-1 text-sm text-slate-400">
+            A classificação aparece aqui quando o primeiro torneio terminar.
+          </p>
+        </div>
+      ) : (
+        <ol
+          aria-label="Classificação"
+          className="flex flex-col gap-0.5 rounded-2xl border border-white/10 bg-white/[0.035] p-1.5"
+        >
+          {ranking.leaderboard.map((player) => (
+            <Fragment key={player.personId}>
+              <li>
+                <PlayerRow
+                  player={player}
+                  slug={ranking.slug}
+                  dimmed={showFinalTable && player.position > FINAL_TABLE_SIZE}
+                />
+              </li>
+              {showFinalTable && player.position === FINAL_TABLE_SIZE && (
+                <li
+                  aria-hidden="true"
+                  className="flex items-center gap-3 px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-yellow-400/80"
+                >
+                  <span className="h-px flex-1 bg-yellow-400/25" />
+                  Mesa final · top {FINAL_TABLE_SIZE}
+                  <span className="h-px flex-1 bg-yellow-400/25" />
+                </li>
+              )}
+            </Fragment>
+          ))}
+        </ol>
+      )}
+
+      <section className="mt-6 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-300">
+          Como funciona
+        </h2>
+        <p className="mt-1.5 text-sm leading-relaxed text-slate-400">
+          {pointsRule(ranking)} {scoringRule(ranking)}
+          {ranking.leaderboard.length > 0 && ' Toque em um jogador para ver etapa por etapa.'}
+        </p>
+      </section>
+
+      <p className="mt-4 text-center text-xs text-slate-400">
+        Atualizado às {formatTime(ranking.generatedAt)}
+      </p>
+    </PublicShell>
+  )
+}
+
+interface PlayerRowProps {
+  player: PublicRankingPlayer
+  slug: string
+  dimmed: boolean
+}
+
+function PlayerRow({ player, slug, dimmed }: PlayerRowProps) {
+  const tone = positionTone(player.position)
+  return (
+    <Link
+      to={publicRankingPlayerPath(slug, player.personId)}
+      aria-label={`${player.position}º ${player.displayName}, ${formatPoints(player.totalPoints)} pontos`}
+      className={cn(
+        'flex min-h-16 items-center gap-3 rounded-xl px-2.5 py-2 transition-colors hover:bg-white/[0.06] active:bg-white/10',
+        focusRingClass,
+        tone.row,
+      )}
+    >
+      <span className={cn('w-7 shrink-0 text-center text-lg font-bold tabular-nums', tone.text)}>
+        {player.position}
+      </span>
+      <Avatar src={resolveMediaUrl(player.photoUrl)} name={player.displayName} size="md" />
+      <span className="min-w-0 flex-1">
+        <span
+          className={cn(
+            'block truncate font-semibold',
+            dimmed ? 'text-slate-300' : 'text-slate-50',
+          )}
+        >
+          {player.displayName}
+        </span>
+        <span className="block text-xs text-slate-400">
+          {plural(player.tournamentsPlayed, 'etapa', 'etapas')}
+          {player.bestPosition != null && ` · melhor ${player.bestPosition}º`}
+        </span>
+      </span>
+      <span className="shrink-0 text-right">
+        <span className="block text-lg font-bold leading-none tabular-nums text-white">
+          {formatPoints(player.totalPoints)}
+        </span>
+        <span className="mt-1 block text-[11px] uppercase tracking-wider text-slate-400">pts</span>
+      </span>
+      <ChevronRight className="h-4 w-4 shrink-0 text-slate-600" aria-hidden="true" />
+    </Link>
+  )
+}

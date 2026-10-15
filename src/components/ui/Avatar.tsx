@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { cn } from '../../utils/cn'
 
 const sizeClasses = {
@@ -42,11 +43,15 @@ function getColorFromName(name: string): string {
 }
 
 export function Avatar({ src, name, size = 'md', className }: AvatarProps) {
-  if (src) {
+  // Foto que falhou ao carregar cai nas iniciais (sem ícone de imagem quebrada)
+  const [failedSrc, setFailedSrc] = useState<string | null>(null)
+
+  if (src && src !== failedSrc) {
     return (
       <img
         src={src}
         alt={name}
+        onError={() => setFailedSrc(src)}
         className={cn(
           'rounded-full object-cover flex-shrink-0',
           sizeClasses[size],

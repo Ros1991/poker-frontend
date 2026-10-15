@@ -25,6 +25,8 @@ export const ROUTES = {
   BLIND_STRUCTURE_EDIT: '/home-games/:homeGameId/blinds/:id/edit',
   DEALER_TERMINAL: '/dealer/:tournamentId',
   TV_DISPLAY: '/tv/:tournamentId',
+  PUBLIC_RANKING: '/r/:slug',
+  PUBLIC_RANKING_PLAYER: '/r/:slug/:personId',
 } as const
 
 export function tournamentDashboardPath(id: string) {
@@ -77,6 +79,14 @@ export function rankingDetailPath(id: string) {
 
 export function rankingEditPath(id: string) {
   return `/rankings/${id}/edit`
+}
+
+export function publicRankingPath(slug: string) {
+  return `/r/${slug}`
+}
+
+export function publicRankingPlayerPath(slug: string, personId: string) {
+  return `/r/${slug}/${personId}`
 }
 
 export function userEditPath(id: string) {

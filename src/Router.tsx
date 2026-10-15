@@ -11,6 +11,10 @@ import { RegisterPage } from './pages/auth/RegisterPage'
 import { TvDisplayPage } from './pages/tv-display/TvDisplayPage'
 import { DealerTerminalPage } from './pages/dealer/DealerTerminalPage'
 
+// Ranking público (sem login)
+import { PublicRankingPage } from './pages/public-ranking/PublicRankingPage'
+import { PublicPlayerPage } from './pages/public-ranking/PublicPlayerPage'
+
 // Home Games
 import { HomeGameListPage } from './pages/home-games/HomeGameListPage'
 import { HomeGameFormPage } from './pages/home-games/HomeGameFormPage'
@@ -45,6 +49,11 @@ export function Router() {
       <Route path={ROUTES.LOGIN} element={<LoginPage />} />
       <Route path={ROUTES.REGISTER} element={<RegisterPage />} />
       <Route path={ROUTES.TV_DISPLAY} element={<TvDisplayPage />} />
+      <Route path={ROUTES.PUBLIC_RANKING} element={<PublicRankingPage />} />
+      <Route
+        path={ROUTES.PUBLIC_RANKING_PLAYER}
+        element={<PublicPlayerPage />}
+      />
 
       {/* Protected routes with sidebar layout */}
       <Route

@@ -1,0 +1,278 @@
+import { useEffect, useState } from 'react'
+import type { ReactNode } from 'react'
+import { Link, useParams } from 'react-router-dom'
+import { ChevronLeft, Share2 } from 'lucide-react'
+import { Avatar } from '../../components/ui/Avatar'
+import { publicRankingPath } from '../../constants/routes'
+import { cn } from '../../utils/cn'
+import { resolveMediaUrl } from '../../utils/mediaUrl'
+import { PublicLoading, PublicMessage, PublicShell } from './PublicLayout'
+import {
+  buildPlayerRows,
+  focusRingClass,
+  formatPoints,
+  formatShortDate,
+  formatTime,
+  playerExplanation,
+  positionTone,
+  publicButtonClass,
+  shareLink,
+  stageStatus,
+  usePublicRanking,
+} from './publicRanking.utils'
+import type { PlayerStageRow, StageStatus } from './publicRanking.utils'
+
+type SortBy = 'date' | 'points'
+
+export function PublicPlayerPage() {
+  const { slug, personId } = useParams<{ slug: string; personId: string }>()
+  const { data: ranking, isLoading, isFetching, notFound, refetch } = usePublicRanking(slug)
+  const [sortBy, setSortBy] = useState<SortBy>('date')
+
+  const player = ranking?.leaderboard.find((p) => p.personId === personId)
+
+  // Vindo da lista, a página nova começa no topo
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [personId])
+
+  useEffect(() => {
+    if (ranking && player) document.title = `${player.displayName} · ${ranking.name}`
+  }, [ranking, player])
+
+  if (isLoading) return <PublicLoading />
+
+  if (notFound) {
+    return (
+      <PublicMessage
+        variant="not-found"
+        title="Ranking não encontrado"
+        description="Confira se o endereço está completo. Ele pode ter sido digitado errado, ou o ranking foi removido."
+      />
+    )
+  }
+
+  // Sem dados: erro de verdade. Com dados em cache, uma falha de refetch em
+  // segundo plano (rede ruim, redeploy) não pode apagar a classificação da tela.
+  if (!ranking) {
+    return (
+      <PublicMessage
+        variant="error"
+        title="Não foi possível carregar o ranking"
+        description="Verifique sua conexão e tente de novo."
+        action={
+          <button
+            type="button"
+            onClick={() => void refetch()}
+            disabled={isFetching}
+            className={publicButtonClass}
+          >
+            {isFetching ? 'Carregando…' : 'Tentar de novo'}
+          </button>
+        }
+      />
+    )
+  }
+
+  if (!player) {
+    return (
+      <PublicMessage
+        variant="not-found"
+        title="Jogador não encontrado"
+        description="Este jogador não tem resultados neste ranking."
+        action={
+          <Link to={publicRankingPath(ranking.slug)} className={publicButtonClass}>
+            Ver classificação
+          </Link>
+        }
+      />
+    )
+  }
+
+  const tone = positionTone(player.position)
+  const rows = buildPlayerRows(ranking, player, sortBy)
+
+  return (
+    <PublicShell>
+      <nav className="-mx-2 mb-3 flex items-center justify-between gap-2">
+        <Link
+          to={publicRankingPath(ranking.slug)}
+          className={cn(
+            'inline-flex min-h-11 min-w-0 items-center gap-1 rounded-lg px-2 text-sm font-medium text-slate-300 transition-colors hover:text-white',
+            focusRingClass,
+          )}
+        >
+          <ChevronLeft className="h-5 w-5 shrink-0" aria-hidden="true" />
+          <span className="truncate">{ranking.name}</span>
+        </Link>
+        <button
+          type="button"
+          onClick={() =>
+            void shareLink(`${player.displayName} · ${ranking.name}`, window.location.href)
+          }
+          className={cn(
+            'inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg text-slate-300 transition-colors hover:bg-white/10 hover:text-white',
+            focusRingClass,
+          )}
+          aria-label="Compartilhar resumo"
+        >
+          <Share2 className="h-5 w-5" aria-hidden="true" />
+        </button>
+      </nav>
+
+      <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+        <div className="flex items-center gap-4">
+          <Avatar src={resolveMediaUrl(player.photoUrl)} name={player.displayName} size="lg" />
+          <div className="min-w-0">
+            <h1 className="truncate text-2xl font-bold tracking-tight text-white">
+              {player.displayName}
+            </h1>
+            <p className="mt-0.5 text-sm text-slate-400">
+              <span className={cn('font-semibold', tone.text)}>{player.position}º lugar</span>{' '}
+              de {ranking.leaderboard.length}
+            </p>
+          </div>
+        </div>
+
+        <dl className="mt-4 grid grid-cols-3 gap-2">
+          <Stat label="Pontos" value={formatPoints(player.totalPoints)} emphasis />
+          <Stat label="Etapas" value={`${player.tournamentsPlayed}/${ranking.totalStages}`} />
+          <Stat
+            label="Melhor"
+            value={player.bestPosition != null ? `${player.bestPosition}º` : '—'}
+          />
+        </dl>
+
+        <p className="mt-3 text-sm leading-relaxed text-slate-400">
+          {playerExplanation(ranking, player)}
+        </p>
+      </section>
+
+      <div className="mb-2 mt-6 flex items-center justify-between gap-3 pl-1">
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-300">
+          Etapa por etapa
+        </h2>
+        <div
+          role="group"
+          aria-label="Ordenar etapas"
+          className="inline-flex rounded-lg border border-white/10 bg-white/[0.04] p-0.5"
+        >
+          <SortButton active={sortBy === 'date'} onClick={() => setSortBy('date')}>
+            Data
+          </SortButton>
+          <SortButton active={sortBy === 'points'} onClick={() => setSortBy('points')}>
+            Pontos
+          </SortButton>
+        </div>
+      </div>
+
+      <ol className="flex flex-col gap-0.5 rounded-2xl border border-white/10 bg-white/[0.035] p-1.5">
+        {rows.map((row) => (
+          <li key={row.key}>
+            <StageRow row={row} />
+          </li>
+        ))}
+      </ol>
+
+      <p className="mt-4 text-center text-xs text-slate-400">
+        Atualizado às {formatTime(ranking.generatedAt)}
+      </p>
+    </PublicShell>
+  )
+}
+
+function Stat({ label, value, emphasis = false }: { label: string; value: string; emphasis?: boolean }) {
+  return (
+    <div className="rounded-xl bg-white/[0.05] px-3 py-2.5">
+      <dt className="text-[11px] font-medium uppercase tracking-wider text-slate-400">{label}</dt>
+      <dd
+        className={cn(
+          'mt-0.5 text-lg font-bold tabular-nums',
+          emphasis ? 'text-white' : 'text-slate-200',
+        )}
+      >
+        {value}
+      </dd>
+    </div>
+  )
+}
+
+function SortButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean
+  onClick: () => void
+  children: ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn(
+        'min-h-11 rounded-md px-3.5 text-sm font-medium transition-colors',
+        focusRingClass,
+        active ? 'bg-white/15 text-white' : 'text-slate-400 hover:text-slate-200',
+      )}
+    >
+      {children}
+    </button>
+  )
+}
+
+const STATUS_PILL: Record<StageStatus, { label: string; className: string }> = {
+  counted: { label: 'Contou', className: 'bg-emerald-400/15 text-emerald-300' },
+  discarded: { label: 'Descartado', className: 'bg-white/[0.07] text-slate-400' },
+  absent: { label: 'Falta', className: 'border border-dashed border-white/20 text-slate-400' },
+}
+
+function StageRow({ row }: { row: PlayerStageRow }) {
+  const { stage, result } = row
+  const status = stageStatus(row)
+  const pill = STATUS_PILL[status]
+  const podiumText = result && result.position <= 3 ? positionTone(result.position).text : 'text-slate-400'
+
+  return (
+    <div className="flex min-h-14 items-center gap-3 rounded-xl px-2.5 py-2">
+      <span className="w-10 shrink-0 text-xs font-medium tabular-nums text-slate-400">
+        {formatShortDate(stage.date)}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span
+          className={cn(
+            'block truncate text-sm font-medium',
+            result ? 'text-slate-100' : 'text-slate-400',
+          )}
+        >
+          {stage.name}
+        </span>
+        <span className={cn('block text-xs', result ? podiumText : 'text-slate-400')}>
+          {result ? `${result.position}º de ${stage.playerCount}` : 'Não jogou'}
+        </span>
+      </span>
+      <span className="flex shrink-0 flex-col items-end gap-1">
+        <span
+          className={cn(
+            'text-base font-bold leading-none tabular-nums',
+            status === 'counted' && 'text-white',
+            // linha mais clara que o dígito: na mesma cor ela some dentro do número
+            status === 'discarded' && 'text-slate-400 line-through decoration-slate-200/90 decoration-2',
+            status === 'absent' && 'text-slate-500',
+          )}
+        >
+          {result ? formatPoints(result.points) : '0'}
+        </span>
+        <span
+          className={cn(
+            'rounded-full px-2 py-0.5 text-[11px] font-medium leading-tight',
+            pill.className,
+          )}
+        >
+          {pill.label}
+        </span>
+      </span>
+    </div>
+  )
+}

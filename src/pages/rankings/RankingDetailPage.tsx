@@ -1,8 +1,11 @@
+import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowLeft, Trophy, Edit } from 'lucide-react'
+import { ArrowLeft, Trophy, Edit, Link2 } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { rankingEditPath } from '../../constants/routes'
+import { FINAL_TABLE_SIZE } from '../../constants/ranking'
+import { PublicLinkModal } from './PublicLinkModal'
 import * as rankingsApi from '../../api/rankings.api'
 import * as homeGamesApi from '../../api/homeGames.api'
 import { Avatar } from '../../components/ui/Avatar'
@@ -28,6 +31,7 @@ export function RankingDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { user } = useAuth()
+  const [publicLinkOpen, setPublicLinkOpen] = useState(false)
 
   const {
     data: ranking,
@@ -97,7 +101,7 @@ export function RankingDetailPage() {
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-yellow-500/10">
             <Trophy className="h-5 w-5 text-yellow-400" />
           </div>
-          <div className="flex-1">
+          <div className="min-w-0 flex-1">
             <h1 className="text-2xl font-bold text-text-primary">
               {ranking.name}
             </h1>
@@ -112,12 +116,28 @@ export function RankingDetailPage() {
               </Badge>
             </div>
           </div>
-          {canManage && (
-            <Button variant="secondary" onClick={() => navigate(rankingEditPath(ranking.id))}>
-              <Edit className="h-4 w-4" />
-              <span className="hidden sm:inline">Editar</span>
-            </Button>
-          )}
+          <div className="flex shrink-0 gap-2">
+            {ranking.slug && (
+              <Button
+                variant="secondary"
+                onClick={() => setPublicLinkOpen(true)}
+                aria-label="Link público"
+              >
+                <Link2 className="h-4 w-4" />
+                <span className="hidden sm:inline">Link público</span>
+              </Button>
+            )}
+            {canManage && (
+              <Button
+                variant="secondary"
+                onClick={() => navigate(rankingEditPath(ranking.id))}
+                aria-label="Editar"
+              >
+                <Edit className="h-4 w-4" />
+                <span className="hidden sm:inline">Editar</span>
+              </Button>
+            )}
+          </div>
         </div>
         {ranking.description && (
           <p className="text-sm text-text-secondary mt-2">
@@ -136,7 +156,7 @@ export function RankingDetailPage() {
       {leaderboard && leaderboard.length > 0 && (
         <div className="flex items-center gap-2 mb-3 text-xs text-text-muted">
           <span className="inline-block w-2 h-2 rounded-full bg-yellow-400" />
-          <span>Top 9 — classificados para a Mesa Final</span>
+          <span>Top {FINAL_TABLE_SIZE} — classificados para a Mesa Final</span>
         </div>
       )}
 
@@ -186,10 +206,10 @@ export function RankingDetailPage() {
                   <tr
                     key={entry.person.id}
                     className={`border-b last:border-0 ${positionBg(entry.position)} ${
-                      entry.position <= 9
+                      entry.position <= FINAL_TABLE_SIZE
                         ? 'border-border-default'
                         : 'border-border-default opacity-60'
-                    } ${entry.position === 9 ? 'border-b-2 border-b-yellow-500/50' : ''}`}
+                    } ${entry.position === FINAL_TABLE_SIZE ? 'border-b-2 border-b-yellow-500/50' : ''}`}
                   >
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1.5">
@@ -198,7 +218,7 @@ export function RankingDetailPage() {
                         >
                           {entry.position}
                         </span>
-                        {entry.position <= 9 && (
+                        {entry.position <= FINAL_TABLE_SIZE && (
                           <span className="inline-block w-2 h-2 rounded-full bg-yellow-400" title="Mesa Final" />
                         )}
                       </div>
@@ -248,6 +268,15 @@ export function RankingDetailPage() {
             </table>
           </div>
         </div>
+      )}
+
+      {ranking.slug && (
+        <PublicLinkModal
+          isOpen={publicLinkOpen}
+          onClose={() => setPublicLinkOpen(false)}
+          slug={ranking.slug}
+          rankingName={ranking.name}
+        />
       )}
     </div>
   )
