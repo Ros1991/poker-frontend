@@ -4,9 +4,10 @@ import type { Location } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod/v4'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Spade } from 'lucide-react'
+import { BrandLogo } from '../../components/brand/BrandLogo'
 import { toast } from 'sonner'
 import { Input } from '../../components/ui/Input'
+import { PasswordInput } from '../../components/ui/PasswordInput'
 import { Button } from '../../components/ui/Button'
 import { useAuth } from '../../hooks/useAuth'
 import { ROUTES } from '../../constants/routes'
@@ -88,13 +89,8 @@ export function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-bg-primary p-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center gap-3">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-accent-blue/10">
-            <Spade className="h-8 w-8 text-accent-blue" />
-          </div>
-          <h1 className="text-2xl font-bold text-text-primary">PokerTM</h1>
-          <p className="text-sm text-text-secondary">
-            Gerenciamento de Torneios de Poker
-          </p>
+          <BrandLogo variant="full" decorative className="h-36" />
+          <h1 className="sr-only">Poker da Galera</h1>
         </div>
 
         <form
@@ -110,25 +106,32 @@ export function LoginPage() {
             {...register('email')}
           />
 
-          <Input
+          <PasswordInput
             label="Senha"
-            type="password"
             placeholder="Sua senha"
             error={errors.password?.message}
             autoComplete="current-password"
             {...register('password')}
           />
 
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              className="h-4 w-4 rounded border-border-default bg-bg-input text-accent-blue focus:ring-accent-blue"
-              {...register('rememberMe')}
-            />
-            <span className="text-sm text-text-secondary">
-              Lembrar e-mail e senha
-            </span>
-          </label>
+          <div className="flex items-center justify-between gap-3">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-border-default bg-bg-input text-accent-blue focus:ring-accent-blue"
+                {...register('rememberMe')}
+              />
+              <span className="text-sm text-text-secondary">
+                Lembrar e-mail e senha
+              </span>
+            </label>
+            <Link
+              to={ROUTES.FORGOT_PASSWORD}
+              className="text-sm text-accent-blue hover:underline"
+            >
+              Esqueci minha senha
+            </Link>
+          </div>
 
           <Button type="submit" loading={isLoading} className="mt-2">
             Entrar

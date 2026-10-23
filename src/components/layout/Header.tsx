@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../hooks/useAuth'
 import { Avatar } from '../ui/Avatar'
 import { ROUTES } from '../../constants/routes'
+import { BrandLogo } from '../brand/BrandLogo'
 
 interface HeaderProps {
   onMenuToggle?: () => void
@@ -30,9 +31,8 @@ export function Header({ onMenuToggle }: HeaderProps) {
         >
           <Menu className="h-5 w-5" />
         </button>
-        <h1 className="text-lg font-semibold text-text-primary lg:hidden">
-          PokerTM
-        </h1>
+        {/* No celular a sidebar está fechada: a marca aparece aqui */}
+        <BrandLogo variant="lockup" className="h-8 lg:hidden" />
       </div>
 
       <div className="flex items-center gap-3">

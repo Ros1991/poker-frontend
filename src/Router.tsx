@@ -7,6 +7,8 @@ import { AppLayout } from './components/layout/AppLayout'
 // Auth
 import { LoginPage } from './pages/auth/LoginPage'
 import { RegisterPage } from './pages/auth/RegisterPage'
+import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage'
+import { ResetPasswordPage } from './pages/auth/ResetPasswordPage'
 
 // TV & Dealer (standalone layouts)
 import { TvScreen, TvDirectPairPage } from './pages/tv-display/TvScreen'
@@ -53,6 +55,8 @@ export function Router() {
       <Route path={ROUTES.HOME} element={<RootGate />} />
       <Route path={ROUTES.LOGIN} element={<LoginPage />} />
       <Route path={ROUTES.REGISTER} element={<RegisterPage />} />
+      <Route path={ROUTES.FORGOT_PASSWORD} element={<ForgotPasswordPage />} />
+      <Route path={ROUTES.RESET_PASSWORD} element={<ResetPasswordPage />} />
       <Route path={ROUTES.TV} element={<TvScreen />} />
       <Route path={ROUTES.TV_DISPLAY} element={<TvDirectPairPage />} />
       <Route path={ROUTES.DEALER_ACCESS} element={<DealerAccessPage />} />

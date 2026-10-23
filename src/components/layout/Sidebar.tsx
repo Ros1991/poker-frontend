@@ -5,11 +5,11 @@ import {
   Shield,
   ChevronLeft,
   ChevronRight,
-  Spade,
   Plus,
   Check,
 } from 'lucide-react'
 import { cn } from '../../utils/cn'
+import { BrandLogo } from '../brand/BrandLogo'
 import { useAuth } from '../../hooks/useAuth'
 import { useHomeGame } from '../../contexts/HomeGameContext'
 import { ROUTES, homeGameDetailPath } from '../../constants/routes'
@@ -47,12 +47,16 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
         className,
       )}
     >
-      <div className="flex h-16 items-center gap-3 border-b border-border-default px-4">
-        <Spade className="h-7 w-7 text-accent-blue flex-shrink-0" />
-        {!collapsed && (
-          <span className="text-lg font-bold text-text-primary truncate">
-            PokerTM
-          </span>
+      <div
+        className={cn(
+          'flex h-16 items-center border-b border-border-default',
+          collapsed ? 'justify-center px-2' : 'px-4',
+        )}
+      >
+        {collapsed ? (
+          <BrandLogo variant="mark" className="h-9" />
+        ) : (
+          <BrandLogo variant="lockup" className="h-9" />
         )}
       </div>
 

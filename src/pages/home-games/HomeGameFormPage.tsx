@@ -12,6 +12,8 @@ import { Textarea } from '../../components/ui/Textarea'
 import { Button } from '../../components/ui/Button'
 import { ROUTES, homeGameDetailPath } from '../../constants/routes'
 import { useHomeGame } from '../../contexts/HomeGameContext'
+import { AccessDeniedState } from '../../components/common/AccessDeniedState'
+import { isForbiddenError } from '../../utils/httpErrors'
 
 const homeGameSchema = z.object({
   name: z
@@ -48,6 +50,7 @@ export function HomeGameFormPage() {
     data: homeGame,
     isLoading: loadingHomeGame,
     isError,
+    error: homeGameError,
   } = useQuery({
     queryKey: ['homeGame', id],
     queryFn: () => homeGamesApi.getById(id!),
@@ -141,6 +144,11 @@ export function HomeGameFormPage() {
         <Loader2 className="h-8 w-8 animate-spin text-text-muted" />
       </div>
     )
+  }
+
+  // 403: não é dono, membro nem Admin deste home game
+  if (isEditing && isForbiddenError(homeGameError)) {
+    return <AccessDeniedState />
   }
 
   if (isEditing && isError) {

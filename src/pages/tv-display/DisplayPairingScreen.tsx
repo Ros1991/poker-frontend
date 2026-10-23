@@ -1,9 +1,10 @@
 import { Link } from 'react-router-dom'
 import { QRCodeSVG } from 'qrcode.react'
 import type { ReactNode } from 'react'
-import { LogIn, Spade, Tv } from 'lucide-react'
+import { LogIn, Tv } from 'lucide-react'
 import { ROUTES, pairDisplayPath } from '../../constants/routes'
 import { formatPairingCode } from '../../utils/pairingCode'
+import { BrandLogo } from '../../components/brand/BrandLogo'
 
 interface DisplayPairingScreenProps {
   code: string | null
@@ -25,14 +26,8 @@ export function DisplayPairingScreen({ code, connectionError }: DisplayPairingSc
 
       <div className="relative z-10 mx-auto flex min-h-screen max-w-6xl flex-col px-4 py-6 lg:px-10 lg:py-10">
         <header className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-500/15">
-              <Spade className="h-6 w-6 text-blue-400" />
-            </div>
-            <div>
-              <p className="text-lg font-bold leading-tight">PokerTM</p>
-              <p className="text-sm text-slate-400">Torneios do home game</p>
-            </div>
+          <div className="flex items-center gap-4">
+            <BrandLogo variant="lockup" className="h-11 lg:h-14" />
           </div>
           <Link
             to={ROUTES.LOGIN}
@@ -63,7 +58,9 @@ export function DisplayPairingScreen({ code, connectionError }: DisplayPairingSc
               <Tv className="h-5 w-5 text-blue-400" />
               <span className="text-base font-medium lg:text-xl">Mostrar um torneio nesta tela</span>
             </div>
-            <div className="rounded-2xl bg-white p-4 shadow-[0_0_60px_rgba(59,130,246,0.25)]">
+            <div className="flex flex-col items-center gap-4 rounded-2xl bg-white p-4 shadow-[0_0_60px_rgba(59,130,246,0.25)]">
+              {/* Logo completa em tamanho de TV, no mesmo cartão claro do QR */}
+              <BrandLogo variant="full" onLight className="h-28 lg:h-40" />
               {pairUrl ? (
                 <QRCodeSVG value={pairUrl} size={320} className="h-56 w-56 lg:h-80 lg:w-80" />
               ) : (

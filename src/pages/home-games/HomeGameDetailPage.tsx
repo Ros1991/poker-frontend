@@ -40,6 +40,8 @@ import {
 } from '../../constants/routes'
 import { HomeGameFormModal } from './HomeGameFormModal'
 import { AddMemberModal } from './AddMemberModal'
+import { AccessDeniedState } from '../../components/common/AccessDeniedState'
+import { isForbiddenError } from '../../utils/httpErrors'
 import { useHomeGame } from '../../contexts/HomeGameContext'
 import { useAuth } from '../../hooks/useAuth'
 import type { TournamentStatus } from '../../types/tournament.types'
@@ -95,6 +97,7 @@ export function HomeGameDetailPage() {
     data: homeGame,
     isLoading,
     isError,
+    error: homeGameError,
   } = useQuery({
     queryKey: ['homeGame', id],
     queryFn: () => homeGamesApi.getById(id!),
@@ -178,6 +181,11 @@ export function HomeGameDetailPage() {
         <Loader2 className="h-8 w-8 animate-spin text-text-muted" />
       </div>
     )
+  }
+
+  // 403: não é dono, membro nem Admin deste home game
+  if (isForbiddenError(homeGameError)) {
+    return <AccessDeniedState />
   }
 
   if (isError || !homeGame) {

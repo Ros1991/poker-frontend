@@ -11,6 +11,8 @@ import * as homeGamesApi from '../../api/homeGames.api'
 import { Avatar } from '../../components/ui/Avatar'
 import { Badge } from '../../components/ui/Badge'
 import { LoadingSpinner } from '../../components/common/LoadingSpinner'
+import { AccessDeniedState } from '../../components/common/AccessDeniedState'
+import { isForbiddenError } from '../../utils/httpErrors'
 import { useAuth } from '../../hooks/useAuth'
 
 function positionColor(position: number): string {
@@ -36,6 +38,7 @@ export function RankingDetailPage() {
   const {
     data: ranking,
     isLoading: rankingLoading,
+    error: rankingError,
   } = useQuery({
     queryKey: ['ranking', id],
     queryFn: () => rankingsApi.getById(id!),
@@ -78,10 +81,15 @@ export function RankingDetailPage() {
     )
   }
 
+  // 403: o ranking é de um home game de que o usuário não é dono, membro nem Admin
+  if (isForbiddenError(rankingError)) {
+    return <AccessDeniedState />
+  }
+
   if (!ranking) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
-        <p className="text-sm text-accent-red">Ranking nao encontrado.</p>
+        <p className="text-sm text-accent-red">Ranking não encontrado.</p>
       </div>
     )
   }

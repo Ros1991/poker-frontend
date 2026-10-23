@@ -620,7 +620,7 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
 
                 {/* Timer */}
                 <div
-                  className={`font-mono text-[10rem] font-bold leading-none tracking-tighter transition-colors duration-500 ${timerColor}`}
+                  className={`font-mono tabular-nums text-[10rem] font-bold leading-none tracking-tighter transition-colors duration-500 ${timerColor}`}
                   style={{
                     textShadow: `0 0 80px ${timerState.remainingSeconds <= 60 ? 'rgba(239,68,68,0.3)' : timerState.remainingSeconds <= 120 ? 'rgba(234,179,8,0.3)' : 'rgba(34,197,94,0.3)'}`,
                   }}

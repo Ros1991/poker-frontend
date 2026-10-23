@@ -10,6 +10,8 @@ import * as rankingsApi from '../../api/rankings.api'
 import * as homeGamesApi from '../../api/homeGames.api'
 import { Input } from '../../components/ui/Input'
 import { Button } from '../../components/ui/Button'
+import { AccessDeniedState } from '../../components/common/AccessDeniedState'
+import { isForbiddenError } from '../../utils/httpErrors'
 
 // --- Formula evaluation ---
 
@@ -83,7 +85,7 @@ export function RankingFormPage() {
   const [discardCount, setDiscardCount] = useState(0)
 
   // Carregar ranking existente
-  const { data: existingRanking } = useQuery({
+  const { data: existingRanking, error: rankingError } = useQuery({
     queryKey: ['ranking', id],
     queryFn: () => rankingsApi.getById(id!),
     enabled: isEditing,
@@ -106,7 +108,7 @@ export function RankingFormPage() {
     setInitialized(true)
   }
 
-  const { data: homeGame } = useQuery({
+  const { data: homeGame, error: homeGameError } = useQuery({
     queryKey: ['homeGame', effectiveHomeGameId],
     queryFn: () => homeGamesApi.getById(effectiveHomeGameId!),
     enabled: !!effectiveHomeGameId,
@@ -212,6 +214,11 @@ export function RankingFormPage() {
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  // 403: ranking ou home game de que o usuário não é dono, membro nem Admin
+  if (isForbiddenError(rankingError) || isForbiddenError(homeGameError)) {
+    return <AccessDeniedState />
   }
 
   return (

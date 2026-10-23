@@ -78,7 +78,7 @@ export function TerminalHeader({
         </button>
         <div className="text-right">
           <p
-            className={`font-mono text-3xl font-bold leading-none ${
+            className={`font-mono tabular-nums text-3xl font-bold leading-none ${
               running ? 'text-accent-green' : 'text-accent-yellow'
             }`}
           >

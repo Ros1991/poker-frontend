@@ -3,9 +3,10 @@ import { useNavigate, Link } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod/v4'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Spade } from 'lucide-react'
+import { BrandLogo } from '../../components/brand/BrandLogo'
 import { toast } from 'sonner'
 import { Input } from '../../components/ui/Input'
+import { PasswordInput } from '../../components/ui/PasswordInput'
 import { Button } from '../../components/ui/Button'
 import { ROUTES } from '../../constants/routes'
 import * as authApi from '../../api/auth.api'
@@ -64,10 +65,8 @@ export function RegisterPage() {
     <div className="flex min-h-screen items-center justify-center bg-bg-primary p-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center gap-3">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-accent-blue/10">
-            <Spade className="h-8 w-8 text-accent-blue" />
-          </div>
-          <h1 className="text-2xl font-bold text-text-primary">PokerTM</h1>
+          <BrandLogo variant="full" decorative className="h-36" />
+          <h1 className="sr-only">Poker da Galera</h1>
           <p className="text-sm text-text-secondary">Criar nova conta</p>
         </div>
 
@@ -110,18 +109,16 @@ export function RegisterPage() {
             {...register('whatsapp')}
           />
 
-          <Input
+          <PasswordInput
             label="Senha"
-            type="password"
             placeholder="Minimo 6 caracteres"
             error={errors.password?.message}
             autoComplete="new-password"
             {...register('password')}
           />
 
-          <Input
+          <PasswordInput
             label="Confirmar senha"
-            type="password"
             placeholder="Repita sua senha"
             error={errors.confirmPassword?.message}
             autoComplete="new-password"

@@ -1,6 +1,8 @@
 export const ROUTES = {
   LOGIN: '/login',
   REGISTER: '/register',
+  FORGOT_PASSWORD: '/esqueci-senha',
+  RESET_PASSWORD: '/redefinir-senha/:token',
   HOME: '/',
   HOME_GAMES: '/home-games',
   HOME_GAME_NEW: '/home-games/new',
@@ -31,6 +33,10 @@ export const ROUTES = {
   PUBLIC_RANKING: '/r/:slug',
   PUBLIC_RANKING_PLAYER: '/r/:slug/:personId',
 } as const
+
+export function resetPasswordPath(token: string) {
+  return `/redefinir-senha/${token}`
+}
 
 export function tournamentDashboardPath(id: string) {
   return `/tournaments/${id}`

@@ -7,6 +7,8 @@ import * as blindStructuresApi from '../../api/blindStructures.api'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { LoadingSpinner } from '../../components/common/LoadingSpinner'
+import { AccessDeniedState } from '../../components/common/AccessDeniedState'
+import { isForbiddenError } from '../../utils/httpErrors'
 import { homeGameDetailPath } from '../../constants/routes'
 import type { BlindLevel } from '../../types/blind.types'
 
@@ -69,7 +71,11 @@ export function BlindStructureFormPage() {
     DEFAULT_LEVELS.map((l) => ({ ...l })),
   )
 
-  const { data: existing, isLoading: loadingExisting } = useQuery({
+  const {
+    data: existing,
+    isLoading: loadingExisting,
+    error: existingError,
+  } = useQuery({
     queryKey: ['blindStructure', id],
     queryFn: () => blindStructuresApi.getById(id!),
     enabled: !!id,
@@ -113,10 +119,15 @@ export function BlindStructureFormPage() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       const toNum = (v: string) => v === '' ? undefined : Number(v)
+      // Ao editar, o vínculo é o da própria estrutura (template global → campo omitido, e o
+      // backend mantém nulo), nunca o home game da rota; ao criar, o da rota.
+      const payloadHomeGameId = isEdit
+        ? (existing?.homeGameId ?? undefined)
+        : (homeGameId ?? undefined)
       const payload = {
         name,
         description: description || undefined,
-        homeGameId: homeGameId ?? undefined,
+        homeGameId: payloadHomeGameId,
         defaultBuyIn: toNum(defaultBuyIn),
         defaultRebuy: toNum(defaultRebuy),
         defaultAddon: toNum(defaultAddon),
@@ -232,6 +243,11 @@ export function BlindStructureFormPage() {
         <LoadingSpinner size="lg" text="Carregando estrutura..." />
       </div>
     )
+  }
+
+  // 403: estrutura de um home game de que o usuário não é dono, membro nem Admin
+  if (isEdit && isForbiddenError(existingError)) {
+    return <AccessDeniedState />
   }
 
   return (

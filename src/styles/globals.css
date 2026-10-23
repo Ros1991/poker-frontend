@@ -1,3 +1,6 @@
+/* Fontes servidas pelo próprio bundle (sem request a fonts.googleapis.com) — SPEC-20261023-1202 */
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/nunito";
 @import "tailwindcss";
 
 @custom-variant dark (&:where(.dark, .dark *));
@@ -19,6 +22,38 @@
   --color-accent-yellow: #eab308;
   --color-accent-purple: #a855f7;
   --color-accent-orange: #f97316;
+
+  /* Fontes (SPEC-20261023-1202): Inter no corpo, Nunito nos títulos */
+  --font-sans: 'Inter Variable', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Nunito Variable', 'Nunito', var(--font-sans);
+
+  /* Paleta Poker da Galera (D8) — tokens NOVOS; os componentes migram na SPEC-20261023-1204 */
+  --color-brand-blue: #1E5AA8;        /* primária (o "POKER DA") */
+  --color-brand-blue-hover: #174A8B;
+  --color-brand-blue-soft: #E4EEF9;   /* fundo de destaque */
+  --color-brand-gold: #F0B340;        /* acento (o "GALERA"); texto marinho em cima, nunca branco */
+  --color-brand-gold-hover: #D99A25;
+  --color-brand-gold-soft: #FDF3DC;
+  --color-brand-navy: #1B2E4B;        /* marinho do subtítulo */
+  --color-surface-page: #F5F7FA;
+  --color-surface-card: #FFFFFF;
+  --color-surface-zebra: #F9FAFC;
+  --color-surface-border: #E1E6EE;
+  --color-ink-primary: #1B2E4B;
+  --color-ink-secondary: #5A6B82;
+  --color-ink-muted: #8A98AB;
+  --color-state-success: #2E9E5B;     /* ficha verde */
+  --color-state-danger: #D64545;      /* ficha vermelha */
+  --color-state-warning: #E0A100;
+  --color-state-info: #1E5AA8;
+}
+
+@layer base {
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+  }
 }
 
 *,
@@ -29,7 +64,7 @@
 
 body {
   margin: 0;
-  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font-sans);
   background-color: var(--color-bg-primary);
   color: var(--color-text-primary);
   -webkit-font-smoothing: antialiased;

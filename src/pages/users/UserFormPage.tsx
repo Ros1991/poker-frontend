@@ -7,6 +7,7 @@ import { ArrowLeft } from 'lucide-react'
 import { toast } from 'sonner'
 import * as usersApi from '../../api/users.api'
 import { Input } from '../../components/ui/Input'
+import { PasswordInput } from '../../components/ui/PasswordInput'
 import { Select } from '../../components/ui/Select'
 import { Button } from '../../components/ui/Button'
 import { LoadingSpinner } from '../../components/common/LoadingSpinner'
@@ -212,19 +213,19 @@ export function UserFormPage() {
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Input
+          <PasswordInput
             label={isEditing ? 'Nova Senha' : 'Senha *'}
-            type="password"
             placeholder={
               isEditing ? 'Deixe vazio para manter' : 'Minimo 6 caracteres'
             }
             error={errors.password?.message}
+            autoComplete="new-password"
             {...register('password')}
           />
-          <Input
+          <PasswordInput
             label={isEditing ? 'Confirmar Nova Senha' : 'Confirmar Senha *'}
-            type="password"
             placeholder="Repita a senha"
+            autoComplete="new-password"
             error={errors.confirmPassword?.message}
             {...register('confirmPassword')}
           />

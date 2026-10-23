@@ -1,22 +1,16 @@
 import { useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Loader2, AlertCircle } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Search } from 'lucide-react'
 import * as homeGamesApi from '../../api/homeGames.api'
 import * as personsApi from '../../api/persons.api'
+import * as usersApi from '../../api/users.api'
 import { Modal } from '../../components/ui/Modal'
 import { Button } from '../../components/ui/Button'
-import { SearchInput } from '../../components/ui/SearchInput'
+import { Input } from '../../components/ui/Input'
 import { Avatar } from '../../components/ui/Avatar'
-import apiClient from '../../api/client'
-
-interface UserItem {
-  id: string
-  name: string
-  email: string
-  photoUrl: string | null
-  role: string
-}
+import { errorStatus } from '../../utils/httpErrors'
+import type { UserLookup } from '../../types/user.types'
 
 interface AddMemberModalProps {
   isOpen: boolean
@@ -31,24 +25,11 @@ export function AddMemberModal({
   homeGameId,
   onSuccess,
 }: AddMemberModalProps) {
-  const [search, setSearch] = useState('')
-  const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
+  const [email, setEmail] = useState('')
+  const [found, setFound] = useState<UserLookup | null>(null)
+  const [lookupMessage, setLookupMessage] = useState<string | null>(null)
   const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null)
   const [isAdmin, setIsAdmin] = useState(false)
-
-  const {
-    data: users,
-    isLoading: usersLoading,
-    isError: usersError,
-  } = useQuery({
-    queryKey: ['users-list'],
-    queryFn: async () => {
-      const response = await apiClient.get<UserItem[]>('/Users')
-      return response.data
-    },
-    enabled: isOpen,
-    staleTime: 30_000,
-  })
 
   const { data: existingMembers } = useQuery({
     queryKey: ['homeGameMembers', homeGameId],
@@ -62,39 +43,79 @@ export function AddMemberModal({
     enabled: isOpen,
   })
 
-  // Person IDs already linked to existing members
+  // Jogadores/dealers já vinculados a algum membro
   const linkedPersonIds = new Set(
     (existingMembers ?? []).filter((m) => m.personId).map((m) => m.personId!),
   )
 
-  // Available persons (not already linked to another member)
+  // Disponíveis para vincular (ainda sem membro)
   const availablePersons = (persons ?? []).filter(
     (p) => !linkedPersonIds.has(p.id),
   )
 
   const memberUserIds = new Set((existingMembers ?? []).map((m) => m.userId))
+  const alreadyMember = !!found && memberUserIds.has(found.id)
 
-  const filteredUsers = (users ?? []).filter(
-    (u) =>
-      !memberUserIds.has(u.id) &&
-      (!search ||
-        u.name.toLowerCase().includes(search.toLowerCase()) ||
-        u.email.toLowerCase().includes(search.toLowerCase())),
-  )
+  // Busca por e-mail exato no servidor (não lista usuários nem filtra no navegador)
+  const lookupMutation = useMutation({
+    mutationFn: (value: string) => usersApi.lookupByEmail(value),
+    onSuccess: (user) => {
+      setFound(user)
+      setLookupMessage(null)
+    },
+    onError: (error: unknown) => {
+      setFound(null)
+      const status = errorStatus(error)
+      const serverMessage = (error as { response?: { data?: { message?: string } } })
+        ?.response?.data?.message
+      if (status === 404) {
+        setLookupMessage(
+          'Nenhuma conta com este e-mail. A pessoa precisa criar a conta primeiro.',
+        )
+      } else if (status === 400) {
+        setLookupMessage('Informe o e-mail.')
+      } else if (status === 429) {
+        // Limite de 10 buscas por minuto por usuário (backend "user-lookup")
+        setLookupMessage('Muitas buscas seguidas. Espere um minuto.')
+      } else if (status === 403) {
+        // Só quem administra um home game pode buscar contas (mensagem do backend)
+        setLookupMessage(
+          serverMessage || 'Só quem administra um home game pode buscar contas.',
+        )
+      } else {
+        setLookupMessage('Erro ao buscar a conta. Tente novamente.')
+      }
+    },
+  })
+
+  function handleSearch() {
+    const value = email.trim()
+    if (!value) {
+      setFound(null)
+      setLookupMessage('Informe o e-mail.')
+      return
+    }
+    lookupMutation.mutate(value)
+  }
+
+  function resetForm() {
+    setEmail('')
+    setFound(null)
+    setLookupMessage(null)
+    setSelectedPersonId(null)
+    setIsAdmin(false)
+  }
 
   const addMutation = useMutation({
     mutationFn: () =>
       homeGamesApi.addMember(homeGameId, {
-        userId: selectedUserId!,
+        userId: found!.id,
         personId: selectedPersonId ?? undefined,
         isAdmin,
       }),
     onSuccess: () => {
       toast.success('Membro adicionado com sucesso!')
-      setSelectedUserId(null)
-      setSelectedPersonId(null)
-      setSearch('')
-      setIsAdmin(false)
+      resetForm()
       onSuccess()
     },
     onError: (error: unknown) => {
@@ -104,8 +125,12 @@ export function AddMemberModal({
   })
 
   function handleAdd() {
-    if (!selectedUserId) {
-      toast.error('Selecione um usuario.')
+    if (!found) {
+      toast.error('Busque a conta pelo e-mail antes de adicionar.')
+      return
+    }
+    if (alreadyMember) {
+      toast.error('Já é membro deste home game.')
       return
     }
     addMutation.mutate()
@@ -119,60 +144,80 @@ export function AddMemberModal({
       size="md"
     >
       <div className="space-y-4">
-        <SearchInput
-          value={search}
-          onChange={setSearch}
-          placeholder="Buscar usuario por nome ou email..."
-        />
-
-        {/* User list */}
-        <div className="max-h-60 overflow-y-auto rounded-lg border border-border-default">
-          {usersLoading && (
-            <div className="flex items-center justify-center py-6">
-              <Loader2 className="h-5 w-5 animate-spin text-text-muted" />
+        <div className="space-y-1.5">
+          <label
+            htmlFor="add-member-email"
+            className="text-sm font-medium text-text-secondary"
+          >
+            E-mail da conta
+          </label>
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <Input
+                id="add-member-email"
+                type="email"
+                autoComplete="off"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    handleSearch()
+                  }
+                }}
+                placeholder="pessoa@exemplo.com"
+              />
             </div>
-          )}
-
-          {!usersLoading && usersError && (
-            <div className="flex flex-col items-center justify-center gap-2 py-6">
-              <AlertCircle className="h-5 w-5 text-accent-red" />
-              <p className="text-sm text-text-muted">
-                Erro ao carregar usuarios. Verifique suas permissoes.
-              </p>
-            </div>
-          )}
-
-          {!usersLoading && !usersError && filteredUsers.length === 0 && (
-            <p className="py-6 text-center text-sm text-text-muted">
-              Nenhum usuario encontrado.
-            </p>
-          )}
-
-          {!usersLoading &&
-            !usersError &&
-            filteredUsers.map((u) => (
-              <button
-                key={u.id}
-                onClick={() => setSelectedUserId(u.id)}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors ${
-                  selectedUserId === u.id
-                    ? 'bg-accent-blue/10 border-l-2 border-accent-blue'
-                    : 'hover:bg-bg-tertiary border-l-2 border-transparent'
-                }`}
-              >
-                <Avatar src={u.photoUrl} name={u.name} size="sm" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-text-primary truncate">
-                    {u.name}
-                  </p>
-                  <p className="text-xs text-text-muted truncate">{u.email}</p>
-                </div>
-              </button>
-            ))}
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={handleSearch}
+              loading={lookupMutation.isPending}
+            >
+              <Search className="h-4 w-4" />
+              Buscar
+            </Button>
+          </div>
+          <p className="text-xs text-text-muted">
+            Peça o e-mail que a pessoa usou no cadastro.
+          </p>
         </div>
 
-        {/* Person association */}
-        {selectedUserId && availablePersons.length > 0 && (
+        {/* Resultado da busca */}
+        {lookupMessage && !found && (
+          <div className="flex items-start gap-2 rounded-lg border border-border-default px-3 py-2.5">
+            <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0 text-accent-red" />
+            <p className="text-sm text-text-muted">{lookupMessage}</p>
+          </div>
+        )}
+
+        {found && (
+          <div
+            className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 ${
+              alreadyMember
+                ? 'border-border-default bg-bg-tertiary'
+                : 'border-accent-blue bg-accent-blue/10'
+            }`}
+          >
+            <Avatar src={found.photoUrl} name={found.name} size="sm" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-text-primary truncate">
+                {found.name}
+              </p>
+              <p className="text-xs text-text-muted truncate">{found.email}</p>
+            </div>
+            {alreadyMember ? (
+              <span className="text-xs text-text-muted whitespace-nowrap">
+                Já é membro deste home game
+              </span>
+            ) : (
+              <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-accent-blue" />
+            )}
+          </div>
+        )}
+
+        {/* Vínculo com jogador/dealer */}
+        {found && !alreadyMember && availablePersons.length > 0 && (
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-text-primary">
               Vincular a jogador/dealer (opcional)
@@ -216,7 +261,7 @@ export function AddMemberModal({
           <Button
             onClick={handleAdd}
             loading={addMutation.isPending}
-            disabled={!selectedUserId}
+            disabled={!found || alreadyMember}
           >
             Adicionar
           </Button>
