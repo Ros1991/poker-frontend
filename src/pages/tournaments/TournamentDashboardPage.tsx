@@ -28,6 +28,9 @@ import * as costExtrasApi from '../../api/costExtras.api'
 import * as timerApi from '../../api/timer.api'
 import * as dealerAccessApi from '../../api/dealerAccess.api'
 import { useBlindTimer } from '../../hooks/useBlindTimer'
+import { hasFeature } from '../../hooks/usePlan'
+import { usePlanGate } from '../../hooks/usePlanGate'
+import { PlanLock } from '../../components/plan'
 import { useWebSocket } from '../../hooks/useWebSocket'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
@@ -55,19 +58,31 @@ import { FinancialTab } from './tabs/FinancialTab'
 import type { TimerState } from '../../types/blind.types'
 import type { TournamentStatus } from '../../types/tournament.types'
 import type { DealerRequest } from '../../types/display.types'
+import type { PlanFeature } from '../../types/plan.types'
 
-const tabs = [
+type TabKey =
+  | 'jogadores'
+  | 'mesas'
+  | 'dealers'
+  | 'blinds'
+  | 'premiacao'
+  | 'pagamentos'
+  | 'custos'
+  | 'financeiro'
+
+// `feature`: recurso do plano pago que a aba exige (SPEC-20261023-1205). Sem ele no plano do DONO
+// (`tournament.planFeatures`), a aba ganha o cadeado e mostra o PlanLock no lugar do conteúdo —
+// e a aba nem monta, então as consultas dela (que dariam 402) não saem.
+const tabs: { key: TabKey; label: string; icon: typeof Users; feature?: PlanFeature }[] = [
   { key: 'jogadores', label: 'Jogadores', icon: Users },
-  { key: 'mesas', label: 'Mesas', icon: LayoutGrid },
+  { key: 'mesas', label: 'Mesas', icon: LayoutGrid, feature: 'Tables' },
   { key: 'dealers', label: 'Dealers', icon: UserCog },
   { key: 'blinds', label: 'Blinds', icon: Clock },
-  { key: 'premiacao', label: 'Premiacao', icon: Trophy },
-  { key: 'pagamentos', label: 'Pagamentos', icon: CreditCard },
-  { key: 'custos', label: 'Custos', icon: DollarSign },
-  { key: 'financeiro', label: 'Financeiro', icon: BarChart3 },
-] as const
-
-type TabKey = (typeof tabs)[number]['key']
+  { key: 'premiacao', label: 'Premiação', icon: Trophy, feature: 'Prizes' },
+  { key: 'pagamentos', label: 'Pagamentos', icon: CreditCard, feature: 'Payments' },
+  { key: 'custos', label: 'Custos', icon: DollarSign, feature: 'CostExtras' },
+  { key: 'financeiro', label: 'Financeiro', icon: BarChart3, feature: 'Financial' },
+]
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat('pt-BR', {
@@ -86,6 +101,7 @@ export function TournamentDashboardPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const gate = usePlanGate()
   const [activeTab, setActiveTab] = useState<TabKey>('jogadores')
   const [dealerQrOpen, setDealerQrOpen] = useState(false)
   const [statusConfirm, setStatusConfirm] = useState<{
@@ -106,19 +122,29 @@ export function TournamentDashboardPage() {
     enabled: !!id,
   })
 
+  // Recursos do plano do DONO do home game (SPEC-20261023-1205). Só decide com o torneio carregado:
+  // antes disso nenhuma consulta de recurso pago sai (sem a feature ela daria 402 e abriria o modal).
+  const planFeatures = tournament?.planFeatures
+  const can = (feature: PlanFeature) => !!tournament && hasFeature(planFeatures, feature)
+  const canCostExtras = can('CostExtras')
+  const canDealerQr = can('DealerQr')
+  const canFinancial = can('Financial')
+  const canPrizes = can('Prizes')
+
   const { data: costExtras = [] } = useQuery({
     queryKey: ['costExtras', id],
     queryFn: () => costExtrasApi.getAll(id!),
-    enabled: !!id,
+    enabled: !!id && canCostExtras,
   })
 
   // Pedidos de acesso do dealer (SPEC-20261023-1208): consulta a cada 5 s enquanto a aba está
-  // visível e o torneio não terminou; o banner no topo e o modal do QR usam a mesma lista
+  // visível e o torneio não terminou; o banner no topo e o modal do QR usam a mesma lista.
+  // Só com o terminal do dealer por QR no plano (DealerQr).
   const tournamentOver = tournament?.status === 'Finished' || tournament?.status === 'Cancelled'
   const { data: dealerRequests = [] } = useQuery({
     queryKey: ['dealer-requests', id],
     queryFn: () => dealerAccessApi.listRequests(id!),
-    enabled: !!id && !!tournament && !tournamentOver,
+    enabled: !!id && !!tournament && !tournamentOver && canDealerQr,
     // Sem acesso ao torneio (401/403/404) não adianta insistir; queda de rede continua tentando
     refetchInterval: (query) =>
       isAccessError(query.state.error) || document.visibilityState !== 'visible' ? false : 5000,
@@ -257,6 +283,14 @@ export function TournamentDashboardPage() {
 
   const activeEntries = entries.filter((e) => e.status === 'Active' || e.status === 'Registered')
 
+  // Sem premiação no plano não há o que confirmar antes de finalizar
+  const finishMessage = canPrizes
+    ? 'Deseja finalizar o torneio? Certifique-se de que a premiação está confirmada.'
+    : 'Deseja finalizar o torneio?'
+
+  const activeTabFeature = tabs.find((t) => t.key === activeTab)?.feature
+  const activeTabLocked = !!activeTabFeature && !hasFeature(planFeatures, activeTabFeature)
+
   function getStatusActions() {
     const actions: {
       label: string
@@ -299,8 +333,7 @@ export function TournamentDashboardPage() {
           status: 'Finished',
           icon: Lock,
           variant: 'danger',
-          message:
-            'Deseja finalizar o torneio? Certifique-se de que a premiacao esta confirmada.',
+          message: finishMessage,
         })
         break
       case 'BreakSettlement':
@@ -309,8 +342,7 @@ export function TournamentDashboardPage() {
           status: 'Finished',
           icon: Lock,
           variant: 'danger',
-          message:
-            'Deseja finalizar o torneio? Certifique-se de que a premiacao esta confirmada.',
+          message: finishMessage,
         })
         break
       case 'Finished':
@@ -475,7 +507,9 @@ export function TournamentDashboardPage() {
         </div>
 
         {/* Stats Row */}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
+        <div
+          className={`grid grid-cols-2 gap-3 sm:grid-cols-4 ${canFinancial ? 'lg:grid-cols-6' : ''}`}
+        >
           <div className="rounded-lg bg-bg-primary p-3">
             <p className="text-xs text-text-secondary">Timer</p>
             <p className="text-xl font-mono font-bold text-text-primary tabular-nums">
@@ -500,7 +534,7 @@ export function TournamentDashboardPage() {
               {tournament.totalAddons}
             </p>
           </div>
-          {(() => {
+          {canFinancial && (() => {
             // Total = soma de tudo que todos tem a pagar e receber (totalDue de todas as entries)
             const totalGeral = entries.reduce((sum, e) => sum + (e.totalDue ?? 0), 0)
             // Custos = soma do amount de todos os custos extras
@@ -540,7 +574,7 @@ export function TournamentDashboardPage() {
               Terminal Dealer
             </Button>
           </Link>
-          {!tournamentOver && (
+          {!tournamentOver && canDealerQr && (
             <Button variant="ghost" size="sm" onClick={() => setDealerQrOpen(true)}>
               <QrCode className="h-4 w-4" />
               QR do dealer
@@ -551,35 +585,69 @@ export function TournamentDashboardPage() {
               )}
             </Button>
           )}
+          {!tournamentOver && !canDealerQr && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() =>
+                gate.openFeature('DealerQr', {
+                  currentPlan: tournament.ownerPlan ?? null,
+                  homeGameName: tournament.homeGameName,
+                })
+              }
+              title="Recurso de plano pago"
+            >
+              <Lock className="h-4 w-4 text-accent-gold-deep" />
+              QR do dealer
+            </Button>
+          )}
         </div>
-        <DealerQrModal
-          isOpen={dealerQrOpen}
-          onClose={() => setDealerQrOpen(false)}
-          tournamentId={tournament.id}
-          tournamentName={tournament.name}
-        />
+        {canDealerQr && (
+          <DealerQrModal
+            isOpen={dealerQrOpen}
+            onClose={() => setDealerQrOpen(false)}
+            tournamentId={tournament.id}
+            tournamentName={tournament.name}
+          />
+        )}
       </div>
 
       {/* Tabs */}
       <div className="flex overflow-x-auto border-b border-border-default -mx-4 px-4 lg:mx-0 lg:px-0">
-        {tabs.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            className={`flex items-center gap-2 whitespace-nowrap border-b-2 px-4 py-3 text-sm font-medium transition-colors min-h-[44px] ${
-              activeTab === tab.key
-                ? 'border-accent-blue text-accent-blue'
-                : 'border-transparent text-text-secondary hover:text-text-primary'
-            }`}
-          >
-            <tab.icon className="h-4 w-4" />
-            {tab.label}
-          </button>
-        ))}
+        {tabs.map((tab) => {
+          const locked = !!tab.feature && !hasFeature(planFeatures, tab.feature)
+          return (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`flex items-center gap-2 whitespace-nowrap border-b-2 px-4 py-3 text-sm font-medium transition-colors min-h-[44px] ${
+                activeTab === tab.key
+                  ? 'border-accent-blue text-accent-blue'
+                  : 'border-transparent text-text-secondary hover:text-text-primary'
+              }`}
+              title={locked ? 'Recurso de plano pago' : undefined}
+            >
+              <tab.icon className="h-4 w-4" />
+              {tab.label}
+              {locked && (
+                <Lock className="h-3.5 w-3.5 text-accent-gold-deep" aria-label="bloqueado no plano atual" />
+              )}
+            </button>
+          )
+        })}
       </div>
 
       {/* Tab Content */}
       <div className="rounded-xl border border-border-default bg-bg-secondary p-4 lg:p-6">
+        {activeTabLocked && activeTabFeature ? (
+          <PlanLock
+            feature={activeTabFeature}
+            currentPlan={tournament.ownerPlan ?? null}
+            homeGameName={tournament.homeGameName}
+            className="my-4"
+          />
+        ) : (
+        <>
         {activeTab === 'jogadores' && (
           <EntriesTab tournament={tournament} entries={entries} />
         )}
@@ -603,6 +671,8 @@ export function TournamentDashboardPage() {
         )}
         {activeTab === 'financeiro' && (
           <FinancialTab tournament={tournament} entries={entries} />
+        )}
+        </>
         )}
       </div>
 

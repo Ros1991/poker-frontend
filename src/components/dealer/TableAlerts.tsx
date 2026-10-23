@@ -13,7 +13,11 @@ interface TableAlertsProps {
   onOpenTables: () => void
 }
 
-/** Avisos abaixo do topo. Quebrar mesa tem prioridade sobre desequilíbrio. */
+/**
+ * Avisos abaixo do topo. Quebrar mesa tem prioridade sobre desequilíbrio.
+ * Só monta quando o plano do dono tem controle de mesas (Tables) — no Mesa não há mesas
+ * (SPEC-20261023-1205, D13); quem decide é o DealerTerminalPage via `terminalFeatures`.
+ */
 export function TableAlerts({
   analysis,
   tables,

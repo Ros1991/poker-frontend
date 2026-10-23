@@ -1,6 +1,13 @@
 import axios from 'axios'
 import type { AxiosError, InternalAxiosRequestConfig } from 'axios'
 import type { ApiError } from '../types/common.types'
+import type {
+  PlanFeature,
+  PlanLimitCode,
+  PlanLimitDetail,
+  PlanLimitError,
+  PlanName,
+} from '../types/plan.types'
 
 const ACCESS_KEY = 'poker_access_token'
 const REFRESH_KEY = 'poker_refresh_token'
@@ -47,6 +54,67 @@ export const SESSION_ENDED_EVENT = 'poker:session-ended'
 function endSession() {
   clearTokens()
   window.dispatchEvent(new CustomEvent(SESSION_ENDED_EVENT))
+}
+
+// ---- Limite de plano (SPEC-20261023-1205) ----
+// Toda recusa de plano é HTTP 402 com o corpo de PlanLimitError. O interceptor abaixo dispara
+// PLAN_LIMIT_EVENT com o corpo em `detail` (o UpgradeModal único, montado no AppLayout, escuta) e
+// a promessa CONTINUA rejeitando, para o chamador encerrar o loading. Para não mostrar toast de
+// erro junto do modal, o chamador testa `isPlanLimitError(err)` no onError.
+
+/** Evento da janela com `detail: PlanLimitDetail`; o UpgradeModal escuta. */
+export const PLAN_LIMIT_EVENT = 'poker:plan-limit'
+
+const PLAN_LIMIT_CODES: readonly string[] = [
+  'feature_locked',
+  'home_games_limit',
+  'tournaments_per_week',
+  'members_limit',
+]
+
+function str(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value : null
+}
+
+function num(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null
+}
+
+/** Lê o corpo de um 402 de plano; null quando não é (sem `code` conhecido). */
+export function parsePlanLimitBody(data: unknown): PlanLimitError | null {
+  if (!data || typeof data !== 'object') return null
+  const body = data as Record<string, unknown>
+  const code = str(body.code)
+  if (!code || !PLAN_LIMIT_CODES.includes(code)) return null
+  return {
+    status: 402,
+    error: 'PaymentRequired',
+    code: code as PlanLimitCode,
+    feature: str(body.feature) as PlanFeature | null,
+    currentPlan: (str(body.currentPlan) ?? 'Mesa') as PlanName,
+    requiredPlan: (str(body.requiredPlan) ?? 'Clube') as PlanName,
+    usage: num(body.usage),
+    limit: num(body.limit),
+    nextAllowedAt: str(body.nextAllowedAt),
+    message: str(body.message) ?? 'Recurso disponível em um plano pago.',
+    timestamp: str(body.timestamp) ?? new Date().toISOString(),
+  }
+}
+
+/** Corpo do 402 de plano a partir do erro de uma chamada (axios), ou null. */
+export function planLimitFromError(error: unknown): PlanLimitError | null {
+  if (!axios.isAxiosError(error) || error.response?.status !== 402) return null
+  return parsePlanLimitBody(error.response.data)
+}
+
+/** Verdadeiro quando o erro é um 402 de plano (o UpgradeModal já abriu: não mostre toast). */
+export function isPlanLimitError(error: unknown): boolean {
+  return planLimitFromError(error) !== null
+}
+
+/** Abre o UpgradeModal (mesmo caminho do 402). Prefira `usePlanGate().open(detail)` nas telas. */
+export function notifyPlanLimit(detail: PlanLimitDetail) {
+  window.dispatchEvent(new CustomEvent<PlanLimitDetail>(PLAN_LIMIT_EVENT, { detail }))
 }
 
 // Outra aba renovou, entrou ou saiu: acompanha sem precisar recarregar
@@ -153,6 +221,13 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError<ApiError>) => {
     const originalRequest = error.config as RetriableConfig | undefined
+
+    // Limite de plano: abre o modal de upgrade e a promessa segue rejeitando
+    if (error.response?.status === 402) {
+      const detail = parsePlanLimitBody(error.response.data)
+      if (detail) notifyPlanLimit(detail)
+      return Promise.reject(error)
+    }
 
     if (error.response?.status !== 401 || !originalRequest) {
       return Promise.reject(error)

@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import axios from 'axios'
-import { Clock, QrCode, ShieldOff, Tablet, UserX } from 'lucide-react'
+import { Clock, Lock, QrCode, ShieldOff, Tablet, UserX } from 'lucide-react'
 import * as dealerAccessApi from '../../api/dealerAccess.api'
+import { planLimitFromError } from '../../api/client'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { LoadingSpinner } from '../../components/common/LoadingSpinner'
@@ -19,7 +20,7 @@ const POLL_INTERVAL_MS = 3000
 const NAME_MIN = 2
 const NAME_MAX = 40
 
-type EndedIcon = 'rejected' | 'expired' | 'revoked' | 'invalid'
+type EndedIcon = 'rejected' | 'expired' | 'revoked' | 'invalid' | 'plan'
 
 type Phase =
   | { kind: 'form' }
@@ -83,6 +84,20 @@ const ENDED = {
     detail: 'Não dá mais para entrar como dealer neste torneio.',
     retry: false,
   }),
+  /**
+   * 402 (SPEC-20261023-1205, D5): o terminal do dealer por QR é recurso do plano pago e o dono do
+   * torneio está no Mesa (ou caiu para ele depois de gerar o QR). Vale no pedido e na emissão do
+   * token; a mensagem pronta para o celular vem do backend.
+   */
+  planLocked: (requiredPlan: string | null | undefined, message: string | null | undefined): Phase => ({
+    kind: 'ended',
+    icon: 'plan',
+    title: `Recurso do plano ${requiredPlan || 'Clube'}`,
+    detail:
+      message ||
+      'O terminal do dealer por QR não está liberado neste torneio. Avise o organizador.',
+    retry: false,
+  }),
 } as const
 
 const ENDED_ICON = {
@@ -90,6 +105,7 @@ const ENDED_ICON = {
   expired: Clock,
   revoked: ShieldOff,
   invalid: QrCode,
+  plan: Lock,
 } as const
 
 const NAME_ERROR = `Informe seu nome (de ${NAME_MIN} a ${NAME_MAX} letras).`
@@ -166,7 +182,10 @@ export function DealerAccessPage() {
     } catch (err) {
       const status = axios.isAxiosError(err) ? err.response?.status : undefined
       const message = responseMessage(err)
-      if (status === 429) {
+      const planLimit = planLimitFromError(err)
+      if (planLimit) {
+        setPhase(ENDED.planLocked(planLimit.requiredPlan, planLimit.message))
+      } else if (status === 429) {
         setFormError('Muitas tentativas seguidas. Espere um minuto e tente de novo.')
       } else if (status === 400) {
         if (message?.startsWith('QR do dealer inválido')) setPhase(ENDED.invalidQr())
@@ -240,6 +259,12 @@ export function DealerAccessPage() {
           setPhase(ENDED.notFound())
           return
         }
+        // Aprovado antes de o dono cair para o Mesa: o token não sai mais (402)
+        const planLimit = planLimitFromError(err)
+        if (planLimit) {
+          setPhase(ENDED.planLocked(planLimit.requiredPlan, planLimit.message))
+          return
+        }
         setPollError(true)
         schedule()
       }
@@ -289,7 +314,15 @@ export function DealerAccessPage() {
     const Icon = ENDED_ICON[phase.icon]
     return shell(
       <div className="flex flex-col items-center gap-3 rounded-xl border border-border-default bg-bg-secondary p-6 text-center">
-        <Icon className={`h-12 w-12 ${phase.icon === 'rejected' || phase.icon === 'revoked' ? 'text-accent-red' : 'text-accent-yellow'}`} />
+        <Icon
+          className={`h-12 w-12 ${
+            phase.icon === 'rejected' || phase.icon === 'revoked'
+              ? 'text-accent-red'
+              : phase.icon === 'plan'
+                ? 'text-accent-gold-deep'
+                : 'text-accent-yellow'
+          }`}
+        />
         <p className="text-lg font-semibold text-text-primary">{phase.title}</p>
         <p className="text-text-secondary">{phase.detail}</p>
         {phase.retry && (

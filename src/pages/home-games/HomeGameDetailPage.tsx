@@ -45,6 +45,10 @@ import { AccessDeniedState } from '../../components/common/AccessDeniedState'
 import { isForbiddenError } from '../../utils/httpErrors'
 import { useHomeGame } from '../../contexts/HomeGameContext'
 import { useAuth } from '../../hooks/useAuth'
+import { hasFeature, MY_PLAN_QUERY_KEY } from '../../hooks/usePlan'
+import { NewTournamentButton } from '../../components/tournament/NewTournamentButton'
+import { RankingLockedPreview } from '../rankings/RankingLockedPreview'
+import type { PlanName } from '../../types/plan.types'
 import type { TournamentStatus } from '../../types/tournament.types'
 import type { Person } from '../../types/person.types'
 import type { HomeGameMember } from '../../types/homeGame.types'
@@ -110,11 +114,15 @@ export function HomeGameDetailPage() {
     enabled: !!id && activeTab === 'torneios',
   })
 
+  // Ranking de temporada é recurso pago (SPEC-20261023-1205): o plano que vale é o do DONO
+  // (homeGame.planFeatures). Sem ele a lista nem é consultada (daria 402 e abriria o modal sozinho).
+  const canRankings = !!homeGame && hasFeature(homeGame.planFeatures, 'Rankings')
+
   // Rankings
   const { data: rankings, isLoading: rankingsLoading } = useQuery({
     queryKey: ['rankings', id],
     queryFn: () => rankingsApi.getAll(id!),
-    enabled: !!id && activeTab === 'rankings',
+    enabled: !!id && activeTab === 'rankings' && canRankings,
   })
 
   // Members
@@ -282,6 +290,8 @@ export function HomeGameDetailPage() {
       {activeTab === 'torneios' && (
         <TorneiosTab
           homeGameId={id!}
+          ownerId={homeGame.ownerId}
+          homeGameName={homeGame.name}
           tournaments={tournaments}
           isLoading={tournamentsLoading}
           search={tournamentSearch}
@@ -289,7 +299,15 @@ export function HomeGameDetailPage() {
         />
       )}
       {activeTab === 'rankings' && (
-        <RankingsTab rankings={rankings ?? []} isLoading={rankingsLoading} homeGameId={id!} canManage={canManage} />
+        <RankingsTab
+          rankings={rankings ?? []}
+          isLoading={rankingsLoading}
+          homeGameId={id!}
+          canManage={canManage}
+          locked={!canRankings}
+          ownerPlan={homeGame.ownerPlan ?? null}
+          homeGameName={homeGame.name}
+        />
       )}
       {activeTab === 'blinds' && (
         <BlindsTab
@@ -350,6 +368,8 @@ export function HomeGameDetailPage() {
             queryKey: ['homeGameMembers', id],
           })
           queryClient.invalidateQueries({ queryKey: ['homeGame', id] })
+          // Uso de membros do plano mudou (SPEC-20261023-1205)
+          void queryClient.invalidateQueries({ queryKey: MY_PLAN_QUERY_KEY })
         }}
       />
     </div>
@@ -360,12 +380,16 @@ export function HomeGameDetailPage() {
 
 function TorneiosTab({
   homeGameId,
+  ownerId,
+  homeGameName,
   tournaments,
   isLoading,
   search,
   onSearchChange,
 }: {
   homeGameId: string
+  ownerId: string
+  homeGameName: string
   tournaments: {
     id: string
     name: string
@@ -376,6 +400,7 @@ function TorneiosTab({
     playersRemaining: number
     totalPrizePool: number
     rankingName: string | null
+    planFeatures?: string[]
   }[]
   isLoading: boolean
   search: string
@@ -392,13 +417,12 @@ function TorneiosTab({
           placeholder="Buscar torneios..."
           className="max-w-sm"
         />
-        <Button
+        <NewTournamentButton
+          homeGameId={homeGameId}
+          ownerId={ownerId}
+          homeGameName={homeGameName}
           size="sm"
-          onClick={() => navigate(`/home-games/${homeGameId}/tournaments/new`)}
-        >
-          <Plus className="h-4 w-4" />
-          Novo Torneio
-        </Button>
+        />
       </div>
 
       {isLoading && (
@@ -459,12 +483,15 @@ function TorneiosTab({
                     )}
                   </div>
                 </div>
-                <div className="text-right shrink-0">
-                  <div className="text-sm font-semibold text-accent-green-deep tabular-nums">
-                    {formatCurrency(t.totalPrizePool)}
+                {/* Sem premiação no plano do dono (Mesa) o valor não aparece */}
+                {hasFeature(t.planFeatures, 'Prizes') && (
+                  <div className="text-right shrink-0">
+                    <div className="text-sm font-semibold text-accent-green-deep tabular-nums">
+                      {formatCurrency(t.totalPrizePool)}
+                    </div>
+                    <div className="text-xs text-text-secondary">Premiação</div>
                   </div>
-                  <div className="text-xs text-text-secondary">Premiação</div>
-                </div>
+                )}
               </button>
             )
           })}
@@ -481,6 +508,9 @@ function RankingsTab({
   isLoading,
   homeGameId,
   canManage,
+  locked,
+  ownerPlan,
+  homeGameName,
 }: {
   rankings: {
     id: string
@@ -493,8 +523,16 @@ function RankingsTab({
   isLoading: boolean
   homeGameId: string
   canManage: boolean
+  /** Plano do dono sem Rankings: leaderboard de exemplo desfocado + cadeado */
+  locked: boolean
+  ownerPlan: PlanName | null
+  homeGameName: string
 }) {
   const navigate = useNavigate()
+
+  if (locked) {
+    return <RankingLockedPreview currentPlan={ownerPlan} homeGameName={homeGameName} />
+  }
 
   return (
     <div className="space-y-4">
@@ -603,6 +641,8 @@ function MembrosTab({
       setConfirmRemoveId(null)
       queryClient.invalidateQueries({ queryKey: ['homeGameMembers', homeGameId] })
       queryClient.invalidateQueries({ queryKey: ['homeGame', homeGameId] })
+      // Remover libera vaga de membro do plano (SPEC-20261023-1205)
+      void queryClient.invalidateQueries({ queryKey: MY_PLAN_QUERY_KEY })
     },
     onError: () => {
       toast.error('Erro ao remover membro.')

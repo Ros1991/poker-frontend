@@ -1,3 +1,5 @@
+import type { PlanName } from './plan.types'
+
 export interface HomeGame {
   id: string
   ownerId: string
@@ -15,6 +17,11 @@ export interface HomeGame {
   memberCount: number
   tournamentCount: number
   createdAt: string
+  // SPEC-20261023-1205: o plano que vale aqui é o do DONO (efetivo), não o de quem está logado.
+  /** Plano efetivo do dono do home game */
+  ownerPlan?: PlanName
+  /** Recursos exclusivos liberados pelo plano do dono — use `hasFeature(homeGame.planFeatures, 'Rankings')` */
+  planFeatures?: string[]
 }
 
 export interface HomeGameMember {
@@ -52,4 +59,4 @@ export interface CreateHomeGameRequest {
   defaultAddon?: number
 }
 
-export interface UpdateHomeGameRequest extends Partial<CreateHomeGameRequest> {}
+export type UpdateHomeGameRequest = Partial<CreateHomeGameRequest>

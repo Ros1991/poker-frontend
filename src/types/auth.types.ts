@@ -1,3 +1,5 @@
+import type { PlanName, PlanSource } from './plan.types'
+
 export interface LoginRequest {
   email: string
   password: string
@@ -63,4 +65,13 @@ export interface AuthUser {
   name: string
   role: 'Admin' | 'TournamentDirector' | 'Dealer' | 'Player'
   photoUrl: string | null
+  // Plano da conta (SPEC-20261023-1205). Opcionais para não quebrar quem monta AuthUser à mão.
+  /** Plano gravado na conta */
+  plan?: PlanName
+  /** O que vale agora: `plan` se `planExpiresAt` nulo ou futuro, senão Mesa */
+  effectivePlan?: PlanName
+  planExpiresAt?: string | null
+  planSource?: PlanSource
+  /** Ex.: "fundador" */
+  planNote?: string | null
 }

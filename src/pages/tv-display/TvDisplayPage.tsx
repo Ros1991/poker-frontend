@@ -12,6 +12,8 @@ import { formatPairingCode } from '../../utils/pairingCode'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { BrandLogo } from '../../components/brand/BrandLogo'
+import { PoweredByBadge } from '../../components/plan'
+import { resolveMediaUrl } from '../../utils/mediaUrl'
 import { TOURNAMENT_STATUS_COLORS, TOURNAMENT_STATUS_LABELS } from '../../constants/statuses'
 import type { TimerState } from '../../types/blind.types'
 import type { TvEntry } from '../../types/display.types'
@@ -166,6 +168,16 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
   const tables = snapshot?.tables
   const blindLevels = snapshot?.blindLevels
 
+  // Plano do dono (SPEC-20261023-1205, D4/D6/D13). Mesa: só relógio, jogadores e eliminados — sem
+  // coluna "Deve", premiação, card PIX e visão de mesas (o backend já manda esses dados vazios),
+  // com o selo + QR do site no canto inferior. Clube: selo discreto. Liga: logo do clube, sem selo.
+  const isMesa = tournament?.plan === 'Mesa'
+  const tablesViewAllowed = !isMesa
+  const badgeVariant = tournament?.showBadge ? (isMesa ? 'qr' : 'discreta') : null
+  const clubLogoSrc =
+    tournament && !tournament.showBadge ? resolveMediaUrl(tournament.clubLogoUrl) : null
+  const currentView = tablesViewAllowed ? view : 'clock'
+
   const { timerState, syncFromServer, formattedTime, progressPercentage } =
     useBlindTimer(() => {
       void queryClient.invalidateQueries({ queryKey: ['tv-snapshot', deviceToken] })
@@ -212,13 +224,14 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
           void document.exitFullscreen()
         }
       }
-      if (e.key === 'm' || e.key === 'M') {
+      // Sem controle de mesas no plano (Mesa) a tecla M não faz nada
+      if (tablesViewAllowed && (e.key === 'm' || e.key === 'M')) {
         setView((v) => (v === 'clock' ? 'tables' : 'clock'))
       }
     }
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [])
+  }, [tablesViewAllowed])
 
   const activeEntries =
     entries?.filter((e: TvEntry) => e.status === 'Active' || e.status === 'Registered') ?? []
@@ -352,7 +365,14 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
       <div className="relative z-10 flex h-screen flex-col">
         {/* Top Bar */}
         <header className="flex items-center justify-between border-b border-border-default bg-bg-card px-6 py-3">
-          <div className="flex items-center gap-4">
+          <div className="flex min-w-0 items-center gap-4">
+            {clubLogoSrc && (
+              <img
+                src={clubLogoSrc}
+                alt="Logo do clube"
+                className="h-14 w-auto max-w-[12rem] shrink-0 object-contain"
+              />
+            )}
             <h1 className="text-3xl font-bold tracking-tight">
               {tournament?.name ?? 'Torneio'}
             </h1>
@@ -374,25 +394,27 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
                 year: 'numeric',
               })}
             </span>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setView(view === 'clock' ? 'tables' : 'clock')}
-              className="text-base font-semibold"
-              title="Também alterna com a tecla M"
-            >
-              {view === 'clock' ? (
-                <>
-                  <LayoutGrid className="h-5 w-5" />
-                  Ver Mesas
-                </>
-              ) : (
-                <>
-                  <Clock className="h-5 w-5" />
-                  Voltar ao Telão
-                </>
-              )}
-            </Button>
+            {tablesViewAllowed && (
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setView(view === 'clock' ? 'tables' : 'clock')}
+                className="text-base font-semibold"
+                title="Também alterna com a tecla M"
+              >
+                {view === 'clock' ? (
+                  <>
+                    <LayoutGrid className="h-5 w-5" />
+                    Ver Mesas
+                  </>
+                ) : (
+                  <>
+                    <Clock className="h-5 w-5" />
+                    Voltar ao Telão
+                  </>
+                )}
+              </Button>
+            )}
             {pairingCode && (
               <div
                 className="flex items-center gap-3 rounded-lg border border-border-default bg-bg-card py-1.5 pl-1.5 pr-3"
@@ -428,7 +450,7 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
         {/* Main: visão de MESAS (onde sentar) ou o telão de 3 colunas.
             Assentos exibem o APELIDO (consistente com o resto do telão),
             resolvido via entries; fallback pro nome vindo da API de mesas. */}
-        {view === 'tables' ? (
+        {currentView === 'tables' ? (
           <div className="min-h-0 flex-1 overflow-hidden px-6 py-4">
             {tables && tables.length > 0 ? (
               <AutoScrollList className="h-full min-h-0" speed={20}>
@@ -515,11 +537,15 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
             <p className="mb-2 text-base tabular-nums text-text-secondary">
               {tournament?.totalRebuys ?? 0} rebuys | {tournament?.totalAddons ?? 0} add-ons
             </p>
-            <div className="mb-1 grid grid-cols-[minmax(0,1fr)_3rem_3rem_8rem] gap-1 px-2 text-sm uppercase tracking-wider text-text-secondary">
+            <div
+              className={`mb-1 grid gap-1 px-2 text-sm uppercase tracking-wider text-text-secondary ${
+                isMesa ? 'grid-cols-[minmax(0,1fr)_3rem_3rem]' : 'grid-cols-[minmax(0,1fr)_3rem_3rem_8rem]'
+              }`}
+            >
               <span>Jogador</span>
               <span className="text-center">Reb</span>
               <span className="text-center">Add</span>
-              <span className="text-right">Deve</span>
+              {!isMesa && <span className="text-right">Deve</span>}
             </div>
             <AutoScrollList className="min-h-0 flex-1">
               <div className="flex flex-col gap-1">
@@ -540,9 +566,13 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
                     <div
                       key={e.id}
                       className={`grid items-center gap-1 rounded-lg px-2 py-2 text-xl ${
-                        finished
-                          ? 'grid-cols-[minmax(0,1fr)_8rem]'
-                          : 'grid-cols-[minmax(0,1fr)_3rem_3rem_8rem]'
+                        isMesa
+                          ? finished
+                            ? 'grid-cols-[minmax(0,1fr)]'
+                            : 'grid-cols-[minmax(0,1fr)_3rem_3rem]'
+                          : finished
+                            ? 'grid-cols-[minmax(0,1fr)_8rem]'
+                            : 'grid-cols-[minmax(0,1fr)_3rem_3rem_8rem]'
                       } ${
                         isChampion
                           ? 'border border-accent-gold/40 bg-accent-gold-soft'
@@ -575,7 +605,7 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
                           </span>
                         </>
                       )}
-                      <span className="text-right">{renderBalance(e)}</span>
+                      {!isMesa && <span className="text-right">{renderBalance(e)}</span>}
                     </div>
                   )
                 })}
@@ -680,7 +710,7 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
                   )}
 
                   {/* PIX do dia: QR (copia e cola estático) + chave */}
-                  {tournament?.responsiblePixKey && (
+                  {!isMesa && tournament?.responsiblePixKey && (
                     <div className="mt-4 flex items-center gap-5 rounded-xl border border-border-default bg-bg-card px-6 py-4">
                       <div className="shrink-0 rounded-lg bg-white p-2">
                         <QRCodeSVG
@@ -748,7 +778,15 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
               </p>
             </div>
 
+            {/* Mesa: selo "Feito com Poker da Galera" + QR do site no canto inferior (no lugar da premiação) */}
+            {isMesa && badgeVariant === 'qr' && (
+              <div className="mt-auto flex justify-end">
+                <PoweredByBadge variant="qr" qrSize={104} />
+              </div>
+            )}
+
             {/* Premiação por posição — o mais abaixo possível */}
+            {!isMesa && (
             <div className="mt-auto flex min-h-0 flex-col rounded-xl border border-border-default bg-bg-card p-4">
               <div className="mb-2 flex items-center justify-between">
                 <div className="flex items-center gap-2 text-text-secondary">
@@ -784,8 +822,16 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
                 </div>
               </AutoScrollList>
             </div>
+            )}
           </aside>
         </div>
+        )}
+
+        {/* Clube: selo discreto no rodapé (nas duas visões) */}
+        {badgeVariant === 'discreta' && (
+          <footer className="flex justify-end px-6 pb-2">
+            <PoweredByBadge variant="discreta" className="text-sm" />
+          </footer>
         )}
       </div>
     </div>

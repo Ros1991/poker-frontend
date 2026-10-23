@@ -2,9 +2,11 @@ import { useEffect } from 'react'
 import { useForm, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import * as homeGamesApi from '../../api/homeGames.api'
+import { isPlanLimitError } from '../../api/client'
+import { MY_PLAN_QUERY_KEY } from '../../hooks/usePlan'
 import { Modal } from '../../components/ui/Modal'
 import { Input } from '../../components/ui/Input'
 import { Textarea } from '../../components/ui/Textarea'
@@ -86,6 +88,8 @@ export function HomeGameFormModal({
     }
   }, [isOpen, homeGame, reset])
 
+  const queryClient = useQueryClient()
+
   const createMutation = useMutation({
     mutationFn: (data: HomeGameFormData) =>
       homeGamesApi.create({
@@ -95,9 +99,16 @@ export function HomeGameFormModal({
       }),
     onSuccess: () => {
       toast.success('Home game criado com sucesso!')
+      void queryClient.invalidateQueries({ queryKey: MY_PLAN_QUERY_KEY })
       onSuccess()
     },
-    onError: () => {
+    onError: (err: unknown) => {
+      // 402 (limite de home games do plano): o UpgradeModal já abriu sozinho; este formulário fecha
+      // para o modal de upgrade ficar sozinho na tela (SPEC-20261023-1205)
+      if (isPlanLimitError(err)) {
+        onClose()
+        return
+      }
       toast.error('Erro ao criar home game. Tente novamente.')
     },
   })

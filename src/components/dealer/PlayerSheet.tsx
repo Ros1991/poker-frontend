@@ -23,6 +23,10 @@ interface PlayerSheetProps {
   onMove: () => void
   onUndoElimination: () => void
   onUndo: (item: HistoryItem) => Promise<void>
+  /** Plano do dono com Payments: "Pagar", "Pagou" e "Deve/Pago" (SPEC-20261023-1205, D3) */
+  showPayments?: boolean
+  /** Plano do dono com Tables: lugar na mesa e "Mover" */
+  showTables?: boolean
 }
 
 function Info({ label, value }: { label: string; value: React.ReactNode }) {
@@ -48,9 +52,13 @@ export function PlayerSheet({
   onMove,
   onUndoElimination,
   onUndo,
+  showPayments = true,
+  showTables = true,
 }: PlayerSheetProps) {
   if (!entry) return null
   const active = isActiveStatus(entry.status)
+  // Campeão (nunca eliminado, eliminatedAt nulo) não tem eliminação a desfazer
+  const canUndoElimination = !active && !!entry.eliminatedAt
 
   return (
     <Sheet isOpen onClose={onClose} title="Ficha do jogador" elevated>
@@ -65,7 +73,7 @@ export function PlayerSheet({
       </div>
 
       <div className="mb-3 grid grid-cols-2 gap-2">
-        <Info label="Mesa" value={active ? seatLabel(entry, tables) : '—'} />
+        {showTables && <Info label="Mesa" value={active ? seatLabel(entry, tables) : '—'} />}
         <Info label="Situação" value={statusLabel(entry)} />
         <Info label="Rebuys" value={entry.rebuyCount} />
         <Info
@@ -73,11 +81,13 @@ export function PlayerSheet({
           value={entry.addonPurchased ? (entry.addonDouble ? 'Duplo' : 'Simples') : 'Não'}
         />
         <Info label="Total" value={formatCurrency(entry.totalDue)} />
-        <Info label="Pagou" value={formatCurrency(entry.totalPaid)} />
+        {showPayments && <Info label="Pagou" value={formatCurrency(entry.totalPaid)} />}
       </div>
-      <p className="mb-3 text-center text-base">
-        <DueLabel entry={entry} />
-      </p>
+      {showPayments && (
+        <p className="mb-3 text-center text-base">
+          <DueLabel entry={entry} />
+        </p>
+      )}
 
       {active ? (
         <div className="mb-4 grid grid-cols-2 gap-2">
@@ -87,28 +97,39 @@ export function PlayerSheet({
           <Button variant="secondary" onClick={onAddon} disabled={!rules.canAddon}>
             <PlusCircle className="h-4 w-4" /> Add-on
           </Button>
-          <Button variant="success" onClick={onPay}>
-            <CreditCard className="h-4 w-4" /> Pagar
-          </Button>
-          <Button variant="secondary" onClick={onMove}>
-            <ArrowRightLeft className="h-4 w-4" /> Mover
-          </Button>
-          <Button variant="danger" className="col-span-2" onClick={onEliminate}>
+          {showPayments && (
+            <Button variant="success" onClick={onPay}>
+              <CreditCard className="h-4 w-4" /> Pagar
+            </Button>
+          )}
+          {showTables && (
+            <Button variant="secondary" onClick={onMove}>
+              <ArrowRightLeft className="h-4 w-4" /> Mover
+            </Button>
+          )}
+          <Button
+            variant="danger"
+            className={showPayments === showTables ? 'col-span-2' : undefined}
+            onClick={onEliminate}
+          >
             <Skull className="h-4 w-4" /> Eliminar
           </Button>
         </div>
       ) : (
-        <div className="mb-4 grid grid-cols-2 gap-2">
-          <Button variant="success" onClick={onPay}>
-            <CreditCard className="h-4 w-4" /> Pagar
-          </Button>
-          {/* Campeão (nunca eliminado, eliminatedAt nulo) não tem eliminação a desfazer */}
-          {entry.eliminatedAt && (
-            <Button variant="secondary" onClick={onUndoElimination}>
-              <Undo2 className="h-4 w-4" /> Desfazer eliminação
-            </Button>
-          )}
-        </div>
+        (showPayments || canUndoElimination) && (
+          <div className="mb-4 grid grid-cols-2 gap-2">
+            {showPayments && (
+              <Button variant="success" onClick={onPay}>
+                <CreditCard className="h-4 w-4" /> Pagar
+              </Button>
+            )}
+            {canUndoElimination && (
+              <Button variant="secondary" onClick={onUndoElimination}>
+                <Undo2 className="h-4 w-4" /> Desfazer eliminação
+              </Button>
+            )}
+          </div>
+        )
       )}
 
       <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">

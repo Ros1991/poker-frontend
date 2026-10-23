@@ -7,7 +7,7 @@ import { publicRankingPlayerPath } from '../../constants/routes'
 import type { PublicRankingPlayer } from '../../types/publicRanking.types'
 import { cn } from '../../utils/cn'
 import { resolveMediaUrl } from '../../utils/mediaUrl'
-import { PublicLoading, PublicMessage, PublicShell } from './PublicLayout'
+import { PublicClubLogo, PublicLoading, PublicMessage, PublicShell } from './PublicLayout'
 import {
   focusRingClass,
   formatCurrency,
@@ -68,8 +68,9 @@ export function PublicRankingPage() {
   const showFinalTable = ranking.leaderboard.length > FINAL_TABLE_SIZE
 
   return (
-    <PublicShell>
+    <PublicShell branding={ranking}>
       <header className="mb-5 flex items-start gap-3">
+        <PublicClubLogo branding={ranking} alt={ranking.homeGameName} />
         <div className="min-w-0 flex-1">
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-accent-blue">
             {ranking.homeGameName}

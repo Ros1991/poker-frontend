@@ -32,7 +32,7 @@ import { TableAlerts } from '../../components/dealer/TableAlerts'
 import { TablesSheet } from '../../components/dealer/TablesSheet'
 import { TableSelectDialog } from '../../components/dealer/TableSelectDialog'
 import { TerminalHeader } from '../../components/dealer/TerminalHeader'
-import { useTerminalActions } from '../../components/dealer/useTerminalActions'
+import { terminalFeatures, useTerminalActions } from '../../components/dealer/useTerminalActions'
 import {
   apiErrorMessage,
   formatCurrency,
@@ -78,6 +78,11 @@ interface DealerTerminalPageProps {
  * Terminal do dealer: a tela principal é a mesa (Rebuy, Add-on, Pagar, Eliminar);
  * o menos usado (adicionar jogador, jogadores, mesas, histórico) fica atrás do "Mais".
  * Mesma tela para o dealer por QR e para quem abre logado.
+ *
+ * Plano do dono (SPEC-20261023-1205, `tournament.planFeatures`): sem Payments somem Pagar,
+ * PaymentModal, abatimento e sugestões de PIX; sem Tables não há mesas — a tela principal lista
+ * todos que estão jogando, e somem "Mesas" do "Mais", o seletor de mesa e os avisos de
+ * desequilíbrio. Rebuy, add-on, eliminar, desfazer, histórico e relógio ficam iguais.
  */
 export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {}) {
   const { tournamentId: routeTournamentId } = useParams<{ tournamentId: string }>()
@@ -99,12 +104,15 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
   const [breakOpen, setBreakOpen] = useState(false)
   const [balanceMove, setBalanceMove] = useState<BalanceMove | null>(null)
 
-  const { data: tournament } = useQuery({
+  const { data: tournament, isLoading: tournamentLoading } = useQuery({
     queryKey: ['tournament', tournamentId],
     queryFn: () => tournamentsApi.getById(tournamentId),
     enabled: !!tournamentId,
     refetchInterval: 8000,
   })
+
+  // O que o plano do dono libera (só decide com o torneio carregado; sem a feature, 402)
+  const { payments: canPay, tables: canTables } = terminalFeatures(tournament)
 
   const { data: entries, isLoading: entriesLoading } = useQuery({
     queryKey: ['entries', tournamentId],
@@ -116,7 +124,7 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
   const { data: tables } = useQuery({
     queryKey: ['tables', tournamentId],
     queryFn: () => tablesApi.getAll(tournamentId),
-    enabled: !!tournamentId,
+    enabled: !!tournamentId && canTables,
     refetchInterval: 8000,
   })
 
@@ -158,6 +166,12 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
   const analysis = useMemo(() => analyzeTables(allTables, allEntries), [allTables, allEntries])
 
   const activeEntries = useMemo(() => allEntries.filter((e) => isActiveStatus(e.status)), [allEntries])
+
+  // Sem controle de mesas no plano: todos que estão jogando, por nome
+  const playingEntries = useMemo(
+    () => [...activeEntries].sort((a, b) => playerName(a).localeCompare(playerName(b), 'pt-BR')),
+    [activeEntries],
+  )
 
   const tableEntries = useMemo(() => {
     if (!selectedTable) return []
@@ -256,6 +270,8 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
 
   /** Com os dados novos: se der para quebrar uma mesa abre o "Quebrar"; senão, se desequilibrou, sorteia quem muda */
   async function evaluateTablesAfterElimination() {
+    // Sem controle de mesas no plano não há equilíbrio nem quebra (e a consulta daria 402)
+    if (!canTables) return
     try {
       const { freshEntries, freshTables } = await fetchFreshTables()
       const fresh = analyzeTables(freshTables, freshEntries)
@@ -330,14 +346,28 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
   const tournamentName = tournament?.name ?? dealerMode?.tournamentName ?? 'Torneio'
   const noPlayers = !entriesLoading && allEntries.length === 0
   const noTables = allTables.length === 0
+  // Até o torneio chegar não dá para saber se há mesas no plano: espera junto das inscrições
+  const loadingMain = entriesLoading || (!tournament && tournamentLoading)
+  const playingLabel = `${activeEntries.length} jogando`
 
   return (
     <div className="flex min-h-screen flex-col bg-bg-primary">
       <TerminalHeader
         tournamentName={tournamentName}
         dealerMode={dealerMode ? { onExit: dealerMode.onExit, dealerName: dealerMode.dealerName } : undefined}
-        tableName={selectedTable ? tableLabel(selectedTable) : noTables ? 'Sem mesas' : null}
-        onSelectTable={() => setTableSelectOpen(true)}
+        tableName={
+          // Sem o torneio ainda não se sabe se há mesas no plano: o topo espera em branco
+          !tournament
+            ? null
+            : !canTables
+              ? playingLabel
+              : selectedTable
+                ? tableLabel(selectedTable)
+                : noTables
+                  ? 'Sem mesas'
+                  : null
+        }
+        onSelectTable={canTables ? () => setTableSelectOpen(true) : undefined}
         formattedTime={formattedTime}
         timerState={timerState}
         onPrevLevel={() => prevMutation.mutate()}
@@ -349,17 +379,19 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
         onOpenMore={() => setMoreOpen(true)}
       />
 
-      <TableAlerts
-        analysis={analysis}
-        tables={allTables}
-        unseatedCount={unseatedCount}
-        onBreakTable={() => setBreakOpen(true)}
-        onDrawBalance={() => drawBalanceMove()}
-        onOpenTables={() => openScreen('tables')}
-      />
+      {canTables && (
+        <TableAlerts
+          analysis={analysis}
+          tables={allTables}
+          unseatedCount={unseatedCount}
+          onBreakTable={() => setBreakOpen(true)}
+          onDrawBalance={() => drawBalanceMove()}
+          onOpenTables={() => openScreen('tables')}
+        />
+      )}
 
       <main className="flex-1 px-3 py-3 pb-10">
-        {entriesLoading ? (
+        {loadingMain ? (
           <LoadingSpinner size="md" text="Carregando jogadores..." className="py-12" />
         ) : noPlayers ? (
           <div className="flex flex-col items-center gap-3 py-12 text-center">
@@ -368,6 +400,32 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
               <UserPlus className="h-5 w-5" /> Adicionar jogador
             </Button>
           </div>
+        ) : !canTables ? (
+          <>
+            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
+              Jogando ({playingEntries.length})
+            </h2>
+            {playingEntries.length === 0 ? (
+              <p className="py-8 text-center text-text-secondary">Ninguém jogando agora.</p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {playingEntries.map((entry) => (
+                  <PlayerCard
+                    key={entry.id}
+                    entry={entry}
+                    rules={rulesFor(entry)}
+                    onOpen={() => setFichaEntryId(entry.id)}
+                    onRebuy={() => setRebuyEntry(entry)}
+                    onAddon={() => setAddonEntry(entry)}
+                    onPay={() => actions.openPayment(entry)}
+                    onEliminate={() => setEliminateEntry(entry)}
+                    showPayment={canPay}
+                    showSeat={false}
+                  />
+                ))}
+              </div>
+            )}
+          </>
         ) : noTables ? (
           <div className="flex flex-col items-center gap-3 py-12 text-center">
             <p className="text-text-secondary">
@@ -399,6 +457,7 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
                     onAddon={() => setAddonEntry(entry)}
                     onPay={() => actions.openPayment(entry)}
                     onEliminate={() => setEliminateEntry(entry)}
+                    showPayment={canPay}
                   />
                 ))}
               </div>
@@ -439,20 +498,28 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
       </main>
 
       {/* ── Topo: seletor de mesa e "Mais" ── */}
-      <TableSelectDialog
-        isOpen={tableSelectOpen}
-        onClose={() => setTableSelectOpen(false)}
-        tables={allTables}
-        entries={allEntries}
-        selectedTableId={selectedTable?.id ?? null}
-        onSelect={(id) => {
-          setSelectedTableId(id)
-          setTableSelectOpen(false)
-        }}
-        onOpenTables={() => openScreen('tables')}
-      />
+      {canTables && (
+        <TableSelectDialog
+          isOpen={tableSelectOpen}
+          onClose={() => setTableSelectOpen(false)}
+          tables={allTables}
+          entries={allEntries}
+          selectedTableId={selectedTable?.id ?? null}
+          onSelect={(id) => {
+            setSelectedTableId(id)
+            setTableSelectOpen(false)
+          }}
+          onOpenTables={() => openScreen('tables')}
+        />
+      )}
 
-      <MoreMenu isOpen={moreOpen} onClose={() => setMoreOpen(false)} onSelect={openScreen} />
+      <MoreMenu
+        isOpen={moreOpen}
+        onClose={() => setMoreOpen(false)}
+        onSelect={openScreen}
+        showTables={canTables}
+        showPayments={canPay}
+      />
 
       {/* ── Telas do "Mais" ── */}
       <AddPlayerSheet
@@ -470,7 +537,8 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
             new Set(),
           )
         }}
-        onPay={(entry) => actions.openPayment(entry)}
+        onPay={canPay ? (entry) => actions.openPayment(entry) : undefined}
+        showTables={canTables}
       />
 
       <PlayersSheet
@@ -480,18 +548,22 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
         tables={allTables}
         onOpenPlayer={(entry) => setFichaEntryId(entry.id)}
         onAddPlayer={() => setScreen('addPlayer')}
+        showPayments={canPay}
+        showTables={canTables}
       />
 
-      <TablesSheet
-        isOpen={screen === 'tables'}
-        onClose={() => setScreen(null)}
-        tables={allTables}
-        entries={allEntries}
-        canBreak={!!analysis.breakable}
-        onMovePlayer={(entry) => setMoveEntry(entry)}
-        onDraw={() => setDrawOpen(true)}
-        onBreak={() => setBreakOpen(true)}
-      />
+      {canTables && (
+        <TablesSheet
+          isOpen={screen === 'tables'}
+          onClose={() => setScreen(null)}
+          tables={allTables}
+          entries={allEntries}
+          canBreak={!!analysis.breakable}
+          onMovePlayer={(entry) => setMoveEntry(entry)}
+          onDraw={() => setDrawOpen(true)}
+          onBreak={() => setBreakOpen(true)}
+        />
+      )}
 
       <HistorySheet
         isOpen={screen === 'history'}
@@ -518,6 +590,8 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
         }}
         onUndoElimination={() => fichaEntry && setUndoElimEntry(fichaEntry)}
         onUndo={actions.undoItem}
+        showPayments={canPay}
+        showTables={canTables}
       />
 
       {/* ── Ações do jogador ── */}
@@ -587,15 +661,17 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
         loading={actions.undoEliminationMutation.isPending}
       />
 
-      <PaymentModal
-        isOpen={!!actions.paymentEntry}
-        onClose={actions.closePayment}
-        entry={actions.paymentEntry}
-        tournamentId={tournamentId}
-      />
+      {canPay && (
+        <PaymentModal
+          isOpen={!!actions.paymentEntry}
+          onClose={actions.closePayment}
+          entry={actions.paymentEntry}
+          tournamentId={tournamentId}
+        />
+      )}
 
-      {/* ── Mesas ── */}
-      {moveEntry && (
+      {/* ── Mesas (só com controle de mesas no plano) ── */}
+      {canTables && moveEntry && (
         <MovePlayerDialog
           tournamentId={tournamentId}
           entry={moveEntry}
@@ -606,7 +682,7 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
         />
       )}
 
-      {drawOpen && (
+      {canTables && drawOpen && (
         <DrawTablesDialog
           tournamentId={tournamentId}
           hasTables={!noTables}
@@ -622,7 +698,7 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
         />
       )}
 
-      {breakOpen && (
+      {canTables && breakOpen && (
         <BreakTableDialog
           tournamentId={tournamentId}
           tables={allTables}
@@ -633,7 +709,7 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
         />
       )}
 
-      {balanceMove && (
+      {canTables && balanceMove && (
         <BalanceDrawDialog
           move={balanceMove}
           tables={allTables}

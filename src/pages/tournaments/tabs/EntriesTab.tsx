@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import * as entriesApi from '../../../api/entries.api'
 import * as tournamentsApi from '../../../api/tournaments.api'
+import { hasFeature } from '../../../hooks/usePlan'
 import { Button } from '../../../components/ui/Button'
 import { Badge } from '../../../components/ui/Badge'
 import { Avatar } from '../../../components/ui/Avatar'
@@ -46,6 +47,9 @@ function formatCurrency(value: number): string {
 
 export function EntriesTab({ tournament, entries }: EntriesTabProps) {
   const queryClient = useQueryClient()
+  // SPEC-20261023-1205 (D3): sem Payments no plano do dono não há pagamento algum na lista —
+  // some o botão Pagar/Ver pagamentos, o badge de pagamento, as colunas Pago/Saldo e o PaymentModal
+  const canPay = hasFeature(tournament.planFeatures, 'Payments')
   const [search, setSearch] = useState('')
   const [showAddPlayer, setShowAddPlayer] = useState(false)
   const [paymentEntry, setPaymentEntry] = useState<TournamentEntry | null>(null)
@@ -197,8 +201,8 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
     tournament.status === 'InProgress'
 
   function getRowBorderColor(entry: TournamentEntry): string {
-    if (entry.paymentStatus === 'Paid') return 'border-accent-green/30 bg-accent-green-soft'
-    if (entry.paymentStatus === 'PartiallyPaid') return 'border-accent-yellow/40 bg-accent-yellow-soft'
+    if (canPay && entry.paymentStatus === 'Paid') return 'border-accent-green/30 bg-accent-green-soft'
+    if (canPay && entry.paymentStatus === 'PartiallyPaid') return 'border-accent-yellow/40 bg-accent-yellow-soft'
     // Eliminado: sem opacidade (derrubava o texto abaixo de AA); o estado vem do fundo vermelho-claro e do nome em text-secondary
     if (entry.status === 'Eliminated') return 'border-accent-red/30 bg-accent-red-soft'
     return 'border-border-default bg-bg-primary'
@@ -330,19 +334,25 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
                         ? ` · ${formatCurrency(entry.prizeAmount)}`
                         : ''}
                     </Badge>
-                    <Badge
-                      color={PAYMENT_STATUS_COLORS[entry.paymentStatus as PaymentStatus]}
-                    >
-                      {PAYMENT_STATUS_LABELS[
-                        entry.paymentStatus as PaymentStatus
-                      ] ?? entry.paymentStatus}
-                    </Badge>
+                    {canPay && (
+                      <Badge
+                        color={PAYMENT_STATUS_COLORS[entry.paymentStatus as PaymentStatus]}
+                      >
+                        {PAYMENT_STATUS_LABELS[
+                          entry.paymentStatus as PaymentStatus
+                        ] ?? entry.paymentStatus}
+                      </Badge>
+                    )}
                   </div>
                 </div>
               </div>
 
               {/* Financial info */}
-              <div className="grid grid-cols-3 gap-2 w-full text-xs text-text-secondary tabular-nums sm:flex sm:w-auto sm:items-center sm:gap-4">
+              <div
+                className={`grid gap-2 w-full text-xs text-text-secondary tabular-nums sm:flex sm:w-auto sm:items-center sm:gap-4 ${
+                  canPay ? 'grid-cols-3' : 'grid-cols-4'
+                }`}
+              >
                 <div className="text-center">
                   <p>Buy-in</p>
                   <p className="font-semibold text-text-primary">
@@ -395,20 +405,24 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
                     {formatCurrency(entry.totalDue)}
                   </p>
                 </div>
-                <div className="text-center">
-                  <p>Pago</p>
-                  <p className="font-semibold text-accent-green-deep">
-                    {formatCurrency(entry.totalPaid)}
-                  </p>
-                </div>
-                <div className="text-center">
-                  <p>Saldo</p>
-                  <p
-                    className={`font-semibold ${entry.balance > 0 ? 'text-accent-red-deep' : entry.balance < 0 ? 'text-accent-blue' : 'text-accent-green-deep'}`}
-                  >
-                    {formatCurrency(entry.balance)}
-                  </p>
-                </div>
+                {canPay && (
+                  <>
+                    <div className="text-center">
+                      <p>Pago</p>
+                      <p className="font-semibold text-accent-green-deep">
+                        {formatCurrency(entry.totalPaid)}
+                      </p>
+                    </div>
+                    <div className="text-center">
+                      <p>Saldo</p>
+                      <p
+                        className={`font-semibold ${entry.balance > 0 ? 'text-accent-red-deep' : entry.balance < 0 ? 'text-accent-blue' : 'text-accent-green-deep'}`}
+                      >
+                        {formatCurrency(entry.balance)}
+                      </p>
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Action buttons */}
@@ -466,19 +480,21 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
                     </Button>
                   </>
                 )}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setPaymentEntry(entry)}
-                  title={entry.balance > 0 ? 'Pagar / Ver pagamentos' : 'Ver / Estornar pagamentos'}
-                  className={
-                    entry.balance > 0
-                      ? 'text-accent-green-deep hover:text-accent-green-hover hover:bg-accent-green-soft'
-                      : 'text-text-secondary hover:text-accent-blue hover:bg-accent-blue-soft'
-                  }
-                >
-                  <CreditCard className="h-4 w-4" />
-                </Button>
+                {canPay && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setPaymentEntry(entry)}
+                    title={entry.balance > 0 ? 'Pagar / Ver pagamentos' : 'Ver / Estornar pagamentos'}
+                    className={
+                      entry.balance > 0
+                        ? 'text-accent-green-deep hover:text-accent-green-hover hover:bg-accent-green-soft'
+                        : 'text-text-secondary hover:text-accent-blue hover:bg-accent-blue-soft'
+                    }
+                  >
+                    <CreditCard className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
             </div>
           ))}
@@ -491,14 +507,17 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
         onClose={() => setShowAddPlayer(false)}
         tournamentId={tournament.id}
         homeGameId={tournament.homeGameId}
+        allowPayment={canPay}
       />
 
-      <PaymentModal
-        isOpen={!!paymentEntry}
-        onClose={() => setPaymentEntry(null)}
-        entry={paymentEntry}
-        tournamentId={tournament.id}
-      />
+      {canPay && (
+        <PaymentModal
+          isOpen={!!paymentEntry}
+          onClose={() => setPaymentEntry(null)}
+          entry={paymentEntry}
+          tournamentId={tournament.id}
+        />
+      )}
 
       <EliminationModal
         isOpen={!!eliminateEntry}
@@ -532,7 +551,7 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
           }
         }}
         title="Remover Jogador"
-        message={`Remover ${removeConfirm?.person.nickname ?? removeConfirm?.person.fullName ?? ''} do torneio? Todos os pagamentos e rebuys serao apagados. Esta acao nao pode ser desfeita.`}
+        message={`Remover ${removeConfirm?.person.nickname ?? removeConfirm?.person.fullName ?? ''} do torneio? ${canPay ? 'Todos os pagamentos e rebuys serão apagados' : 'Todos os rebuys e add-ons serão apagados'}. Esta ação não pode ser desfeita.`}
         confirmLabel="Remover"
         variant="danger"
         loading={removeMutation.isPending}

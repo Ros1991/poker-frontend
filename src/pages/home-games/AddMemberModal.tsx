@@ -5,6 +5,7 @@ import { AlertCircle, CheckCircle2, Search } from 'lucide-react'
 import * as homeGamesApi from '../../api/homeGames.api'
 import * as personsApi from '../../api/persons.api'
 import * as usersApi from '../../api/users.api'
+import { isPlanLimitError } from '../../api/client'
 import { Modal } from '../../components/ui/Modal'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
@@ -120,6 +121,13 @@ export function AddMemberModal({
       onSuccess()
     },
     onError: (error: unknown) => {
+      // 402 (limite de membros do plano do dono): o UpgradeModal já abriu sozinho; este modal fecha
+      // para o de upgrade ficar sozinho na tela (SPEC-20261023-1205)
+      if (isPlanLimitError(error)) {
+        resetForm()
+        onClose()
+        return
+      }
       const msg = (error as { response?: { data?: { message?: string } } })?.response?.data?.message
       toast.error(msg || 'Erro ao adicionar membro. Tente novamente.')
     },

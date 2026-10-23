@@ -93,7 +93,7 @@ export function PublicPlayerPage() {
   const rows = buildPlayerRows(ranking, player, sortBy)
 
   return (
-    <PublicShell>
+    <PublicShell branding={ranking}>
       <nav className="-mx-2 mb-3 flex items-center justify-between gap-2">
         <Link
           to={publicRankingPath(ranking.slug)}

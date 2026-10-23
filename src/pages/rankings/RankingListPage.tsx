@@ -6,26 +6,36 @@ import * as homeGamesApi from '../../api/homeGames.api'
 import { Button } from '../../components/ui/Button'
 import { Badge } from '../../components/ui/Badge'
 import { LoadingSpinner } from '../../components/common/LoadingSpinner'
+import { hasFeature } from '../../hooks/usePlan'
+import { RankingLockedPreview } from './RankingLockedPreview'
 
 export function RankingListPage() {
   const { homeGameId } = useParams<{ homeGameId: string }>()
   const navigate = useNavigate()
 
-  const {
-    data: rankings,
-    isLoading,
-    error,
-  } = useQuery({
-    queryKey: ['rankings', homeGameId],
-    queryFn: () => rankingsApi.getAll(homeGameId!),
-    enabled: !!homeGameId,
-  })
-
-  const { data: homeGame } = useQuery({
+  const { data: homeGame, isLoading: homeGameLoading, error: homeGameError } = useQuery({
     queryKey: ['homeGame', homeGameId],
     queryFn: () => homeGamesApi.getById(homeGameId!),
     enabled: !!homeGameId,
   })
+
+  // Ranking de temporada é recurso pago (SPEC-20261023-1205): vale o plano do DONO do home game.
+  // Sem ele a lista nem é consultada (daria 402) e a página mostra o exemplo desfocado + cadeado.
+  const canRankings = !!homeGame && hasFeature(homeGame.planFeatures, 'Rankings')
+  const rankingsLocked = !!homeGame && !canRankings
+
+  const {
+    data: rankings,
+    isLoading: rankingsLoading,
+    error: rankingsError,
+  } = useQuery({
+    queryKey: ['rankings', homeGameId],
+    queryFn: () => rankingsApi.getAll(homeGameId!),
+    enabled: !!homeGameId && canRankings,
+  })
+
+  const isLoading = homeGameLoading || rankingsLoading
+  const error = homeGameError ?? rankingsError
 
   if (!homeGameId) {
     return (
@@ -45,6 +55,18 @@ export function RankingListPage() {
     return (
       <div className="flex items-center justify-center py-20">
         <LoadingSpinner size="lg" text="Carregando rankings..." />
+      </div>
+    )
+  }
+
+  if (rankingsLocked && homeGame) {
+    return (
+      <div className="mx-auto max-w-4xl">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-text-primary">Rankings</h1>
+          <p className="text-sm text-text-secondary mt-1">{homeGame.name}</p>
+        </div>
+        <RankingLockedPreview currentPlan={homeGame.ownerPlan ?? null} homeGameName={homeGame.name} />
       </div>
     )
   }

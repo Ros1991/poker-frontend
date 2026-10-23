@@ -1,3 +1,5 @@
+import type { PlanName, PlanSource } from './plan.types'
+
 export type UserRole = 'Admin' | 'TournamentDirector' | 'Dealer' | 'Player'
 
 export interface User {
@@ -7,6 +9,21 @@ export interface User {
   role: UserRole
   isActive: boolean
   photoUrl: string | null
+  // Plano da conta (SPEC-20261023-1205; UserResponse). Opcionais para não quebrar telas existentes.
+  plan?: PlanName
+  effectivePlan?: PlanName
+  planExpiresAt?: string | null
+  planSource?: PlanSource
+  planNote?: string | null
+}
+
+/** PUT api/v1/users/{id}/plan (só Admin) → User */
+export interface ChangePlanRequest {
+  plan: PlanName
+  /** ISO; ausente/null = sem vencimento */
+  expiresAt?: string | null
+  source: PlanSource
+  note?: string | null
 }
 
 /** Resultado de GET /Users/lookup?email= (busca por e-mail exato): nunca traz o papel. */

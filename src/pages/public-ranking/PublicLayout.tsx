@@ -1,15 +1,63 @@
 import type { ReactNode } from 'react'
 import { Loader2, SearchX, WifiOff } from 'lucide-react'
+import { PoweredByBadge } from '../../components/plan'
+import type { PublicRanking } from '../../types/publicRanking.types'
+import { resolveMediaUrl } from '../../utils/mediaUrl'
+
+/** Plano do dono que o ranking público carrega (SPEC-20261023-1205, D6) */
+export type PublicBranding = Pick<PublicRanking, 'plan' | 'showBadge' | 'clubLogoUrl'>
+
+/**
+ * Selo do rodapé, pela mesma regra do telão: Mesa = selo + QR do site; Clube = selo discreto;
+ * Liga (sem selo) = nada aqui, a logo do clube vai no cabeçalho da página.
+ */
+function PublicBrandFooter({ branding }: { branding: PublicBranding }) {
+  if (!branding.showBadge) return null
+  return (
+    <footer className="mt-8 flex justify-center">
+      <PoweredByBadge variant={branding.plan === 'Mesa' ? 'qr' : 'discreta'} />
+    </footer>
+  )
+}
 
 // Moldura das páginas públicas: mesma paleta clara do telão (fundo da página, cards brancos
 // com borda), em coluna única pensada para o celular. Sem degradês: a cor vem só dos tokens.
-export function PublicShell({ children }: { children: ReactNode }) {
+// Com `branding` (resposta do ranking), o rodapé leva o selo "Feito com Poker da Galera".
+export function PublicShell({
+  children,
+  branding,
+}: {
+  children: ReactNode
+  branding?: PublicBranding
+}) {
   return (
     <div className="relative min-h-dvh overflow-x-hidden bg-bg-primary text-text-primary">
       <main className="relative mx-auto w-full max-w-lg px-4 pb-[max(2.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))]">
         {children}
+        {branding && <PublicBrandFooter branding={branding} />}
       </main>
     </div>
+  )
+}
+
+/** Logo do clube no cabeçalho (só Liga: `clubLogoUrl` vem só quando o selo some) */
+export function PublicClubLogo({
+  branding,
+  alt,
+  className,
+}: {
+  branding: PublicBranding
+  alt: string
+  className?: string
+}) {
+  const src = !branding.showBadge ? resolveMediaUrl(branding.clubLogoUrl) : null
+  if (!src) return null
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className={className ?? 'h-12 w-12 shrink-0 rounded-xl border border-border-default bg-bg-card object-contain p-1'}
+    />
   )
 }
 

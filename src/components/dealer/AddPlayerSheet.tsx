@@ -25,7 +25,10 @@ interface AddPlayerSheetProps {
   tournament: Tournament | undefined
   /** Inscrição feita (quem chama invalida e mostra o "Desfazer") */
   onAdded: (result: QuickAddEntryResponse) => void
-  onPay: (entry: TournamentEntry) => void
+  /** Sem Payments no plano do dono (SPEC-20261023-1205, D3): ausente = nada de pagamento aqui */
+  onPay?: (entry: TournamentEntry) => void
+  /** Plano do dono com Tables: diz onde o jogador sentou */
+  showTables?: boolean
 }
 
 /** Montado só quando aberto: começa sempre na busca */
@@ -34,7 +37,14 @@ export function AddPlayerSheet(props: AddPlayerSheetProps) {
   return <AddPlayerContent {...props} />
 }
 
-function AddPlayerContent({ onClose, tournamentId, tournament, onAdded, onPay }: AddPlayerSheetProps) {
+function AddPlayerContent({
+  onClose,
+  tournamentId,
+  tournament,
+  onAdded,
+  onPay,
+  showTables = true,
+}: AddPlayerSheetProps) {
   const [mode, setMode] = useState<'search' | 'new'>('search')
   const [search, setSearch] = useState('')
   const [confirmPerson, setConfirmPerson] = useState<AvailablePlayer | null>(null)
@@ -132,16 +142,22 @@ function AddPlayerContent({ onClose, tournamentId, tournament, onAdded, onPay }:
         <div className="flex flex-col items-center gap-3 py-4 text-center">
           <CheckCircle2 className="h-12 w-12 text-accent-green" />
           <p className="text-xl font-bold text-text-primary">{name} entrou no torneio</p>
-          <p className="text-base text-text-secondary">
-            {result.tableId && result.seatNumber
-              ? `Sentou na ${result.tableName ?? 'mesa'}, lugar ${result.seatNumber}`
-              : 'Ainda sem mesa'}
-          </p>
-          <p className="text-sm tabular-nums text-accent-red-deep">Buy-in de {buyIn} pendente.</p>
-          <Button size="lg" variant="success" className="w-full" onClick={() => onPay(result.entry)}>
-            <CreditCard className="h-5 w-5" /> Registrar pagamento agora
-          </Button>
-          <Button variant="secondary" className="w-full" onClick={restart}>
+          {showTables && (
+            <p className="text-base text-text-secondary">
+              {result.tableId && result.seatNumber
+                ? `Sentou na ${result.tableName ?? 'mesa'}, lugar ${result.seatNumber}`
+                : 'Ainda sem mesa'}
+            </p>
+          )}
+          {onPay && (
+            <>
+              <p className="text-sm tabular-nums text-accent-red-deep">Buy-in de {buyIn} pendente.</p>
+              <Button size="lg" variant="success" className="w-full" onClick={() => onPay(result.entry)}>
+                <CreditCard className="h-5 w-5" /> Registrar pagamento agora
+              </Button>
+            </>
+          )}
+          <Button variant={onPay ? 'secondary' : 'primary'} className="w-full" onClick={restart}>
             <UserPlus className="h-4 w-4" /> Adicionar outro
           </Button>
           <Button variant="ghost" className="w-full" onClick={onClose}>
@@ -169,7 +185,7 @@ function AddPlayerContent({ onClose, tournamentId, tournament, onAdded, onPay }:
             maxLength={60}
             onChange={(e) => setNickname(e.target.value)}
           />
-          <p className="text-sm tabular-nums text-text-secondary">Buy-in de {buyIn} fica pendente.</p>
+          {onPay && <p className="text-sm tabular-nums text-text-secondary">Buy-in de {buyIn} fica pendente.</p>}
           {formError && <p className="rounded-lg bg-accent-red-soft p-2.5 text-sm text-accent-red-deep">{formError}</p>}
           <Button size="lg" className="w-full" loading={addMutation.isPending} onClick={submitNew}>
             <UserPlus className="h-5 w-5" />
@@ -245,7 +261,11 @@ function AddPlayerContent({ onClose, tournamentId, tournament, onAdded, onPay }:
         onClose={() => setConfirmPerson(null)}
         onConfirm={() => confirmPerson && addMutation.mutate({ personId: confirmPerson.id })}
         title="Adicionar jogador"
-        message={`Adicionar ${confirmName} ao torneio? Buy-in de ${buyIn} fica pendente.`}
+        message={
+          onPay
+            ? `Adicionar ${confirmName} ao torneio? Buy-in de ${buyIn} fica pendente.`
+            : `Adicionar ${confirmName} ao torneio?`
+        }
         confirmLabel="Adicionar"
         variant="warning"
         loading={addMutation.isPending}

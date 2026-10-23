@@ -1,3 +1,5 @@
+import type { PlanName } from './plan.types'
+
 // Espelha PublicRankingResponse do backend (GET /public/rankings/{slug}).
 // Só dados públicos: nada de contato, documento ou valores por jogador.
 
@@ -42,4 +44,11 @@ export interface PublicRanking {
   stages: PublicRankingStage[]
   leaderboard: PublicRankingPlayer[]
   generatedAt: string
+  // SPEC-20261023-1205 (D6): selo/logo do rodapé seguem o plano efetivo do dono do home game.
+  /** Plano efetivo do dono do home game */
+  plan?: PlanName
+  /** Mesa e Clube mostram o selo "Feito com Poker da Galera" (Mesa com QR, Clube discreto) */
+  showBadge?: boolean
+  /** Só na Liga: logo do clube (HomeGame.LogoUrl) no lugar do selo */
+  clubLogoUrl?: string | null
 }

@@ -44,6 +44,9 @@ import { RankingDetailPage } from './pages/rankings/RankingDetailPage'
 // Blind Structures
 import { BlindStructureFormPage } from './pages/blinds/BlindStructureFormPage'
 
+// Plano da conta
+import { MyPlanPage } from './pages/plan/MyPlanPage'
+
 // Users (Admin)
 import { UserListPage } from './pages/users/UserListPage'
 import { UserFormPage } from './pages/users/UserFormPage'
@@ -121,6 +124,9 @@ export function Router() {
         <Route path={ROUTES.RANKING_NEW} element={<RankingFormPage />} />
         <Route path={ROUTES.RANKING_DETAIL} element={<RankingDetailPage />} />
         <Route path={ROUTES.RANKING_EDIT} element={<RankingFormPage />} />
+
+        {/* Meu plano (SPEC-20261023-1205) */}
+        <Route path={ROUTES.MY_PLAN} element={<MyPlanPage />} />
 
         {/* Users (Admin only) */}
         <Route

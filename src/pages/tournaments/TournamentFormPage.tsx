@@ -10,6 +10,8 @@ import * as tournamentsApi from '../../api/tournaments.api'
 import * as homeGamesApi from '../../api/homeGames.api'
 import * as rankingsApi from '../../api/rankings.api'
 import * as blindStructuresApi from '../../api/blindStructures.api'
+import { isPlanLimitError } from '../../api/client'
+import { hasFeature, MY_PLAN_QUERY_KEY } from '../../hooks/usePlan'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { LoadingSpinner } from '../../components/common/LoadingSpinner'
@@ -102,11 +104,21 @@ export function TournamentFormPage() {
     enabled: !!homeGameId,
   })
 
+  // Recursos do plano do DONO do home game (SPEC-20261023-1205). Só decide com o home game
+  // carregado: sem Payments somem staff, contribuição/ranking e PIX do dia (no Mesa o torneio não
+  // cria custos automáticos — D3); sem Rankings a lista nem é consultada (daria 402); sem Tables
+  // some "Jogadores por mesa".
+  const planKnown = !!homeGame
+  const canPay = planKnown && hasFeature(homeGame?.planFeatures, 'Payments')
+  const canRank = planKnown && hasFeature(homeGame?.planFeatures, 'Rankings')
+  const canTables = planKnown && hasFeature(homeGame?.planFeatures, 'Tables')
+  const showRanking = canPay && canRank
+
   // Rankings do home game
   const { data: rankings } = useQuery({
     queryKey: ['rankings', homeGameId],
     queryFn: () => rankingsApi.getAll(homeGameId!),
-    enabled: !!homeGameId,
+    enabled: !!homeGameId && canRank,
   })
 
   // Estruturas do home game (+ globais)
@@ -204,10 +216,17 @@ export function TournamentFormPage() {
       ),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['tournaments'] })
+      // Uso da semana (torneios nos últimos 7 dias) mudou
+      void queryClient.invalidateQueries({ queryKey: MY_PLAN_QUERY_KEY })
       toast.success('Torneio criado com sucesso!')
       navigate(tournamentDashboardPath(data.id))
     },
     onError: (err: unknown) => {
+      // 402 (ex.: limite de torneios da semana): o modal de upgrade já abriu com a contagem regressiva
+      if (isPlanLimitError(err)) {
+        void queryClient.invalidateQueries({ queryKey: MY_PLAN_QUERY_KEY })
+        return
+      }
       const resp = (err as { response?: { status?: number; data?: { message?: string } } })?.response
       const msg = resp?.data?.message
       console.error('Erro ao criar torneio:', resp?.status, msg, err)
@@ -229,6 +248,7 @@ export function TournamentFormPage() {
       navigate(tournamentDashboardPath(data.id))
     },
     onError: (err: unknown) => {
+      if (isPlanLimitError(err)) return
       const resp = (err as { response?: { status?: number; data?: { message?: string } } })?.response
       const msg = resp?.data?.message
       console.error('Erro ao atualizar torneio:', resp?.status, msg, err)
@@ -237,10 +257,10 @@ export function TournamentFormPage() {
   })
 
   function onSubmit(data: TournamentFormData) {
-    const hasRanking = !!data.rankingId
+    const hasRanking = showRanking && !!data.rankingId
     const payload = {
       ...data,
-      rankingId: data.rankingId || undefined,
+      rankingId: hasRanking ? data.rankingId : undefined,
       blindStructureId: data.blindStructureId || undefined,
       // 0 = "não informado" → backend guarda null e o telão usa o stack inicial
       rebuyStack: data.rebuyStack || undefined,
@@ -248,6 +268,9 @@ export function TournamentFormPage() {
       // Sem ranking vinculado, não faz sentido contribuição acumulada.
       rankingContribMode: hasRanking ? data.rankingContribMode : undefined,
       rankingContribValue: hasRanking ? data.rankingContribValue : 0,
+      // Sem Payments no plano: nada de staff nem PIX do dia (o backend também força nulo)
+      staffAmount: canPay ? data.staffAmount : undefined,
+      responsiblePixKey: canPay ? data.responsiblePixKey : undefined,
     }
     if (isEditMode) {
       updateMutation.mutate(payload as Record<string, unknown>)
@@ -313,16 +336,18 @@ export function TournamentFormPage() {
           />
         </div>
 
-        {/* PIX do responsável pelo torneio no dia (opcional) */}
-        <Input
-          label="PIX do responsável (no dia) — opcional"
-          {...register('responsiblePixKey')}
-          error={errors.responsiblePixKey?.message}
-          placeholder="CPF, e-mail, telefone ou chave aleatória"
-        />
+        {/* PIX do responsável pelo torneio no dia (opcional) — só com Payments no plano */}
+        {canPay && (
+          <Input
+            label="PIX do responsável (no dia) — opcional"
+            {...register('responsiblePixKey')}
+            error={errors.responsiblePixKey?.message}
+            placeholder="CPF, e-mail, telefone ou chave aleatória"
+          />
+        )}
 
         {/* Estrutura e Ranking */}
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className={`grid gap-4 ${showRanking ? 'sm:grid-cols-2' : ''}`}>
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium text-text-secondary">
               Estrutura de Torneio
@@ -346,22 +371,24 @@ export function TournamentFormPage() {
             </p>
           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-text-secondary">
-              Ranking
-            </label>
-            <select
-              {...register('rankingId')}
-              className="min-h-[44px] w-full rounded-lg border border-border-input bg-bg-input px-3 py-2.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-border-focus"
-            >
-              <option value="">Nenhum</option>
-              {rankings?.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          {showRanking && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-text-secondary">
+                Ranking
+              </label>
+              <select
+                {...register('rankingId')}
+                className="min-h-[44px] w-full rounded-lg border border-border-input bg-bg-input px-3 py-2.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-border-focus"
+              >
+                <option value="">Nenhum</option>
+                {rankings?.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         {/* Valores */}
@@ -392,16 +419,19 @@ export function TournamentFormPage() {
               error={errors.addonAmount?.message}
             />
           </div>
-          <p className="mt-2 text-xs text-text-secondary">
-            O valor cobrado de cada jogador é buy-in + staff
-            {watch('rankingId') && watch('rankingContribMode') === 'PerPlayer'
-              ? ' + ranking'
-              : ''}
-            . Tudo entra como receita; staff e ranking saem como custo do prêmio.
-          </p>
+          {canPay && (
+            <p className="mt-2 text-xs text-text-secondary">
+              O valor cobrado de cada jogador é buy-in + staff
+              {showRanking && watch('rankingId') && watch('rankingContribMode') === 'PerPlayer'
+                ? ' + ranking'
+                : ''}
+              . Tudo entra como receita; staff e ranking saem como custo do prêmio.
+            </p>
+          )}
         </div>
 
-        {/* Staff e Ranking (custos automáticos) */}
+        {/* Staff e Ranking (custos automáticos) — só com Payments no plano do dono */}
+        {canPay && (
         <div>
           <h2 className="text-sm font-semibold text-text-secondary uppercase tracking-wider mb-3">
             Staff e Ranking
@@ -413,7 +443,7 @@ export function TournamentFormPage() {
             {...register('staffAmount')}
             error={errors.staffAmount?.message}
           />
-          {watch('rankingId') ? (
+          {!showRanking ? null : watch('rankingId') ? (
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-medium text-text-secondary">
@@ -445,6 +475,7 @@ export function TournamentFormPage() {
             </p>
           )}
         </div>
+        )}
 
         {/* Stack e Regras */}
         <div>
@@ -476,14 +507,16 @@ export function TournamentFormPage() {
               {...register('maxRebuys')}
               error={errors.maxRebuys?.message}
             />
-            <Input
-              label="Jogadores por Mesa"
-              type="number"
-              min={2}
-              max={12}
-              {...register('seatsPerTable')}
-              error={errors.seatsPerTable?.message}
-            />
+            {canTables && (
+              <Input
+                label="Jogadores por Mesa"
+                type="number"
+                min={2}
+                max={12}
+                {...register('seatsPerTable')}
+                error={errors.seatsPerTable?.message}
+              />
+            )}
           </div>
           <div className="mt-4 flex flex-col gap-2">
             <label className="flex items-center gap-2 cursor-pointer">

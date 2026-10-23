@@ -1,3 +1,5 @@
+import type { PlanName } from './plan.types'
+
 export type TournamentStatus =
   | 'Draft'
   | 'OpenForRegistration'
@@ -46,6 +48,10 @@ export interface Tournament {
   punctualityBonusChips: number | null
   createdAt: string
   updatedAt: string
+  // SPEC-20261023-1205: plano efetivo do DONO do home game do torneio.
+  ownerPlan?: PlanName
+  /** Recursos exclusivos liberados — use `hasFeature(tournament.planFeatures, 'Tables')` */
+  planFeatures?: string[]
 }
 
 export interface CreateTournamentRequest {

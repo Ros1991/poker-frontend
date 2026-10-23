@@ -4,7 +4,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Calendar, Users, Trophy, ArrowLeft, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import * as tournamentsApi from '../../api/tournaments.api'
+import * as homeGamesApi from '../../api/homeGames.api'
+import { hasFeature, MY_PLAN_QUERY_KEY } from '../../hooks/usePlan'
 import { Button } from '../../components/ui/Button'
+import { NewTournamentButton } from '../../components/tournament/NewTournamentButton'
 import { Badge } from '../../components/ui/Badge'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { SearchInput } from '../../components/ui/SearchInput'
@@ -54,6 +57,8 @@ export function TournamentListPage() {
     mutationFn: (id: string) => tournamentsApi.remove(homeGameId!, id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['tournaments', homeGameId] })
+      // Rascunho sem inscrição excluído libera a vaga da semana (SPEC-20261023-1205)
+      void queryClient.invalidateQueries({ queryKey: MY_PLAN_QUERY_KEY })
       toast.success('Torneio excluído.')
       setDeleteConfirm(null)
     },
@@ -67,6 +72,13 @@ export function TournamentListPage() {
         search: search || undefined,
         pageSize: 100,
       }),
+    enabled: Boolean(homeGameId),
+  })
+
+  // Dono do home game: o "Novo Torneio" mostra a contagem regressiva do limite semanal só para ele
+  const { data: homeGame } = useQuery({
+    queryKey: ['homeGame', homeGameId],
+    queryFn: () => homeGamesApi.getById(homeGameId!),
     enabled: Boolean(homeGameId),
   })
 
@@ -91,18 +103,18 @@ export function TournamentListPage() {
           )}
           <h1 className="text-2xl font-bold text-text-primary">Torneios</h1>
         </div>
-        <Button
-          onClick={() =>
-            navigate(
-              homeGameId
-                ? `/home-games/${homeGameId}/tournaments/new`
-                : '/home-games',
-            )
-          }
-        >
-          <Plus className="h-4 w-4" />
-          Novo Torneio
-        </Button>
+        {homeGameId ? (
+          <NewTournamentButton
+            homeGameId={homeGameId}
+            ownerId={homeGame?.ownerId}
+            homeGameName={homeGame?.name}
+          />
+        ) : (
+          <Button onClick={() => navigate('/home-games')}>
+            <Plus className="h-4 w-4" />
+            Novo Torneio
+          </Button>
+        )}
       </div>
 
       {/* Filters */}
@@ -227,12 +239,15 @@ export function TournamentListPage() {
                       {formatCurrency(tournament.buyInAmount)}
                     </p>
                   </div>
-                  <div className="text-right">
-                    <p className="text-xs text-text-secondary">Premiação</p>
-                    <p className="text-sm font-semibold text-accent-green-deep tabular-nums">
-                      {formatCurrency(tournament.totalPrizePool)}
-                    </p>
-                  </div>
+                  {/* Sem premiação no plano do dono (Mesa) o valor não aparece */}
+                  {hasFeature(tournament.planFeatures, 'Prizes') && (
+                    <div className="text-right">
+                      <p className="text-xs text-text-secondary">Premiação</p>
+                      <p className="text-sm font-semibold text-accent-green-deep tabular-nums">
+                        {formatCurrency(tournament.totalPrizePool)}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             )

@@ -7,6 +7,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { ArrowLeft, Loader2 } from 'lucide-react'
 import * as homeGamesApi from '../../api/homeGames.api'
+import { isPlanLimitError } from '../../api/client'
+import { MY_PLAN_QUERY_KEY } from '../../hooks/usePlan'
 import { Input } from '../../components/ui/Input'
 import { Textarea } from '../../components/ui/Textarea'
 import { Button } from '../../components/ui/Button'
@@ -101,11 +103,14 @@ export function HomeGameFormPage() {
     onSuccess: async (result) => {
       toast.success('Home game criado com sucesso!')
       queryClient.invalidateQueries({ queryKey: ['homeGames'] })
+      void queryClient.invalidateQueries({ queryKey: MY_PLAN_QUERY_KEY })
       await refreshHomeGames()
       selectHomeGame(result)
       navigate(homeGameDetailPath(result.id))
     },
-    onError: () => {
+    onError: (err: unknown) => {
+      // 402 (limite de home games do plano): o UpgradeModal já abriu sozinho com o motivo
+      if (isPlanLimitError(err)) return
       toast.error('Erro ao criar home game. Tente novamente.')
     },
   })

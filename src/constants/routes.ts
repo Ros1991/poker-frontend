@@ -24,6 +24,8 @@ export const ROUTES = {
   USERS: '/users',
   USER_NEW: '/users/new',
   USER_EDIT: '/users/:id/edit',
+  /** Página "Meu plano" (SPEC-20261023-1205): plano, uso e tabela comparativa */
+  MY_PLAN: '/meu-plano',
   BLIND_STRUCTURE_NEW: '/home-games/:homeGameId/blinds/new',
   BLIND_STRUCTURE_EDIT: '/home-games/:homeGameId/blinds/:id/edit',
   DEALER_TERMINAL: '/dealer/:tournamentId',

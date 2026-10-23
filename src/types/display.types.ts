@@ -1,5 +1,7 @@
 // TV pareada por QR e terminal do dealer por QR (espelham os DTOs do backend)
 
+import type { PlanName } from './plan.types'
+
 export interface DisplaySessionStatus {
   status: 'Pending' | 'Paired'
   pairingCode: string | null
@@ -45,6 +47,14 @@ export interface TvTournamentInfo {
   totalRebuys: number
   totalAddons: number
   responsiblePixKey: string | null
+  // SPEC-20261023-1205 (D6/D13). No Mesa o backend já devolve prizes = [], prizePool = 0, tables = [],
+  // responsiblePixKey = null e zera balance/totalDue/prizeAmount de cada entrada.
+  /** Plano efetivo do dono do home game */
+  plan?: PlanName
+  /** Mesa e Clube mostram o selo "Feito com Poker da Galera" (Mesa com QR, Clube discreto) */
+  showBadge?: boolean
+  /** Só na Liga: logo do clube (HomeGame.LogoUrl) no lugar do selo */
+  clubLogoUrl?: string | null
 }
 
 export interface TvBlindLevel {

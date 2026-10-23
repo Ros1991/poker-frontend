@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import * as entriesApi from '../../api/entries.api'
 import * as historyApi from '../../api/history.api'
+import { hasFeature } from '../../hooks/usePlan'
 import type { EliminationResult, TournamentEntry } from '../../types/entry.types'
 import type { HistoryItem, HistoryKind } from '../../types/history.types'
 import type { Tournament } from '../../types/tournament.types'
@@ -37,6 +38,20 @@ function createdSince(items: HistoryItem[], kinds: HistoryKind[], before: Set<st
   return items.filter((i) => kinds.includes(i.kind) && !before.has(i.refId))
 }
 
+/**
+ * O que o plano do DONO libera no terminal (SPEC-20261023-1205), pelo `tournament.planFeatures`.
+ * Só decide com o torneio carregado: antes disso nenhuma consulta de recurso pago sai (daria 402).
+ * - `payments`: Pagar, PaymentModal, abatimento e sugestões de PIX (D3)
+ * - `tables`: mesas, "Mesas" do "Mais" e os avisos de desequilíbrio (D13)
+ * Rebuy, add-on, eliminar, desfazer, histórico e relógio não dependem de plano (invariante).
+ */
+export function terminalFeatures(tournament: Tournament | undefined): { payments: boolean; tables: boolean } {
+  return {
+    payments: !!tournament && hasFeature(tournament.planFeatures, 'Payments'),
+    tables: !!tournament && hasFeature(tournament.planFeatures, 'Tables'),
+  }
+}
+
 interface TerminalActionsOptions {
   /** Uma eliminação foi desfeita (toast, Ficha ou Histórico): o sorteio de mesas aberto ficou velho */
   onEliminationUndone?: () => void
@@ -53,6 +68,9 @@ export function useTerminalActions(
   { onEliminationUndone }: TerminalActionsOptions = {},
 ) {
   const queryClient = useQueryClient()
+  const features = terminalFeatures(tournament)
+  const paymentsEnabled = features.payments
+  const tablesEnabled = features.tables
   const [paymentEntry, setPaymentEntry] = useState<TournamentEntry | null>(null)
   // Pagamentos do jogador quando o PaymentModal abriu: null = não deu para consultar; undefined = carregando
   const paymentBaseline = useRef<{ entryId: string; before: Set<string> | null | undefined } | null>(null)
@@ -60,13 +78,16 @@ export function useTerminalActions(
   const invalidateAll = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: ['entries', tournamentId] })
     void queryClient.invalidateQueries({ queryKey: ['tournament', tournamentId] })
-    void queryClient.invalidateQueries({ queryKey: ['tables', tournamentId] })
     void queryClient.invalidateQueries({ queryKey: ['history', tournamentId] })
     void queryClient.invalidateQueries({ queryKey: ['availablePlayers', tournamentId] })
-    void queryClient.invalidateQueries({ queryKey: ['payments', tournamentId] })
-    void queryClient.invalidateQueries({ queryKey: ['costExtras', tournamentId] })
-    void queryClient.invalidateQueries({ queryKey: ['pixSuggestions', tournamentId] })
-  }, [queryClient, tournamentId])
+    // Recursos pagos: sem eles no plano as consultas nem existem (dariam 402)
+    if (tablesEnabled) void queryClient.invalidateQueries({ queryKey: ['tables', tournamentId] })
+    if (paymentsEnabled) {
+      void queryClient.invalidateQueries({ queryKey: ['payments', tournamentId] })
+      void queryClient.invalidateQueries({ queryKey: ['costExtras', tournamentId] })
+      void queryClient.invalidateQueries({ queryKey: ['pixSuggestions', tournamentId] })
+    }
+  }, [queryClient, tournamentId, tablesEnabled, paymentsEnabled])
 
   /** Desfaz um item do histórico (já confirmado pelo usuário) */
   const undoItem = useCallback(
@@ -186,6 +207,8 @@ export function useTerminalActions(
   /** Abre o PaymentModal guardando os pagamentos que já existiam, para oferecer "Desfazer" ao fechar */
   const openPayment = useCallback(
     (entry: TournamentEntry) => {
+      // Sem Payments no plano do dono não há pagamento (o botão nem aparece)
+      if (!paymentsEnabled) return
       const baseline = { entryId: entry.id, before: undefined as Set<string> | null | undefined }
       paymentBaseline.current = baseline
       setPaymentEntry(entry)
@@ -193,7 +216,7 @@ export function useTerminalActions(
         baseline.before = before
       })
     },
-    [tournamentId],
+    [tournamentId, paymentsEnabled],
   )
 
   const closePayment = useCallback(() => {
@@ -219,6 +242,8 @@ export function useTerminalActions(
   }, [paymentEntry, tournamentId, invalidateAll, undoItem])
 
   return {
+    paymentsEnabled,
+    tablesEnabled,
     invalidateAll,
     undoItem,
     showUndoToast,

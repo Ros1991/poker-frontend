@@ -17,10 +17,23 @@ interface PlayersSheetProps {
   tables: Table[] | undefined
   onOpenPlayer: (entry: TournamentEntry) => void
   onAddPlayer: () => void
+  /** Plano do dono com Payments: "Deve/Pago" de cada um (SPEC-20261023-1205, D3) */
+  showPayments?: boolean
+  /** Plano do dono com Tables: mesa e lugar de cada um */
+  showTables?: boolean
 }
 
 /** Todos os jogadores do torneio: ativos primeiro (por nome), depois eliminados */
-export function PlayersSheet({ isOpen, onClose, entries, tables, onOpenPlayer, onAddPlayer }: PlayersSheetProps) {
+export function PlayersSheet({
+  isOpen,
+  onClose,
+  entries,
+  tables,
+  onOpenPlayer,
+  onAddPlayer,
+  showPayments = true,
+  showTables = true,
+}: PlayersSheetProps) {
   const [search, setSearch] = useState('')
 
   const list = useMemo(() => {
@@ -74,10 +87,10 @@ export function PlayersSheet({ isOpen, onClose, entries, tables, onOpenPlayer, o
                       {playerName(e)}
                     </span>
                     <span className="block truncate text-xs text-text-secondary">
-                      {active ? seatLabel(e, tables) : statusLabel(e)}
+                      {active && showTables ? seatLabel(e, tables) : statusLabel(e)}
                     </span>
                   </span>
-                  <DueLabel entry={e} className="shrink-0 text-xs" />
+                  {showPayments && <DueLabel entry={e} className="shrink-0 text-xs" />}
                   <ChevronRight className="h-4 w-4 shrink-0 text-text-muted" />
                 </button>
               </li>

@@ -7,6 +7,7 @@ import {
   ChevronRight,
   Plus,
   Check,
+  Crown,
 } from 'lucide-react'
 import { cn } from '../../utils/cn'
 import { BrandLogo } from '../brand/BrandLogo'
@@ -118,6 +119,36 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
             >
               <Plus className="h-5 w-5 flex-shrink-0" />
               {!collapsed && <span>Criar Home Game</span>}
+            </NavLink>
+          </li>
+        </ul>
+
+        {/* Conta (SPEC-20261023-1205) */}
+        <div className="my-3 mx-3 border-t border-border-default" />
+        {!collapsed && (
+          <div className="px-3 mb-2">
+            <span className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
+              Conta
+            </span>
+          </div>
+        )}
+        <ul className="flex flex-col gap-1 px-2">
+          <li>
+            <NavLink
+              to={ROUTES.MY_PLAN}
+              onClick={onNavigate}
+              title={collapsed ? 'Meu plano' : undefined}
+              className={({ isActive }) =>
+                cn(
+                  'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors min-h-[44px]',
+                  isActive
+                    ? 'bg-accent-blue-soft text-accent-blue'
+                    : 'text-text-secondary hover:bg-bg-tertiary hover:text-text-primary',
+                )
+              }
+            >
+              <Crown className="h-5 w-5 flex-shrink-0" />
+              {!collapsed && <span>Meu plano</span>}
             </NavLink>
           </li>
         </ul>

@@ -9,7 +9,8 @@ interface TerminalHeaderProps {
   /** Aberto pelo QR do dealer: selo "Dealer · Nome" + botão "Sair" */
   dealerMode?: { onExit: () => void; dealerName?: string }
   tableName: string | null
-  onSelectTable: () => void
+  /** Sem controle de mesas no plano (SPEC-20261023-1205) não há seletor: `tableName` vira só texto */
+  onSelectTable?: () => void
   formattedTime: string
   timerState: TimerState
   onPrevLevel: () => void
@@ -74,14 +75,20 @@ export function TerminalHeader({
       </div>
 
       <div className="flex items-center justify-between gap-2">
-        <button
-          type="button"
-          onClick={onSelectTable}
-          className="flex min-h-[44px] items-center gap-1 rounded-lg border border-border-default bg-bg-primary px-3 text-base font-bold text-text-primary"
-        >
-          {tableName ?? 'Escolher mesa'}
-          <ChevronDown className="h-4 w-4 text-accent-blue" />
-        </button>
+        {onSelectTable ? (
+          <button
+            type="button"
+            onClick={onSelectTable}
+            className="flex min-h-[44px] items-center gap-1 rounded-lg border border-border-default bg-bg-primary px-3 text-base font-bold text-text-primary"
+          >
+            {tableName ?? 'Escolher mesa'}
+            <ChevronDown className="h-4 w-4 text-accent-blue" />
+          </button>
+        ) : (
+          <p className="flex min-h-[44px] items-center text-base font-bold tabular-nums text-text-primary">
+            {tableName}
+          </p>
+        )}
         <div className="text-right">
           {/* Relógio rodando em marinho; pausado no único dourado que vale como texto */}
           <p

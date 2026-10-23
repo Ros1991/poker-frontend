@@ -18,6 +18,10 @@ interface PlayerCardProps {
   onAddon: () => void
   onPay: () => void
   onEliminate: () => void
+  /** Plano do dono com Payments: botão "Pagar" e "Deve/Pago" (SPEC-20261023-1205, D3) */
+  showPayment?: boolean
+  /** Plano do dono com Tables: número do lugar à esquerda */
+  showSeat?: boolean
 }
 
 /** "Deve R$ 50,00" em vermelho ou "Pago" em verde (texto pequeno: variante -deep, que passa AA) */
@@ -67,7 +71,17 @@ function ActionButton({
 }
 
 /** Card do jogador na tela da mesa: tocar no nome abre a Ficha */
-export function PlayerCard({ entry, rules, onOpen, onRebuy, onAddon, onPay, onEliminate }: PlayerCardProps) {
+export function PlayerCard({
+  entry,
+  rules,
+  onOpen,
+  onRebuy,
+  onAddon,
+  onPay,
+  onEliminate,
+  showPayment = true,
+  showSeat = true,
+}: PlayerCardProps) {
   const name = playerName(entry)
   return (
     <div className="rounded-xl border border-border-default bg-bg-secondary p-2.5">
@@ -76,9 +90,11 @@ export function PlayerCard({ entry, rules, onOpen, onRebuy, onAddon, onPay, onEl
         onClick={onOpen}
         className="mb-2 flex w-full items-center gap-2.5 rounded-lg text-left"
       >
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-bg-tertiary text-sm font-bold text-text-primary">
-          {entry.seatNumber ?? '–'}
-        </span>
+        {showSeat && (
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-bg-tertiary text-sm font-bold text-text-primary">
+            {entry.seatNumber ?? '–'}
+          </span>
+        )}
         <Avatar src={entry.person.photoUrl} name={entry.person.fullName} size="md" />
         <span className="min-w-0 flex-1">
           <span className="block truncate text-base font-semibold text-text-primary">{name}</span>
@@ -89,15 +105,17 @@ export function PlayerCard({ entry, rules, onOpen, onRebuy, onAddon, onPay, onEl
           </span>
         </span>
         <span className="flex shrink-0 items-center gap-1 text-right text-sm">
-          <DueLabel entry={entry} />
+          {showPayment && <DueLabel entry={entry} />}
           <ChevronRight className="h-4 w-4 text-text-muted" />
         </span>
       </button>
 
-      <div className="grid grid-cols-4 gap-1.5">
+      <div className={cn('grid gap-1.5', showPayment ? 'grid-cols-4' : 'grid-cols-3')}>
         <ActionButton label="Rebuy" icon={<RefreshCw className="h-4 w-4" />} onClick={onRebuy} disabled={!rules.canRebuy} tone="rebuy" />
         <ActionButton label="Add-on" icon={<PlusCircle className="h-4 w-4" />} onClick={onAddon} disabled={!rules.canAddon} tone="addon" />
-        <ActionButton label="Pagar" icon={<CreditCard className="h-4 w-4" />} onClick={onPay} tone="pay" />
+        {showPayment && (
+          <ActionButton label="Pagar" icon={<CreditCard className="h-4 w-4" />} onClick={onPay} tone="pay" />
+        )}
         <ActionButton label="Eliminar" icon={<Skull className="h-4 w-4" />} onClick={onEliminate} tone="danger" />
       </div>
     </div>

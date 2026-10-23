@@ -14,6 +14,8 @@ interface AddPlayerModalProps {
   isOpen: boolean
   onClose: () => void
   tournamentId: string
+  /** Sem Payments no plano do dono (SPEC-20261023-1205, D3) a inscrição não pode nascer paga */
+  allowPayment?: boolean
   homeGameId: string
 }
 
@@ -29,6 +31,7 @@ export function AddPlayerModal({
   onClose,
   tournamentId,
   homeGameId,
+  allowPayment = true,
 }: AddPlayerModalProps) {
   const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
@@ -95,7 +98,7 @@ export function AddPlayerModal({
 
   const bulkMutation = useMutation({
     mutationFn: () =>
-      entriesApi.bulkCreate(tournamentId, [...selectedIds], payNow),
+      entriesApi.bulkCreate(tournamentId, [...selectedIds], allowPayment && payNow),
     onSuccess: (created) => {
       queryClient.invalidateQueries({ queryKey: ['entries', tournamentId] })
       queryClient.invalidateQueries({ queryKey: ['tournament', tournamentId] })
@@ -399,17 +402,19 @@ export function AddPlayerModal({
 
         {/* Rodapé fixo de ação */}
         <div className="flex flex-col gap-3 border-t border-border-default pt-3">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={payNow}
-              onChange={(e) => setPayNow(e.target.checked)}
-              className="h-5 w-5 rounded border-border-input bg-bg-input text-accent-blue focus:ring-accent-blue"
-            />
-            <span className="text-sm text-text-primary">
-              Buy-in pago na entrada (todos os selecionados)
-            </span>
-          </label>
+          {allowPayment && (
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={payNow}
+                onChange={(e) => setPayNow(e.target.checked)}
+                className="h-5 w-5 rounded border-border-input bg-bg-input text-accent-blue focus:ring-accent-blue"
+              />
+              <span className="text-sm text-text-primary">
+                Buy-in pago na entrada (todos os selecionados)
+              </span>
+            </label>
+          )}
           <div className="flex gap-3 justify-end">
             <Button
               variant="ghost"
