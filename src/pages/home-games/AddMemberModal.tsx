@@ -9,7 +9,7 @@ import { Modal } from '../../components/ui/Modal'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { Avatar } from '../../components/ui/Avatar'
-import { errorStatus } from '../../utils/httpErrors'
+import { errorMessage, errorStatus } from '../../utils/httpErrors'
 import type { UserLookup } from '../../types/user.types'
 
 interface AddMemberModalProps {
@@ -66,11 +66,12 @@ export function AddMemberModal({
     onError: (error: unknown) => {
       setFound(null)
       const status = errorStatus(error)
-      const serverMessage = (error as { response?: { data?: { message?: string } } })
-        ?.response?.data?.message
+      const serverMessage = errorMessage(error)
       if (status === 404) {
+        // Só contas com e-mail confirmado aparecem (D16.6); a mensagem vem do backend
         setLookupMessage(
-          'Nenhuma conta com este e-mail. A pessoa precisa criar a conta primeiro.',
+          serverMessage ||
+            'Nenhuma conta confirmada com este e-mail. A pessoa precisa criar a conta e confirmar o e-mail.',
         )
       } else if (status === 400) {
         setLookupMessage('Informe o e-mail.')
@@ -179,7 +180,7 @@ export function AddMemberModal({
             </Button>
           </div>
           <p className="text-xs text-text-secondary">
-            Peça o e-mail que a pessoa usou no cadastro.
+            Peça o e-mail que a pessoa usou no cadastro (a conta precisa estar confirmada).
           </p>
         </div>
 

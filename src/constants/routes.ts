@@ -3,6 +3,7 @@ export const ROUTES = {
   REGISTER: '/register',
   FORGOT_PASSWORD: '/esqueci-senha',
   RESET_PASSWORD: '/redefinir-senha/:token',
+  CONFIRM_EMAIL: '/confirmar-email/:token',
   HOME: '/',
   HOME_GAMES: '/home-games',
   HOME_GAME_NEW: '/home-games/new',
@@ -36,6 +37,10 @@ export const ROUTES = {
 
 export function resetPasswordPath(token: string) {
   return `/redefinir-senha/${token}`
+}
+
+export function confirmEmailPath(token: string) {
+  return `/confirmar-email/${token}`
 }
 
 export function tournamentDashboardPath(id: string) {
