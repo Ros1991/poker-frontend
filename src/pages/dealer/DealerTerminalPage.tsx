@@ -1,82 +1,123 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import {
-  RefreshCw,
-  PlusCircle,
-  Skull,
-  CreditCard,
-  Undo2,
-  Clock,
-  Pause,
-  Play,
-  SkipForward,
-  SkipBack,
-  LayoutGrid,
-  X,
-} from 'lucide-react'
+import { ChevronDown, ChevronRight, Shuffle, UserPlus } from 'lucide-react'
 import { toast } from 'sonner'
 import * as tournamentsApi from '../../api/tournaments.api'
 import * as entriesApi from '../../api/entries.api'
 import * as tablesApi from '../../api/tables.api'
-import * as tournamentDealersApi from '../../api/tournamentDealers.api'
 import * as timerApi from '../../api/timer.api'
 import { useBlindTimer } from '../../hooks/useBlindTimer'
 import { useWebSocket } from '../../hooks/useWebSocket'
-import { Button } from '../../components/ui/Button'
 import { Avatar } from '../../components/ui/Avatar'
-import { Badge } from '../../components/ui/Badge'
-import { Modal } from '../../components/ui/Modal'
+import { Button } from '../../components/ui/Button'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { LoadingSpinner } from '../../components/common/LoadingSpinner'
 import { PaymentModal } from '../../components/tournament/PaymentModal'
+import { AddonDialog } from '../../components/dealer/AddonDialog'
+import { AddPlayerSheet } from '../../components/dealer/AddPlayerSheet'
+import { BalanceDrawDialog } from '../../components/dealer/BalanceDrawDialog'
+import { BreakTableDialog } from '../../components/dealer/BreakTableDialog'
+import { DrawTablesDialog } from '../../components/dealer/DrawTablesDialog'
+import { EliminateDialog } from '../../components/dealer/EliminateDialog'
+import { HistorySheet } from '../../components/dealer/HistorySheet'
+import { MoreMenu } from '../../components/dealer/MoreMenu'
+import type { MoreScreen } from '../../components/dealer/MoreMenu'
+import { MovePlayerDialog } from '../../components/dealer/MovePlayerDialog'
+import { PlayerCard } from '../../components/dealer/PlayerCard'
+import type { PlayerActionRules } from '../../components/dealer/PlayerCard'
+import { PlayerSheet } from '../../components/dealer/PlayerSheet'
+import { PlayersSheet } from '../../components/dealer/PlayersSheet'
+import { TableAlerts } from '../../components/dealer/TableAlerts'
+import { TablesSheet } from '../../components/dealer/TablesSheet'
+import { TableSelectDialog } from '../../components/dealer/TableSelectDialog'
+import { TerminalHeader } from '../../components/dealer/TerminalHeader'
+import { useTerminalActions } from '../../components/dealer/useTerminalActions'
+import {
+  apiErrorMessage,
+  formatCurrency,
+  isActiveStatus,
+  playerName,
+  statusLabel,
+  tableLabel,
+} from '../../components/dealer/terminalFormat'
+import { analyzeTables, countUnseated, pickRandomBalanceMove, seatedByTable } from '../../utils/tableBalance'
+import type { BalanceMove } from '../../utils/tableBalance'
 import type { TimerState } from '../../types/blind.types'
 import type { TournamentEntry } from '../../types/entry.types'
+import type { Table } from '../../api/tables.api'
 
-function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-  }).format(value)
+function httpStatus(err: unknown): number | undefined {
+  return (err as { response?: { status?: number } })?.response?.status
 }
 
-export function DealerTerminalPage() {
-  const { tournamentId } = useParams<{ tournamentId: string }>()
+/**
+ * O sorteio de equilíbrio ainda vale com os dados de agora: o jogador segue
+ * ativo no mesmo lugar, o lugar de destino está livre e as mesas continuam
+ * desequilibradas (2 ou mais de diferença entre origem e destino).
+ */
+function isBalanceMoveStillValid(move: BalanceMove, tables: Table[], entries: TournamentEntry[]): boolean {
+  const player = entries.find((e) => e.id === move.entryId)
+  if (!player || !isActiveStatus(player.status)) return false
+  if (player.tableId !== move.fromTableId || player.seatNumber !== move.fromSeat) return false
+  const toTable = tables.find((t) => t.id === move.toTableId)
+  if (!toTable || !tables.some((t) => t.id === move.fromTableId) || move.toSeat > toTable.maxSeats) return false
+  const seated = seatedByTable(tables, entries)
+  const toPlayers = seated.get(move.toTableId) ?? []
+  if (toPlayers.some((e) => e.seatNumber === move.toSeat)) return false
+  const fromCount = seated.get(move.fromTableId)?.length ?? 0
+  return fromCount - toPlayers.length >= 2
+}
+
+interface DealerTerminalPageProps {
+  /** Aberto pelo QR do dealer (sem login, só este torneio) */
+  dealerMode?: { tournamentName: string; onExit: () => void }
+}
+
+/**
+ * Terminal do dealer: a tela principal é a mesa (Rebuy, Add-on, Pagar, Eliminar);
+ * o menos usado (adicionar jogador, jogadores, mesas, histórico) fica atrás do "Mais".
+ * Mesma tela para o dealer por QR e para quem abre logado.
+ */
+export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {}) {
+  const { tournamentId: routeTournamentId } = useParams<{ tournamentId: string }>()
+  const tournamentId = routeTournamentId ?? ''
   const queryClient = useQueryClient()
+
   const [selectedTableId, setSelectedTableId] = useState<string | null>(null)
-  const [tableModalOpen, setTableModalOpen] = useState(false)
-  const [paymentEntry, setPaymentEntry] = useState<TournamentEntry | null>(null)
-  const [addonConfirm, setAddonConfirm] = useState<TournamentEntry | null>(null)
-  const [confirmAction, setConfirmAction] = useState<{
-    type: 'rebuy' | 'addon' | 'eliminate' | 'undo'
-    entry: TournamentEntry
-  } | null>(null)
+  const [tableSelectOpen, setTableSelectOpen] = useState(false)
+  const [moreOpen, setMoreOpen] = useState(false)
+  const [screen, setScreen] = useState<MoreScreen | null>(null)
+  const [fichaEntryId, setFichaEntryId] = useState<string | null>(null)
+  const [showEliminated, setShowEliminated] = useState(false)
+  const [rebuyEntry, setRebuyEntry] = useState<TournamentEntry | null>(null)
+  const [addonEntry, setAddonEntry] = useState<TournamentEntry | null>(null)
+  const [eliminateEntry, setEliminateEntry] = useState<TournamentEntry | null>(null)
+  const [undoElimEntry, setUndoElimEntry] = useState<TournamentEntry | null>(null)
+  const [moveEntry, setMoveEntry] = useState<TournamentEntry | null>(null)
+  const [drawOpen, setDrawOpen] = useState(false)
+  const [breakOpen, setBreakOpen] = useState(false)
+  const [balanceMove, setBalanceMove] = useState<BalanceMove | null>(null)
 
   const { data: tournament } = useQuery({
     queryKey: ['tournament', tournamentId],
-    queryFn: () => tournamentsApi.getById(tournamentId!),
+    queryFn: () => tournamentsApi.getById(tournamentId),
     enabled: !!tournamentId,
     refetchInterval: 8000,
   })
 
   const { data: entries, isLoading: entriesLoading } = useQuery({
     queryKey: ['entries', tournamentId],
-    queryFn: () => entriesApi.getAll(tournamentId!),
+    queryFn: () => entriesApi.getAll(tournamentId),
     enabled: !!tournamentId,
     refetchInterval: 8000,
   })
 
   const { data: tables } = useQuery({
     queryKey: ['tables', tournamentId],
-    queryFn: () => tablesApi.getAll(tournamentId!),
+    queryFn: () => tablesApi.getAll(tournamentId),
     enabled: !!tournamentId,
     refetchInterval: 8000,
-  })
-
-  useQuery({
-    queryKey: ['tournamentDealers', tournamentId],
-    queryFn: () => tournamentDealersApi.getAll(tournamentId!),
-    enabled: !!tournamentId,
   })
 
   const { formattedTime, timerState, syncFromServer } = useBlindTimer()
@@ -84,7 +125,7 @@ export function DealerTerminalPage() {
   useQuery({
     queryKey: ['timer', tournamentId],
     queryFn: async () => {
-      const state = await timerApi.getState(tournamentId!)
+      const state = await timerApi.getState(tournamentId)
       syncFromServer(state as TimerState)
       return state
     },
@@ -93,533 +134,517 @@ export function DealerTerminalPage() {
   })
 
   useWebSocket({
-    tournamentId: tournamentId ?? '',
+    tournamentId,
     enabled: !!tournamentId,
     onTimerUpdate: (state) => syncFromServer(state as TimerState),
   })
 
-  // Auto-select default table (sem vínculo user->dealer no modelo atual)
-  useEffect(() => {
-    if (selectedTableId || !tables || tables.length === 0) return
-    setSelectedTableId(tables[0].id)
-  }, [tables, selectedTableId])
+  // Eliminação desfeita: o sorteio de equilíbrio/quebra aberto foi feito com as mesas de antes
+  const closeTableDialogs = useCallback(() => {
+    setBalanceMove(null)
+    setBreakOpen(false)
+  }, [])
 
-  const selectedTable = tables?.find((t) => t.id === selectedTableId) ?? null
+  const actions = useTerminalActions(tournamentId, tournament, { onEliminationUndone: closeTableDialogs })
+  const { invalidateAll } = actions
 
-  const invalidateAll = () => {
-    void queryClient.invalidateQueries({ queryKey: ['entries', tournamentId] })
-    void queryClient.invalidateQueries({ queryKey: ['tournament', tournamentId] })
-    void queryClient.invalidateQueries({ queryKey: ['tables', tournamentId] })
-  }
+  const allEntries = useMemo(() => entries ?? [], [entries])
+  const allTables = useMemo(() => tables ?? [], [tables])
 
-  const rebuyMutation = useMutation({
-    mutationFn: (entryId: string) => entriesApi.rebuy(tournamentId!, entryId),
-    onSuccess: () => {
-      invalidateAll()
-      toast.success('Rebuy registrado!')
-      setConfirmAction(null)
-    },
-    onError: () => toast.error('Erro ao registrar rebuy.'),
-  })
+  // Mesa escolhida; se ela sumiu (sorteio de novo, mesa quebrada) cai na primeira
+  const selectedTable =
+    allTables.find((t) => t.id === selectedTableId) ?? allTables[0] ?? null
 
-  const addonMutation = useMutation({
-    mutationFn: (vars: { entryId: string; isDouble: boolean }) =>
-      entriesApi.addon(tournamentId!, vars.entryId, { isDouble: vars.isDouble }),
-    onSuccess: () => {
-      invalidateAll()
-      toast.success('Add-on registrado!')
-      setAddonConfirm(null)
-    },
-    onError: () => toast.error('Erro ao registrar add-on.'),
-  })
+  const analysis = useMemo(() => analyzeTables(allTables, allEntries), [allTables, allEntries])
 
-  const eliminateMutation = useMutation({
-    mutationFn: (entryId: string) =>
-      entriesApi.eliminate(tournamentId!, entryId, { entryId }),
-    onSuccess: () => {
-      invalidateAll()
-      toast.success('Jogador eliminado!')
-      setConfirmAction(null)
-    },
-    onError: () => toast.error('Erro ao eliminar jogador.'),
-  })
+  const activeEntries = useMemo(() => allEntries.filter((e) => isActiveStatus(e.status)), [allEntries])
 
-  const undoMutation = useMutation({
-    mutationFn: (entryId: string) =>
-      entriesApi.undoElimination(tournamentId!, entryId),
-    onSuccess: () => {
-      invalidateAll()
-      toast.success('Eliminacao desfeita!')
-      setConfirmAction(null)
-    },
-    onError: () => toast.error('Erro ao desfazer eliminacao.'),
-  })
-
-  const pauseMutation = useMutation({
-    mutationFn: () => timerApi.pause(tournamentId!),
-    onSuccess: (state) => {
-      syncFromServer(state as TimerState)
-      toast.success('Timer pausado')
-    },
-    onError: () => toast.error('Erro ao pausar timer.'),
-  })
-
-  const resumeMutation = useMutation({
-    mutationFn: () => timerApi.resume(tournamentId!),
-    onSuccess: (state) => {
-      syncFromServer(state as TimerState)
-      toast.success('Timer retomado')
-    },
-    onError: () => toast.error('Erro ao retomar timer.'),
-  })
-
-  const nextMutation = useMutation({
-    mutationFn: () => timerApi.nextLevel(tournamentId!),
-    onSuccess: (state) => {
-      syncFromServer(state as TimerState)
-      toast.success('Proximo nivel')
-    },
-    onError: () => toast.error('Erro ao avancar nivel.'),
-  })
-
-  const prevMutation = useMutation({
-    mutationFn: () => timerApi.previousLevel(tournamentId!),
-    onSuccess: (state) => {
-      syncFromServer(state as TimerState)
-      toast.success('Nivel anterior')
-    },
-    onError: () => toast.error('Erro ao voltar nivel.'),
-  })
-
-  // Filter entries at selected table
   const tableEntries = useMemo(() => {
-    if (!entries || !selectedTableId) return []
-    return entries
-      .filter((e) => e.tableId === selectedTableId)
+    if (!selectedTable) return []
+    return activeEntries
+      .filter((e) => e.tableId === selectedTable.id)
       .sort((a, b) => (a.seatNumber ?? 0) - (b.seatNumber ?? 0))
-  }, [entries, selectedTableId])
+  }, [activeEntries, selectedTable])
 
-  const activeEntries = tableEntries.filter(
-    (e) => e.status === 'Active' || e.status === 'Registered',
-  )
-  const eliminatedEntries = tableEntries.filter(
-    (e) => e.status !== 'Active' && e.status !== 'Registered',
+  // A inscrição não guarda a mesa de quem saiu: lista os eliminados do torneio, mais recentes primeiro
+  const eliminatedEntries = useMemo(
+    () =>
+      allEntries
+        .filter((e) => !isActiveStatus(e.status))
+        .sort((a, b) => (b.eliminatedAt ?? '').localeCompare(a.eliminatedAt ?? '')),
+    [allEntries],
   )
 
-  function handleConfirm() {
-    if (!confirmAction) return
-    const { type, entry } = confirmAction
-    switch (type) {
-      case 'rebuy':
-        rebuyMutation.mutate(entry.id)
-        break
-      case 'eliminate':
-        eliminateMutation.mutate(entry.id)
-        break
-      case 'undo':
-        undoMutation.mutate(entry.id)
-        break
+  const unseatedCount = useMemo(() => countUnseated(allTables, allEntries), [allTables, allEntries])
+
+  const fichaEntry = allEntries.find((e) => e.id === fichaEntryId) ?? null
+
+  function rulesFor(entry: TournamentEntry): PlayerActionRules {
+    const maxRebuys = tournament?.maxRebuys ?? 0
+    return {
+      canRebuy: !(maxRebuys > 0 && entry.rebuyCount >= maxRebuys),
+      canAddon: !entry.addonPurchased && (tournament?.addonAllowed ?? false),
     }
   }
 
-  const isActionLoading =
-    rebuyMutation.isPending ||
-    addonMutation.isPending ||
-    eliminateMutation.isPending ||
-    undoMutation.isPending
-
-  const confirmMessages: Record<string, string> = {
-    rebuy: `Confirmar rebuy para ${confirmAction?.entry.person.nickname ?? confirmAction?.entry.person.fullName ?? ''}?`,
-    addon: `Confirmar add-on para ${confirmAction?.entry.person.nickname ?? confirmAction?.entry.person.fullName ?? ''}?`,
-    eliminate: `Eliminar ${confirmAction?.entry.person.nickname ?? confirmAction?.entry.person.fullName ?? ''} do torneio?`,
-    undo: `Desfazer eliminacao de ${confirmAction?.entry.person.nickname ?? confirmAction?.entry.person.fullName ?? ''}?`,
+  function tablematesOf(entry: TournamentEntry): TournamentEntry[] {
+    return activeEntries
+      .filter((e) => e.id !== entry.id && !!entry.tableId && e.tableId === entry.tableId)
+      .sort((a, b) => (a.seatNumber ?? 0) - (b.seatNumber ?? 0))
   }
 
+  function openScreen(next: MoreScreen) {
+    setMoreOpen(false)
+    setTableSelectOpen(false)
+    setScreen(next)
+  }
+
+  // ── Timer ────────────────────────────────────────────────────────────
+  const pauseMutation = useMutation({
+    mutationFn: () => timerApi.pause(tournamentId),
+    onSuccess: (state) => {
+      syncFromServer(state as TimerState)
+      toast.success('Relógio pausado')
+    },
+    onError: (err) => toast.error(apiErrorMessage(err, 'Erro ao pausar o relógio.')),
+  })
+
+  const resumeMutation = useMutation({
+    mutationFn: () => timerApi.resume(tournamentId),
+    onSuccess: (state) => {
+      syncFromServer(state as TimerState)
+      toast.success('Relógio retomado')
+    },
+    onError: (err) => toast.error(apiErrorMessage(err, 'Erro ao retomar o relógio.')),
+  })
+
+  const nextMutation = useMutation({
+    mutationFn: () => timerApi.nextLevel(tournamentId),
+    onSuccess: (state) => {
+      syncFromServer(state as TimerState)
+      toast.success('Próximo nível')
+    },
+    onError: (err) => toast.error(apiErrorMessage(err, 'Erro ao avançar o nível.')),
+  })
+
+  const prevMutation = useMutation({
+    mutationFn: () => timerApi.previousLevel(tournamentId),
+    onSuccess: (state) => {
+      syncFromServer(state as TimerState)
+      toast.success('Nível anterior')
+    },
+    onError: (err) => toast.error(apiErrorMessage(err, 'Erro ao voltar o nível.')),
+  })
+
+  // ── Mesas: equilíbrio depois de eliminar ─────────────────────────────
+  /** Inscrições e mesas buscadas agora no servidor (sem cache) */
+  async function fetchFreshTables() {
+    const [freshEntries, freshTables] = await Promise.all([
+      queryClient.fetchQuery({
+        queryKey: ['entries', tournamentId],
+        queryFn: () => entriesApi.getAll(tournamentId),
+        staleTime: 0,
+      }),
+      queryClient.fetchQuery({
+        queryKey: ['tables', tournamentId],
+        queryFn: () => tablesApi.getAll(tournamentId),
+        staleTime: 0,
+      }),
+    ])
+    return { freshEntries, freshTables }
+  }
+
+  /** Com os dados novos: se der para quebrar uma mesa abre o "Quebrar"; senão, se desequilibrou, sorteia quem muda */
+  async function evaluateTablesAfterElimination() {
+    try {
+      const { freshEntries, freshTables } = await fetchFreshTables()
+      const fresh = analyzeTables(freshTables, freshEntries)
+      if (fresh.breakable) setBreakOpen(true)
+      else if (fresh.imbalance) setBalanceMove(pickRandomBalanceMove(fresh, freshTables, freshEntries))
+    } catch {
+      // Sem os dados novos, os avisos do topo aparecem na próxima consulta
+    }
+  }
+
+  function drawBalanceMove(excludeEntryId?: string) {
+    const move = pickRandomBalanceMove(analysis, allTables, allEntries, excludeEntryId)
+    if (!move) {
+      toast.info('As mesas já estão equilibradas.')
+      setBalanceMove(null)
+      return
+    }
+    setBalanceMove(move)
+  }
+
+  /** Sorteia de novo com os dados novos; se não há mais desequilíbrio, fecha avisando */
+  function redrawBalanceMove(freshTables: Table[], freshEntries: TournamentEntry[], notice?: string) {
+    const move = pickRandomBalanceMove(analyzeTables(freshTables, freshEntries), freshTables, freshEntries)
+    if (!move) {
+      toast.info('As mesas já estão equilibradas.')
+      setBalanceMove(null)
+      return
+    }
+    if (notice) toast.info(notice)
+    setBalanceMove(move)
+  }
+
+  const balanceMutation = useMutation({
+    mutationFn: async (move: BalanceMove) => {
+      // O sorteio pode ter ficado velho (eliminação desfeita, outro aparelho mexeu): confere antes
+      const { freshEntries, freshTables } = await fetchFreshTables()
+      if (!isBalanceMoveStillValid(move, freshTables, freshEntries)) {
+        return { moved: false as const, freshEntries, freshTables }
+      }
+      await tablesApi.movePlayer(tournamentId, {
+        entryId: move.entryId,
+        toTableId: move.toTableId,
+        toSeat: move.toSeat,
+        reason: 'balance',
+      })
+      return { moved: true as const }
+    },
+    onSuccess: (outcome, move) => {
+      if (!outcome.moved) {
+        redrawBalanceMove(outcome.freshTables, outcome.freshEntries, 'As mesas mudaram. Sorteamos de novo: confira antes de confirmar.')
+        return
+      }
+      const dest = allTables.find((t) => t.id === move.toTableId)
+      toast.success(`${move.playerName} foi para ${dest ? tableLabel(dest) : 'a mesa'}, lugar ${move.toSeat}`)
+      setBalanceMove(null)
+      invalidateAll()
+    },
+    onError: async (err) => {
+      toast.error(apiErrorMessage(err, 'Erro ao mudar o jogador de mesa.'))
+      // 400 = o servidor recusou este sorteio (ex.: lugar de destino já ocupado): sorteia de novo
+      if (httpStatus(err) !== 400) return
+      try {
+        const { freshEntries, freshTables } = await fetchFreshTables()
+        redrawBalanceMove(freshTables, freshEntries, 'Sorteamos de novo: confira antes de confirmar.')
+      } catch {
+        setBalanceMove(null)
+      }
+    },
+  })
+
+  // ── Render ───────────────────────────────────────────────────────────
+  const tournamentName = tournament?.name ?? dealerMode?.tournamentName ?? 'Torneio'
+  const noPlayers = !entriesLoading && allEntries.length === 0
+  const noTables = allTables.length === 0
+
   return (
-    <div className="min-h-screen bg-bg-primary flex flex-col">
-      {/* Compact Header */}
-      <header className="sticky top-0 z-30 border-b border-border-default bg-bg-secondary/95 backdrop-blur-sm px-3 py-2">
-        <div className="flex items-center justify-between gap-2">
-          <div className="min-w-0 flex-1">
-            <p className="text-xs text-text-muted truncate">
-              {tournament?.name}
-            </p>
-            <button
-              onClick={() => setTableModalOpen(true)}
-              className="flex items-center gap-1.5 text-sm font-semibold text-text-primary"
-            >
-              <LayoutGrid className="h-4 w-4 text-accent-blue" />
-              {selectedTable
-                ? `Mesa ${selectedTable.tableNumber}`
-                : 'Selecionar mesa'}
-            </button>
-          </div>
-          <div className="text-right">
-            <div className="flex items-center gap-1.5 justify-end">
-              <Clock className="h-3.5 w-3.5 text-text-muted" />
-              <span className="font-mono text-lg font-bold text-accent-green">
-                {formattedTime}
-              </span>
-            </div>
-            <p className="text-[10px] text-text-muted">
-              Nivel {timerState.currentLevel} — {timerState.smallBlind}/
-              {timerState.bigBlind}
-            </p>
-          </div>
-        </div>
+    <div className="flex min-h-screen flex-col bg-bg-primary">
+      <TerminalHeader
+        tournamentName={tournamentName}
+        dealerMode={dealerMode ? { onExit: dealerMode.onExit } : undefined}
+        tableName={selectedTable ? tableLabel(selectedTable) : noTables ? 'Sem mesas' : null}
+        onSelectTable={() => setTableSelectOpen(true)}
+        formattedTime={formattedTime}
+        timerState={timerState}
+        onPrevLevel={() => prevMutation.mutate()}
+        onNextLevel={() => nextMutation.mutate()}
+        onTogglePause={() => (timerState.isRunning ? pauseMutation.mutate() : resumeMutation.mutate())}
+        prevLoading={prevMutation.isPending}
+        nextLoading={nextMutation.isPending}
+        toggleLoading={pauseMutation.isPending || resumeMutation.isPending}
+        onOpenMore={() => setMoreOpen(true)}
+      />
 
-        {/* Timer controls */}
-        <div className="flex gap-1.5 mt-2">
-          <Button
-            variant="secondary"
-            size="sm"
-            className="flex-1"
-            onClick={() => prevMutation.mutate()}
-            loading={prevMutation.isPending}
-          >
-            <SkipBack className="h-3.5 w-3.5" />
-          </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            className="flex-1"
-            onClick={() =>
-              timerState.isRunning
-                ? pauseMutation.mutate()
-                : resumeMutation.mutate()
-            }
-            loading={pauseMutation.isPending || resumeMutation.isPending}
-          >
-            {timerState.isRunning ? (
-              <>
-                <Pause className="h-3.5 w-3.5" /> Pausar
-              </>
-            ) : (
-              <>
-                <Play className="h-3.5 w-3.5" /> Retomar
-              </>
-            )}
-          </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            className="flex-1"
-            onClick={() => nextMutation.mutate()}
-            loading={nextMutation.isPending}
-          >
-            <SkipForward className="h-3.5 w-3.5" />
-          </Button>
-        </div>
-      </header>
+      <TableAlerts
+        analysis={analysis}
+        tables={allTables}
+        unseatedCount={unseatedCount}
+        onBreakTable={() => setBreakOpen(true)}
+        onDrawBalance={() => drawBalanceMove()}
+        onOpenTables={() => openScreen('tables')}
+      />
 
-      {/* Player Cards */}
-      <div className="flex-1 overflow-y-auto px-3 py-3">
+      <main className="flex-1 px-3 py-3 pb-10">
         {entriesLoading ? (
-          <LoadingSpinner size="md" text="Carregando jogadores..." />
-        ) : !selectedTable ? (
-          <p className="text-center text-text-muted py-12">
-            Nenhuma mesa disponivel. Sorteie as mesas no dashboard.
-          </p>
+          <LoadingSpinner size="md" text="Carregando jogadores..." className="py-12" />
+        ) : noPlayers ? (
+          <div className="flex flex-col items-center gap-3 py-12 text-center">
+            <p className="text-text-secondary">Ainda não há jogadores no torneio.</p>
+            <Button size="lg" className="w-full max-w-xs" onClick={() => openScreen('addPlayer')}>
+              <UserPlus className="h-5 w-5" /> Adicionar jogador
+            </Button>
+          </div>
+        ) : noTables ? (
+          <div className="flex flex-col items-center gap-3 py-12 text-center">
+            <p className="text-text-secondary">
+              {activeEntries.length} {activeEntries.length === 1 ? 'jogador' : 'jogadores'} e nenhuma mesa sorteada.
+            </p>
+            <Button size="lg" className="w-full max-w-xs" onClick={() => setDrawOpen(true)}>
+              <Shuffle className="h-5 w-5" /> Sortear mesas
+            </Button>
+            <Button variant="secondary" className="w-full max-w-xs" onClick={() => openScreen('addPlayer')}>
+              <UserPlus className="h-4 w-4" /> Adicionar jogador
+            </Button>
+          </div>
         ) : (
           <>
-            {activeEntries.length > 0 && (
-              <div className="mb-4">
-                <h2 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">
-                  Ativos ({activeEntries.length})
-                </h2>
-                <div className="flex flex-col gap-2">
-                  {activeEntries.map((entry) => (
-                    <div
-                      key={entry.id}
-                      className="rounded-xl border border-border-default bg-bg-secondary p-3"
-                    >
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-bg-tertiary text-xs font-bold text-text-primary shrink-0">
-                          {entry.seatNumber ?? '-'}
-                        </div>
-                        <Avatar
-                          src={entry.person.photoUrl}
-                          name={entry.person.fullName}
-                          size="md"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-text-primary truncate">
-                            {entry.person.nickname ?? entry.person.fullName}
-                          </p>
-                          <div className="flex items-center gap-2 text-[11px] text-text-muted">
-                            <span>R: {entry.rebuyCount}</span>
-                            <span>·</span>
-                            <span>
-                              {entry.addonPurchased ? 'Addon' : 'Sem addon'}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p
-                            className={`text-xs font-bold ${entry.balance > 0 ? 'text-accent-red' : 'text-accent-green'}`}
-                          >
-                            {formatCurrency(entry.balance)}
-                          </p>
-                          <Badge
-                            color={
-                              entry.paymentStatus === 'Paid'
-                                ? 'green'
-                                : entry.paymentStatus === 'PartiallyPaid'
-                                  ? 'yellow'
-                                  : 'red'
-                            }
-                          >
-                            {entry.paymentStatus === 'Paid'
-                              ? 'Pago'
-                              : entry.paymentStatus === 'PartiallyPaid'
-                                ? 'Parcial'
-                                : 'Pend.'}
-                          </Badge>
-                        </div>
-                      </div>
-
-                      {/* Action Buttons */}
-                      <div className="grid grid-cols-4 gap-1.5">
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          disabled={
-                            (tournament?.maxRebuys ?? 0) > 0 &&
-                            entry.rebuyCount >= (tournament?.maxRebuys ?? 0)
-                          }
-                          onClick={() =>
-                            setConfirmAction({ type: 'rebuy', entry })
-                          }
-                        >
-                          <RefreshCw className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          disabled={
-                            entry.addonPurchased ||
-                            !(tournament?.addonAllowed ?? false)
-                          }
-                          onClick={() => setAddonConfirm(entry)}
-                        >
-                          <PlusCircle className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          variant="success"
-                          size="sm"
-                          onClick={() => setPaymentEntry(entry)}
-                        >
-                          <CreditCard className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          variant="danger"
-                          size="sm"
-                          onClick={() =>
-                            setConfirmAction({ type: 'eliminate', entry })
-                          }
-                        >
-                          <Skull className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-muted">
+              Jogando nesta mesa ({tableEntries.length})
+            </h2>
+            {tableEntries.length === 0 ? (
+              <p className="py-8 text-center text-text-muted">Nenhum jogador nesta mesa.</p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {tableEntries.map((entry) => (
+                  <PlayerCard
+                    key={entry.id}
+                    entry={entry}
+                    rules={rulesFor(entry)}
+                    onOpen={() => setFichaEntryId(entry.id)}
+                    onRebuy={() => setRebuyEntry(entry)}
+                    onAddon={() => setAddonEntry(entry)}
+                    onPay={() => actions.openPayment(entry)}
+                    onEliminate={() => setEliminateEntry(entry)}
+                  />
+                ))}
               </div>
-            )}
-
-            {eliminatedEntries.length > 0 && (
-              <div>
-                <h2 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">
-                  Eliminados ({eliminatedEntries.length})
-                </h2>
-                <div className="flex flex-col gap-1.5">
-                  {eliminatedEntries.map((entry) => (
-                    <div
-                      key={entry.id}
-                      className="flex items-center gap-2 rounded-lg border border-border-default bg-bg-secondary p-2 opacity-70"
-                    >
-                      <Avatar
-                        src={entry.person.photoUrl}
-                        name={entry.person.fullName}
-                        size="sm"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-text-primary truncate">
-                          {entry.person.nickname ?? entry.person.fullName}
-                        </p>
-                        <p className="text-[11px] text-text-muted">
-                          {entry.finalPosition
-                            ? `${entry.finalPosition}º lugar`
-                            : entry.status}
-                        </p>
-                      </div>
-                      {/* Campeão (nunca eliminado, eliminatedAt nulo) não tem eliminação a desfazer */}
-                      {entry.eliminatedAt && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() =>
-                            setConfirmAction({ type: 'undo', entry })
-                          }
-                        >
-                          <Undo2 className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {tableEntries.length === 0 && (
-              <p className="text-center text-text-muted py-12">
-                Nenhum jogador nesta mesa.
-              </p>
             )}
           </>
         )}
-      </div>
 
-      {/* Table selection modal */}
-      <Modal
-        isOpen={tableModalOpen}
-        onClose={() => setTableModalOpen(false)}
-        title="Selecionar Mesa"
-        size="sm"
-      >
-        <div className="flex flex-col gap-2">
-          {(tables ?? []).map((t) => {
-            const count =
-              entries?.filter(
-                (e) =>
-                  e.tableId === t.id &&
-                  (e.status === 'Active' || e.status === 'Registered'),
-              ).length ?? 0
-            const isMine = false
-            return (
-              <button
-                key={t.id}
-                onClick={() => {
-                  setSelectedTableId(t.id)
-                  setTableModalOpen(false)
-                }}
-                className={`flex items-center justify-between rounded-lg border p-3 text-left transition-colors ${
-                  selectedTableId === t.id
-                    ? 'border-accent-blue bg-accent-blue/10'
-                    : 'border-border-default bg-bg-primary hover:bg-bg-tertiary'
-                }`}
-              >
-                <div>
-                  <p className="font-semibold text-text-primary">
-                    Mesa {t.tableNumber}
-                    {isMine && (
-                      <span className="ml-2 text-xs text-accent-green">
-                        (sua)
-                      </span>
-                    )}
-                  </p>
-                  {t.dealerName && (
-                    <p className="text-xs text-text-muted">
-                      Dealer: {t.dealerName}
-                    </p>
-                  )}
-                </div>
-                <span className="text-sm text-text-muted">
-                  {count} jogadores
-                </span>
-              </button>
-            )
-          })}
-          {(!tables || tables.length === 0) && (
-            <p className="text-center text-text-muted py-4 text-sm">
-              Nenhuma mesa sorteada.
-            </p>
-          )}
-          <Button
-            variant="ghost"
-            onClick={() => setTableModalOpen(false)}
-            className="mt-2"
-          >
-            <X className="h-4 w-4" /> Fechar
-          </Button>
-        </div>
-      </Modal>
+        {eliminatedEntries.length > 0 && (
+          <section className="mt-5">
+            <button
+              type="button"
+              onClick={() => setShowEliminated((v) => !v)}
+              className="flex min-h-[44px] w-full items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-text-muted"
+            >
+              {showEliminated ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              Eliminados ({eliminatedEntries.length})
+            </button>
+            {showEliminated && (
+              <div className="flex flex-col gap-1.5">
+                {eliminatedEntries.map((entry) => (
+                  <button
+                    key={entry.id}
+                    type="button"
+                    onClick={() => setFichaEntryId(entry.id)}
+                    className="flex min-h-[48px] items-center gap-2 rounded-lg border border-border-default bg-bg-secondary p-2 text-left opacity-80"
+                  >
+                    <Avatar src={entry.person.photoUrl} name={entry.person.fullName} size="sm" />
+                    <span className="min-w-0 flex-1 truncate text-sm text-text-primary">{playerName(entry)}</span>
+                    <span className="text-xs text-text-muted">{statusLabel(entry)}</span>
+                    <ChevronRight className="h-4 w-4 text-text-muted" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+      </main>
 
-      {/* Payment modal */}
-      <PaymentModal
-        isOpen={!!paymentEntry}
-        onClose={() => setPaymentEntry(null)}
-        entry={paymentEntry}
-        tournamentId={tournamentId!}
+      {/* ── Topo: seletor de mesa e "Mais" ── */}
+      <TableSelectDialog
+        isOpen={tableSelectOpen}
+        onClose={() => setTableSelectOpen(false)}
+        tables={allTables}
+        entries={allEntries}
+        selectedTableId={selectedTable?.id ?? null}
+        onSelect={(id) => {
+          setSelectedTableId(id)
+          setTableSelectOpen(false)
+        }}
+        onOpenTables={() => openScreen('tables')}
       />
 
-      {/* Confirm Dialog */}
+      <MoreMenu isOpen={moreOpen} onClose={() => setMoreOpen(false)} onSelect={openScreen} />
+
+      {/* ── Telas do "Mais" ── */}
+      <AddPlayerSheet
+        isOpen={screen === 'addPlayer'}
+        onClose={() => setScreen(null)}
+        tournamentId={tournamentId}
+        tournament={tournament}
+        onAdded={(result) => {
+          invalidateAll()
+          // Inscrição nova: qualquer BuyIn dela no histórico é o desta ação
+          void actions.showUndoToast(
+            `${playerName(result.entry)} entrou no torneio`,
+            result.entry.id,
+            ['BuyIn'],
+            new Set(),
+          )
+        }}
+        onPay={(entry) => actions.openPayment(entry)}
+      />
+
+      <PlayersSheet
+        isOpen={screen === 'players'}
+        onClose={() => setScreen(null)}
+        entries={allEntries}
+        tables={allTables}
+        onOpenPlayer={(entry) => setFichaEntryId(entry.id)}
+        onAddPlayer={() => setScreen('addPlayer')}
+      />
+
+      <TablesSheet
+        isOpen={screen === 'tables'}
+        onClose={() => setScreen(null)}
+        tables={allTables}
+        entries={allEntries}
+        canBreak={!!analysis.breakable}
+        onMovePlayer={(entry) => setMoveEntry(entry)}
+        onDraw={() => setDrawOpen(true)}
+        onBreak={() => setBreakOpen(true)}
+      />
+
+      <HistorySheet
+        isOpen={screen === 'history'}
+        onClose={() => setScreen(null)}
+        tournamentId={tournamentId}
+        onUndo={actions.undoItem}
+      />
+
+      {/* ── Ficha do jogador ── */}
+      <PlayerSheet
+        entry={fichaEntry}
+        tables={allTables}
+        tournamentId={tournamentId}
+        rules={fichaEntry ? rulesFor(fichaEntry) : { canRebuy: false, canAddon: false }}
+        onClose={() => setFichaEntryId(null)}
+        onRebuy={() => fichaEntry && setRebuyEntry(fichaEntry)}
+        onAddon={() => fichaEntry && setAddonEntry(fichaEntry)}
+        onPay={() => fichaEntry && actions.openPayment(fichaEntry)}
+        onEliminate={() => fichaEntry && setEliminateEntry(fichaEntry)}
+        onMove={() => {
+          if (!fichaEntry) return
+          if (noTables) toast.info('Sorteie as mesas antes de mover jogadores.')
+          else setMoveEntry(fichaEntry)
+        }}
+        onUndoElimination={() => fichaEntry && setUndoElimEntry(fichaEntry)}
+        onUndo={actions.undoItem}
+      />
+
+      {/* ── Ações do jogador ── */}
       <ConfirmDialog
-        isOpen={!!confirmAction}
-        onClose={() => setConfirmAction(null)}
-        onConfirm={handleConfirm}
-        title={
-          confirmAction?.type === 'rebuy'
-            ? 'Confirmar Rebuy'
-            : confirmAction?.type === 'addon'
-              ? 'Confirmar Add-on'
-              : confirmAction?.type === 'eliminate'
-                ? 'Eliminar Jogador'
-                : 'Desfazer Eliminacao'
+        isOpen={!!rebuyEntry}
+        onClose={() => setRebuyEntry(null)}
+        onConfirm={() =>
+          rebuyEntry &&
+          actions.rebuyMutation.mutate(rebuyEntry, { onSettled: () => setRebuyEntry(null) })
         }
-        message={confirmMessages[confirmAction?.type ?? ''] ?? ''}
-        confirmLabel="Confirmar"
-        variant={confirmAction?.type === 'eliminate' ? 'danger' : 'warning'}
-        loading={isActionLoading}
+        title="Rebuy"
+        message={
+          rebuyEntry
+            ? `Rebuy para ${playerName(rebuyEntry)}: ${formatCurrency(tournament?.rebuyAmount ?? 0)}?`
+            : ''
+        }
+        confirmLabel="Confirmar rebuy"
+        variant="warning"
+        loading={actions.rebuyMutation.isPending}
       />
 
-      {/* Addon Modal (Simples / Duplo) — antes só dava simples no terminal */}
-      {addonConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-sm rounded-xl border border-border-default bg-bg-secondary p-6 shadow-xl">
-            <h3 className="text-lg font-semibold text-text-primary mb-2">
-              Confirmar Add-on
-            </h3>
-            <p className="text-sm text-text-secondary mb-4">
-              {addonConfirm.person.nickname ?? addonConfirm.person.fullName}
-            </p>
-            <div className="flex flex-col gap-2">
-              <Button
-                onClick={() =>
-                  addonMutation.mutate({ entryId: addonConfirm.id, isDouble: false })
-                }
-                loading={addonMutation.isPending}
-                className="w-full"
-              >
-                <PlusCircle className="h-4 w-4" />
-                Addon Simples
-                {tournament ? ` — ${formatCurrency(tournament.addonAmount)}` : ''}
-              </Button>
-              {tournament?.addonDoubleAllowed && (
-                <Button
-                  variant="secondary"
-                  onClick={() =>
-                    addonMutation.mutate({ entryId: addonConfirm.id, isDouble: true })
-                  }
-                  loading={addonMutation.isPending}
-                  className="w-full"
-                >
-                  <PlusCircle className="h-4 w-4" />
-                  Addon Duplo
-                  {tournament ? ` — ${formatCurrency(tournament.addonAmount * 2)}` : ''}
-                </Button>
-              )}
-              <Button
-                variant="ghost"
-                onClick={() => setAddonConfirm(null)}
-                disabled={addonMutation.isPending}
-                className="w-full mt-1"
-              >
-                Cancelar
-              </Button>
-            </div>
-          </div>
-        </div>
+      <AddonDialog
+        entry={addonEntry}
+        tournament={tournament}
+        loading={actions.addonMutation.isPending}
+        onClose={() => setAddonEntry(null)}
+        onConfirm={(isDouble) =>
+          addonEntry &&
+          actions.addonMutation.mutate(
+            { entry: addonEntry, isDouble },
+            { onSettled: () => setAddonEntry(null) },
+          )
+        }
+      />
+
+      {eliminateEntry && (
+        <EliminateDialog
+          entry={eliminateEntry}
+          tablemates={tablematesOf(eliminateEntry)}
+          loading={actions.eliminateMutation.isPending}
+          onClose={() => setEliminateEntry(null)}
+          onConfirm={(eliminatedByEntryId) =>
+            actions.eliminateMutation.mutate(
+              { entry: eliminateEntry, eliminatedByEntryId },
+              {
+                onSuccess: () => {
+                  setEliminateEntry(null)
+                  void evaluateTablesAfterElimination()
+                },
+              },
+            )
+          }
+        />
+      )}
+
+      <ConfirmDialog
+        isOpen={!!undoElimEntry}
+        onClose={() => setUndoElimEntry(null)}
+        onConfirm={() =>
+          undoElimEntry &&
+          actions.undoEliminationMutation.mutate(undoElimEntry, { onSettled: () => setUndoElimEntry(null) })
+        }
+        title="Desfazer eliminação"
+        message={undoElimEntry ? `Desfazer a eliminação de ${playerName(undoElimEntry)}? Ele volta a jogar.` : ''}
+        confirmLabel="Desfazer"
+        variant="warning"
+        loading={actions.undoEliminationMutation.isPending}
+      />
+
+      <PaymentModal
+        isOpen={!!actions.paymentEntry}
+        onClose={actions.closePayment}
+        entry={actions.paymentEntry}
+        tournamentId={tournamentId}
+      />
+
+      {/* ── Mesas ── */}
+      {moveEntry && (
+        <MovePlayerDialog
+          tournamentId={tournamentId}
+          entry={moveEntry}
+          tables={allTables}
+          entries={allEntries}
+          onClose={() => setMoveEntry(null)}
+          onMoved={invalidateAll}
+        />
+      )}
+
+      {drawOpen && (
+        <DrawTablesDialog
+          tournamentId={tournamentId}
+          hasTables={!noTables}
+          activePlayers={activeEntries.length}
+          defaultSeats={tournament?.seatsPerTable && tournament.seatsPerTable > 1 ? tournament.seatsPerTable : 9}
+          onClose={() => setDrawOpen(false)}
+          onDrawn={() => {
+            invalidateAll()
+            setSelectedTableId(null)
+            // Mostra os lugares sorteados para o dealer anunciar
+            setScreen('tables')
+          }}
+        />
+      )}
+
+      {breakOpen && (
+        <BreakTableDialog
+          tournamentId={tournamentId}
+          tables={allTables}
+          entries={allEntries}
+          suggestedTableId={analysis.breakable?.suggestedTableId ?? null}
+          onClose={() => setBreakOpen(false)}
+          onBroken={() => invalidateAll()}
+        />
+      )}
+
+      {balanceMove && (
+        <BalanceDrawDialog
+          move={balanceMove}
+          tables={allTables}
+          loading={balanceMutation.isPending}
+          onConfirm={() => balanceMutation.mutate(balanceMove)}
+          onReroll={() => drawBalanceMove(balanceMove.entryId)}
+          onChooseMyself={() => {
+            setBalanceMove(null)
+            openScreen('tables')
+          }}
+          onClose={() => setBalanceMove(null)}
+        />
       )}
     </div>
   )

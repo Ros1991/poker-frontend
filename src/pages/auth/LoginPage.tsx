@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, useLocation, Link } from 'react-router-dom'
+import type { Location } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod/v4'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -41,7 +42,12 @@ function decode(value: string | null): string {
 export function LoginPage() {
   const { login } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const [isLoading, setIsLoading] = useState(false)
+
+  // Volta para onde a pessoa estava (ex.: o QR da TV abriu /parear/CODIGO)
+  const from = (location.state as { from?: Location } | null)?.from
+  const returnTo = from ? `${from.pathname}${from.search}` : ROUTES.HOME
 
   const rememberedEmail = localStorage.getItem(REMEMBERED_EMAIL_KEY)
   const rememberedPassword = decode(localStorage.getItem(REMEMBERED_PASSWORD_KEY))
@@ -70,7 +76,7 @@ export function LoginPage() {
         localStorage.removeItem(REMEMBERED_PASSWORD_KEY)
       }
       await login(data)
-      navigate(ROUTES.HOME, { replace: true })
+      navigate(returnTo, { replace: true })
     } catch {
       toast.error('E-mail ou senha incorretos.')
     } finally {

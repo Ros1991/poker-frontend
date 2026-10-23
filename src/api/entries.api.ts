@@ -3,6 +3,9 @@ import type {
   TournamentEntry,
   CreateEntryRequest,
   EliminateRequest,
+  AvailablePlayer,
+  QuickAddEntryRequest,
+  QuickAddEntryResponse,
 } from '../types/entry.types'
 
 const base = (tournamentId: string) =>
@@ -65,7 +68,8 @@ export async function addon(
 export async function eliminate(
   tournamentId: string,
   entryId: string,
-  data?: EliminateRequest,
+  // O backend só lê eliminatedByEntryId (e notes); entryId vai na rota
+  data?: Partial<EliminateRequest>,
 ): Promise<TournamentEntry> {
   const response = await apiClient.post<TournamentEntry>(
     `${base(tournamentId)}/${entryId}/eliminate`,
@@ -107,6 +111,28 @@ export async function undoElimination(
 ): Promise<TournamentEntry> {
   const response = await apiClient.post<TournamentEntry>(
     `${base(tournamentId)}/${entryId}/undo-elimination`,
+  )
+  return response.data
+}
+
+/** Jogadores do home game que ainda não estão no torneio (terminal: só nome e apelido) */
+export async function getAvailablePlayers(
+  tournamentId: string,
+): Promise<AvailablePlayer[]> {
+  const response = await apiClient.get<AvailablePlayer[]>(
+    `${base(tournamentId)}/available-players`,
+  )
+  return response.data
+}
+
+/** Inscrição rápida pelo terminal; se já houver mesas, o servidor senta o jogador sozinho */
+export async function quickAdd(
+  tournamentId: string,
+  data: QuickAddEntryRequest,
+): Promise<QuickAddEntryResponse> {
+  const response = await apiClient.post<QuickAddEntryResponse>(
+    `${base(tournamentId)}/quick-add`,
+    { buyInPaid: false, ...data },
   )
   return response.data
 }

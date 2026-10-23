@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { ROUTES } from './constants/routes'
 import { ProtectedRoute } from './components/common/ProtectedRoute'
+import { RootGate } from './components/common/RootGate'
 import { AppLayout } from './components/layout/AppLayout'
 
 // Auth
@@ -8,8 +9,10 @@ import { LoginPage } from './pages/auth/LoginPage'
 import { RegisterPage } from './pages/auth/RegisterPage'
 
 // TV & Dealer (standalone layouts)
-import { TvDisplayPage } from './pages/tv-display/TvDisplayPage'
-import { DealerTerminalPage } from './pages/dealer/DealerTerminalPage'
+import { TvScreen, TvDirectPairPage } from './pages/tv-display/TvScreen'
+import { PairDisplayPage } from './pages/tv-display/PairDisplayPage'
+import { DealerTerminalRoute } from './pages/dealer/DealerTerminalRoute'
+import { DealerAccessPage } from './pages/dealer/DealerAccessPage'
 
 // Ranking público (sem login)
 import { PublicRankingPage } from './pages/public-ranking/PublicRankingPage'
@@ -46,9 +49,13 @@ export function Router() {
   return (
     <Routes>
       {/* Public routes */}
+      {/* "/": painel se logado; senão a tela da TV com QR e botão Entrar */}
+      <Route path={ROUTES.HOME} element={<RootGate />} />
       <Route path={ROUTES.LOGIN} element={<LoginPage />} />
       <Route path={ROUTES.REGISTER} element={<RegisterPage />} />
-      <Route path={ROUTES.TV_DISPLAY} element={<TvDisplayPage />} />
+      <Route path={ROUTES.TV} element={<TvScreen />} />
+      <Route path={ROUTES.TV_DISPLAY} element={<TvDirectPairPage />} />
+      <Route path={ROUTES.DEALER_ACCESS} element={<DealerAccessPage />} />
       <Route path={ROUTES.PUBLIC_RANKING} element={<PublicRankingPage />} />
       <Route
         path={ROUTES.PUBLIC_RANKING_PLAYER}
@@ -63,12 +70,6 @@ export function Router() {
           </ProtectedRoute>
         }
       >
-        {/* Home → redirect to home games */}
-        <Route
-          path={ROUTES.HOME}
-          element={<Navigate to={ROUTES.HOME_GAMES} replace />}
-        />
-
         {/* Home Games */}
         <Route path={ROUTES.HOME_GAMES} element={<HomeGameListPage />} />
         <Route path={ROUTES.HOME_GAME_NEW} element={<HomeGameFormPage />} />
@@ -134,21 +135,21 @@ export function Router() {
         />
       </Route>
 
-      {/* Dealer terminal - protected but no sidebar layout */}
+      {/* Celular lendo o QR da TV: login e volta para escolher o torneio */}
       <Route
-        path={ROUTES.DEALER_TERMINAL}
+        path={ROUTES.PAIR_DISPLAY}
         element={
           <ProtectedRoute>
-            <DealerTerminalPage />
+            <PairDisplayPage />
           </ProtectedRoute>
         }
       />
 
-      {/* Catch all */}
-      <Route
-        path="*"
-        element={<Navigate to={ROUTES.HOME_GAMES} replace />}
-      />
+      {/* Dealer terminal - QR do dealer (sem login) ou usuário logado; sem sidebar */}
+      <Route path={ROUTES.DEALER_TERMINAL} element={<DealerTerminalRoute />} />
+
+      {/* Catch all: "/" decide (painel, terminal do dealer ou tela da TV) */}
+      <Route path="*" element={<Navigate to={ROUTES.HOME} replace />} />
     </Routes>
   )
 }

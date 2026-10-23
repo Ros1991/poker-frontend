@@ -1,21 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { useParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Users, Trophy, Clock, Skull, Coins, Hourglass, LayoutGrid } from 'lucide-react'
+import axios from 'axios'
+import { Users, Trophy, Clock, Skull, Coins, Hourglass, LayoutGrid, ArrowLeft } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { buildPixPayload } from '../../utils/pix'
-import * as tournamentsApi from '../../api/tournaments.api'
-import * as entriesApi from '../../api/entries.api'
-import * as tablesApi from '../../api/tables.api'
-import * as timerApi from '../../api/timer.api'
-import * as costExtrasApi from '../../api/costExtras.api'
-import * as prizesApi from '../../api/prizes.api'
-import * as tournamentBlindsApi from '../../api/tournamentBlinds.api'
+import * as publicDisplayApi from '../../api/publicDisplay.api'
 import { useBlindTimer } from '../../hooks/useBlindTimer'
-import { useWebSocket } from '../../hooks/useWebSocket'
+import { pairDisplayPath } from '../../constants/routes'
+import { formatPairingCode } from '../../utils/pairingCode'
 import type { TimerState } from '../../types/blind.types'
-import type { TournamentEntry } from '../../types/entry.types'
+import type { TvEntry } from '../../types/display.types'
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat('pt-BR', {
@@ -131,95 +126,69 @@ function AutoScrollList({
   )
 }
 
-export function TvDisplayPage() {
-  const { tournamentId } = useParams<{ tournamentId: string }>()
+interface TvDisplayPageProps {
+  deviceToken: string
+  /** Código do QR pequeno "trocar torneio" (renovado sozinho pelo servidor) */
+  pairingCode: string | null
+  /** Botão Voltar: sai do torneio e volta para o QR grande */
+  onLeave: () => void
+  /** O torneio deixou de estar disponível (ex.: cancelado) */
+  onUnpaired: () => void
+}
+
+export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }: TvDisplayPageProps) {
   const queryClient = useQueryClient()
 
   // Alternância entre o telão normal (relógio) e a grade de mesas/assentos
   const [view, setView] = useState<'clock' | 'tables'>('clock')
 
-  const { data: tournament } = useQuery({
-    queryKey: ['tournament', tournamentId],
-    queryFn: () => tournamentsApi.getById(tournamentId!),
-    enabled: !!tournamentId,
-    refetchInterval: 5000,
+  // Tudo que o telão mostra numa consulta só, sem login (token do aparelho)
+  const { data: snapshot, error: snapshotError } = useQuery({
+    queryKey: ['tv-snapshot', deviceToken],
+    queryFn: () => publicDisplayApi.getSnapshot(deviceToken),
+    refetchInterval: 3000,
+    retry: (count, error) =>
+      !(axios.isAxiosError(error) && error.response?.status === 409) && count < 2,
   })
 
-  const { data: entries } = useQuery({
-    queryKey: ['entries', tournamentId],
-    queryFn: () => entriesApi.getAll(tournamentId!),
-    enabled: !!tournamentId,
-    refetchInterval: 5000,
-  })
+  const unpaired = axios.isAxiosError(snapshotError) && snapshotError.response?.status === 409
+  useEffect(() => {
+    if (unpaired) onUnpaired()
+  }, [unpaired, onUnpaired])
 
-  const { data: costExtras } = useQuery({
-    queryKey: ['costExtras', tournamentId],
-    queryFn: () => costExtrasApi.getAll(tournamentId!),
-    enabled: !!tournamentId,
-    refetchInterval: 10000,
-  })
-
-  // Premiação: se já foi confirmada, mostra os valores SALVOS do torneio;
-  // caso contrário, mostra a sugestão calculada (prévia).
-  const prizeConfirmed = tournament?.prizeConfirmed ?? false
-  const { data: prizeData } = useQuery({
-    queryKey: ['prizes', tournamentId, prizeConfirmed],
-    queryFn: async () => {
-      if (prizeConfirmed) {
-        const saved = await prizesApi.getSaved(tournamentId!)
-        return {
-          prizes: saved.map(({ position, amount, percentage }) => ({
-            position,
-            amount,
-            percentage,
-          })),
-        }
-      }
-      const calc = await prizesApi.calculate(tournamentId!)
-      return { prizes: calc.prizes }
-    },
-    enabled: !!tournamentId && !!tournament,
-    refetchInterval: 10000,
-  })
-
-  // Mesas com assentos (visão "Ver Mesas")
-  const { data: tables } = useQuery({
-    queryKey: ['tables', tournamentId],
-    queryFn: () => tablesApi.getAll(tournamentId!),
-    enabled: !!tournamentId,
-    refetchInterval: 10000,
-  })
-
-  // Níveis de blind do torneio — para calcular o tempo até o próximo intervalo
-  const { data: blindLevels } = useQuery({
-    queryKey: ['blindLevels', tournamentId],
-    queryFn: () => tournamentBlindsApi.getAll(tournament!.homeGameId, tournamentId!),
-    enabled: !!tournamentId && !!tournament?.homeGameId,
-    refetchInterval: 60000,
-  })
+  const tournament = snapshot?.tournament
+  const entries = snapshot?.entries
+  const tables = snapshot?.tables
+  const blindLevels = snapshot?.blindLevels
 
   const { timerState, syncFromServer, formattedTime, progressPercentage } =
     useBlindTimer(() => {
-      void queryClient.invalidateQueries({ queryKey: ['timer', tournamentId] })
+      void queryClient.invalidateQueries({ queryKey: ['tv-snapshot', deviceToken] })
     })
 
-  // Initial fetch of timer state (and periodic refresh as fallback)
-  useQuery({
-    queryKey: ['timer', tournamentId],
-    queryFn: async () => {
-      const state = await timerApi.getState(tournamentId!)
-      syncFromServer(toTimerState(state))
-      return state
-    },
-    enabled: !!tournamentId,
-    refetchInterval: 15000,
-  })
-
-  useWebSocket({
-    tournamentId: tournamentId ?? '',
-    enabled: !!tournamentId,
-    onTimerUpdate: (state) => syncFromServer(toTimerState(state)),
-  })
+  // Sincroniza o relógio só quando o servidor diz algo novo (nível, pausa ou
+  // desvio de 2s+); ressincronizar a cada consulta faria o segundo "pular".
+  const lastSyncRef = useRef<{ state: TimerState; at: number } | null>(null)
+  useEffect(() => {
+    if (!snapshot?.timer) return
+    const next = toTimerState(snapshot.timer)
+    const last = lastSyncRef.current
+    if (last) {
+      const expected = last.state.isRunning
+        ? last.state.remainingSeconds - Math.floor((Date.now() - last.at) / 1000)
+        : last.state.remainingSeconds
+      const same =
+        last.state.currentLevel === next.currentLevel &&
+        last.state.isRunning === next.isRunning &&
+        last.state.isBreak === next.isBreak &&
+        last.state.smallBlind === next.smallBlind &&
+        last.state.bigBlind === next.bigBlind &&
+        Math.abs(expected - next.remainingSeconds) < 2
+      if (same) return
+    }
+    lastSyncRef.current = { state: next, at: Date.now() }
+    syncFromServer(next)
+  }, [snapshot, syncFromServer])
 
   // Relógio de parede (coluna direita)
   const [now, setNow] = useState(() => new Date())
@@ -247,12 +216,12 @@ export function TvDisplayPage() {
   }, [])
 
   const activeEntries =
-    entries?.filter((e: TournamentEntry) => e.status === 'Active' || e.status === 'Registered') ?? []
+    entries?.filter((e: TvEntry) => e.status === 'Active' || e.status === 'Registered') ?? []
   const eliminatedEntries =
     entries
-      ?.filter((e: TournamentEntry) => e.status === 'Eliminated' || e.status === 'Awarded' || e.status === 'PaidOut')
+      ?.filter((e: TvEntry) => e.status === 'Eliminated' || e.status === 'Awarded' || e.status === 'PaidOut')
       .sort(
-        (a: TournamentEntry, b: TournamentEntry) =>
+        (a: TvEntry, b: TvEntry) =>
           (a.finalPosition ?? 999) - (b.finalPosition ?? 999),
       ) ?? []
 
@@ -262,7 +231,7 @@ export function TvDisplayPage() {
   const playerGroups: {
     key: string
     label: string | null
-    players: TournamentEntry[]
+    players: TvEntry[]
   }[] = []
   if (sortedTables.length > 0) {
     for (const table of sortedTables) {
@@ -297,15 +266,10 @@ export function TvDisplayPage() {
   }
   const totalListedPlayers = playerGroups.reduce((s, g) => s + g.players.length, 0)
 
-  const prizesList = prizeData?.prizes ?? []
-
-  // Premiacao: confirmada = soma dos prêmios salvos (bate com a lista exibida);
-  // não confirmada = total das entries - custos (estimativa ao vivo)
-  const totalDue = entries?.reduce((sum, e) => sum + (e.totalDue ?? 0), 0) ?? 0
-  const totalCosts = costExtras?.reduce((sum, c) => sum + (c.amount ?? 0), 0) ?? 0
-  const premiacao = prizeConfirmed
-    ? prizesList.reduce((sum, p) => sum + p.amount, 0)
-    : totalDue - totalCosts
+  // Premiação calculada no servidor: confirmada = soma dos prêmios salvos;
+  // não confirmada = arrecadado - custos (estimativa ao vivo)
+  const prizesList = snapshot?.prizes ?? []
+  const premiacao = snapshot?.prizePool ?? 0
 
   // Fichas em jogo (por entry: stack inicial + rebuys + addon; addon duplo = 2x)
   // + bônus de pontualidade (qtd de jogadores × fichas de bônus)
@@ -324,7 +288,7 @@ export function TvDisplayPage() {
 
   // Apelido por personId (pra grade de mesas usar o mesmo nome do resto do telão)
   const nicknameByPersonId = new Map(
-    (entries ?? []).map((e) => [e.personId, e.person.nickname ?? e.person.fullName]),
+    (entries ?? []).map((e) => [e.personId, e.displayName]),
   )
 
   // Tempo até o próximo intervalo: restante do nível atual + níveis até o break
@@ -362,7 +326,7 @@ export function TvDisplayPage() {
         ? 'text-yellow-400'
         : 'text-emerald-400'
 
-  function renderBalance(e: TournamentEntry) {
+  function renderBalance(e: TvEntry) {
     if (e.balance > 0) {
       return <span className="font-semibold text-red-400">{formatCurrency(e.balance)}</span>
     }
@@ -392,7 +356,7 @@ export function TvDisplayPage() {
               </span>
             )}
           </div>
-          <div className="flex items-center gap-6 text-base text-slate-400">
+          <div className="flex items-center gap-5 text-base text-slate-400">
             <span>Pressione F para tela cheia</span>
             <span>
               {now.toLocaleDateString('pt-BR', {
@@ -418,6 +382,34 @@ export function TvDisplayPage() {
                   Voltar ao Telão
                 </>
               )}
+            </button>
+            {pairingCode && (
+              <div
+                className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/5 py-1.5 pl-1.5 pr-3"
+                title="Leia com o celular logado para mostrar outro torneio"
+              >
+                <div className="rounded bg-white p-1">
+                  <QRCodeSVG
+                    value={`${window.location.origin}${pairDisplayPath(pairingCode)}`}
+                    size={56}
+                  />
+                </div>
+                <div className="flex flex-col leading-tight">
+                  <span className="text-xs uppercase tracking-wider text-slate-500">Trocar torneio</span>
+                  <span className="font-mono text-lg font-bold tracking-widest text-slate-200">
+                    {formatPairingCode(pairingCode)}
+                  </span>
+                </div>
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={onLeave}
+              className="flex items-center gap-2 rounded-lg border border-white/15 px-4 py-2 text-base font-semibold text-slate-300 transition-colors hover:bg-white/10 hover:text-white"
+              title="Sai deste torneio e volta para o QR grande"
+            >
+              <ArrowLeft className="h-5 w-5" />
+              Voltar
             </button>
           </div>
         </header>
@@ -555,7 +547,7 @@ export function TvDisplayPage() {
                           </span>
                         ) : null}
                         <span className={`truncate font-semibold ${isChampion ? 'text-white' : finished ? 'text-slate-400' : 'text-white'}`}>
-                          {e.person.nickname ?? e.person.fullName}
+                          {e.displayName}
                         </span>
                       </span>
                       {!finished && (
@@ -588,8 +580,7 @@ export function TvDisplayPage() {
                   .sort((a, b) => (a.finalPosition ?? 999) - (b.finalPosition ?? 999))
                   .find((e) => e.finalPosition === 1)
                   ?? entries?.find((e) => e.status === 'Awarded')
-                const name =
-                  champion?.person.nickname ?? champion?.person.fullName ?? '—'
+                const name = champion?.displayName ?? '—'
                 return (
                   <div className="flex flex-col items-center gap-4">
                     <span className="text-4xl font-semibold uppercase tracking-[0.3em] text-yellow-400">
@@ -773,7 +764,7 @@ export function TvDisplayPage() {
                         </span>
                         {winner && (
                           <span className="min-w-0 flex-1 truncate text-right text-slate-400">
-                            {winner.person.nickname ?? winner.person.fullName}
+                            {winner.displayName}
                           </span>
                         )}
                       </div>

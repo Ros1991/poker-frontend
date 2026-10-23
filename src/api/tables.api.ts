@@ -63,7 +63,13 @@ export async function setDealer(
 
 export async function movePlayer(
   tournamentId: string,
-  data: { entryId: string; toTableId: string; toSeat: number },
+  data: {
+    entryId: string
+    toTableId: string
+    toSeat: number
+    /** 'balance' = movido pelo aviso de mesas desequilibradas (aparece no histórico) */
+    reason?: 'balance'
+  },
 ): Promise<void> {
   await apiClient.post(
     `/tournaments/${tournamentId}/tables/move`,
@@ -76,4 +82,30 @@ export async function unseatPlayer(
   entryId: string,
 ): Promise<void> {
   await apiClient.post(`/tournaments/${tournamentId}/tables/unseat`, { entryId })
+}
+
+export interface BreakTableMove {
+  entryId: string
+  playerName: string
+  toTableId: string
+  toTableName: string
+  toSeat: number
+}
+
+export interface BreakTableResult {
+  brokenTableName: string
+  moves: BreakTableMove[]
+  /** Sobrou 1 mesa: ela virou a mesa final */
+  finalTable: boolean
+}
+
+/** Quebra a mesa: sorteia os jogadores dela nos lugares livres das outras */
+export async function breakTable(
+  tournamentId: string,
+  tableId: string,
+): Promise<BreakTableResult> {
+  const response = await apiClient.post<BreakTableResult>(
+    `/tournaments/${tournamentId}/tables/${tableId}/break`,
+  )
+  return response.data
 }

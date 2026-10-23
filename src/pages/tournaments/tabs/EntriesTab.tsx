@@ -205,12 +205,13 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      {/* Header — no celular cada item numa linha própria com largura total;
+          do sm em diante, título à esquerda e controles numa linha à direita */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <h2 className="text-lg font-semibold text-text-primary">
           Jogadores ({entries.length})
         </h2>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <button
             type="button"
             onClick={() => {
@@ -218,7 +219,7 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
               setBonusChips(String(tournament.punctualityBonusChips ?? 0))
               setShowBonusModal(true)
             }}
-            className="flex items-center gap-1.5 rounded-lg border border-border-default bg-bg-tertiary px-2.5 py-1.5 text-xs text-text-secondary hover:text-text-primary hover:border-accent-blue/50 transition-colors"
+            className="flex w-full min-h-[44px] items-center justify-center gap-1.5 rounded-lg border border-border-default bg-bg-tertiary px-2.5 py-1.5 text-xs text-text-secondary hover:text-text-primary hover:border-accent-blue/50 transition-colors sm:w-auto sm:min-h-0 sm:justify-start"
             title="Bônus de pontualidade (fichas extras)"
           >
             <AlarmClock className="h-3.5 w-3.5 text-yellow-500" />
@@ -229,10 +230,14 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
             value={search}
             onChange={setSearch}
             placeholder="Buscar jogador..."
-            className="w-48"
+            className="w-full sm:w-48"
           />
           {isInProgress && (
-            <Button size="sm" onClick={() => setShowAddPlayer(true)}>
+            <Button
+              size="sm"
+              onClick={() => setShowAddPlayer(true)}
+              className="w-full min-h-[44px] sm:w-auto sm:min-h-[36px]"
+            >
               <UserPlus className="h-4 w-4" />
               Adicionar
             </Button>

@@ -189,95 +189,103 @@ export function CostExtrasTab({ tournament }: CostExtrasTabProps) {
             return (
               <div
                 key={cost.id}
-                className="flex items-center justify-between gap-3 rounded-lg border border-border-default bg-bg-primary p-3"
+                className="flex flex-col gap-2 rounded-lg border border-border-default bg-bg-primary p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
               >
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-text-primary truncate flex items-center gap-2">
-                    {cost.description}
-                    {isStaff && <Badge color="blue">Staff (auto)</Badge>}
-                    {isRanking && <Badge color="purple">Ranking (auto)</Badge>}
-                  </p>
-                  <div className="flex items-center gap-2 mt-0.5 text-xs text-text-muted">
-                    {cost.beneficiary && <span>Para: {cost.beneficiary}</span>}
-                    {isPaid && cost.paymentMethod && (
-                      <span className="text-accent-green">
-                        Pago via {cost.paymentMethod}
-                      </span>
-                    )}
-                    {isPartial && (
-                      <span className="text-yellow-400">
-                        Pago: {formatCurrency(paidAmount)} / Falta:{' '}
-                        {formatCurrency(pending)}
-                      </span>
-                    )}
+                {/* No celular: linha de cima com descrição e valor (a descrição quebra
+                    linha em vez de sumir). Do sm em diante o wrapper some (contents)
+                    e tudo volta a ficar numa linha só. */}
+                <div className="flex items-start justify-between gap-3 sm:contents">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-text-primary flex flex-wrap items-center gap-x-2 gap-y-1 wrap-anywhere sm:flex-nowrap sm:truncate">
+                      {cost.description}
+                      {isStaff && <Badge color="blue">Staff (auto)</Badge>}
+                      {isRanking && <Badge color="purple">Ranking (auto)</Badge>}
+                    </p>
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5 text-xs text-text-muted sm:flex-nowrap">
+                      {cost.beneficiary && <span>Para: {cost.beneficiary}</span>}
+                      {isPaid && cost.paymentMethod && (
+                        <span className="text-accent-green">
+                          Pago via {cost.paymentMethod}
+                        </span>
+                      )}
+                      {isPartial && (
+                        <span className="text-yellow-400">
+                          Pago: {formatCurrency(paidAmount)} / Falta:{' '}
+                          {formatCurrency(pending)}
+                        </span>
+                      )}
+                    </div>
                   </div>
+                  <span className="text-sm font-semibold text-text-primary shrink-0">
+                    {formatCurrency(cost.amount)}
+                  </span>
                 </div>
-                <span className="text-sm font-semibold text-text-primary shrink-0">
-                  {formatCurrency(cost.amount)}
-                </span>
-                {isPaid ? (
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Badge color="green">
-                      <Check className="h-3 w-3 mr-1" />
-                      Pago
-                    </Badge>
-                    <button
-                      type="button"
-                      onClick={() => unpayMutation.mutate(cost.id)}
-                      className="p-1 rounded text-text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                      title="Reverter pagamento"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-1 shrink-0">
-                    {isPartial && <Badge color="yellow">Parcial</Badge>}
-                    <button
-                      type="button"
-                      onClick={() => payMutation.mutate({ id: cost.id, method: 'Dinheiro' })}
-                      disabled={payMutation.isPending}
-                      className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-text-secondary hover:bg-accent-green/10 hover:text-accent-green transition-colors"
-                      title="Pago em Dinheiro"
-                    >
-                      <Banknote className="h-3.5 w-3.5" />
-                      Dinheiro
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => payMutation.mutate({ id: cost.id, method: 'Caixa' })}
-                      disabled={payMutation.isPending}
-                      className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-text-secondary hover:bg-accent-blue/10 hover:text-accent-blue transition-colors"
-                      title="Pago pelo Caixa (gestor financeiro)"
-                    >
-                      <Building2 className="h-3.5 w-3.5" />
-                      Caixa
-                    </button>
-                  </div>
-                )}
-                <div className="flex items-center gap-0.5 shrink-0">
-                  {!isPaid && (
-                    <button
-                      type="button"
-                      onClick={() => openEdit(cost)}
-                      className="p-1 rounded text-text-muted hover:text-accent-blue hover:bg-accent-blue/10 transition-colors"
-                      title="Editar custo"
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </button>
+                {/* No celular: linha de baixo com situação/pagar à esquerda e editar/excluir à direita */}
+                <div className="flex items-center justify-between gap-2 sm:contents">
+                  {isPaid ? (
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Badge color="green">
+                        <Check className="h-3 w-3 mr-1" />
+                        Pago
+                      </Badge>
+                      <button
+                        type="button"
+                        onClick={() => unpayMutation.mutate(cost.id)}
+                        className="p-2 sm:p-1 rounded text-text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                        title="Reverter pagamento"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1 shrink-0">
+                      {isPartial && <Badge color="yellow">Parcial</Badge>}
+                      <button
+                        type="button"
+                        onClick={() => payMutation.mutate({ id: cost.id, method: 'Dinheiro' })}
+                        disabled={payMutation.isPending}
+                        className="flex items-center gap-1 rounded-md px-2 py-2 sm:py-1 text-xs font-medium text-text-secondary hover:bg-accent-green/10 hover:text-accent-green transition-colors"
+                        title="Pago em Dinheiro"
+                      >
+                        <Banknote className="h-3.5 w-3.5" />
+                        Dinheiro
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => payMutation.mutate({ id: cost.id, method: 'Caixa' })}
+                        disabled={payMutation.isPending}
+                        className="flex items-center gap-1 rounded-md px-2 py-2 sm:py-1 text-xs font-medium text-text-secondary hover:bg-accent-blue/10 hover:text-accent-blue transition-colors"
+                        title="Pago pelo Caixa (gestor financeiro)"
+                      >
+                        <Building2 className="h-3.5 w-3.5" />
+                        Caixa
+                      </button>
+                    </div>
                   )}
-                  {/* Staff automático não pode ser excluído; o acumulado do ranking pode
-                      (o valor volta pro prêmio — pra quando não se quer acumular). */}
-                  {!isStaff && (
-                    <button
-                      type="button"
-                      onClick={() => setDeleteConfirm(cost)}
-                      className="p-1 rounded text-text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                      title={isRanking ? 'Excluir (valor volta pro prêmio)' : 'Excluir custo'}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  )}
+                  <div className="flex items-center gap-0.5 shrink-0">
+                    {!isPaid && (
+                      <button
+                        type="button"
+                        onClick={() => openEdit(cost)}
+                        className="p-2 sm:p-1 rounded text-text-muted hover:text-accent-blue hover:bg-accent-blue/10 transition-colors"
+                        title="Editar custo"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                    {/* Staff automático não pode ser excluído; o acumulado do ranking pode
+                        (o valor volta pro prêmio — pra quando não se quer acumular). */}
+                    {!isStaff && (
+                      <button
+                        type="button"
+                        onClick={() => setDeleteConfirm(cost)}
+                        className="p-2 sm:p-1 rounded text-text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                        title={isRanking ? 'Excluir (valor volta pro prêmio)' : 'Excluir custo'}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             )

@@ -24,7 +24,10 @@ export const ROUTES = {
   BLIND_STRUCTURE_NEW: '/home-games/:homeGameId/blinds/new',
   BLIND_STRUCTURE_EDIT: '/home-games/:homeGameId/blinds/:id/edit',
   DEALER_TERMINAL: '/dealer/:tournamentId',
+  DEALER_ACCESS: '/dealer/acesso/:code',
+  TV: '/tv',
   TV_DISPLAY: '/tv/:tournamentId',
+  PAIR_DISPLAY: '/parear/:code?',
   PUBLIC_RANKING: '/r/:slug',
   PUBLIC_RANKING_PLAYER: '/r/:slug/:personId',
 } as const
@@ -43,6 +46,14 @@ export function dealerTerminalPath(tournamentId: string) {
 
 export function tvDisplayPath(tournamentId: string) {
   return `/tv/${tournamentId}`
+}
+
+export function pairDisplayPath(code?: string) {
+  return code ? `/parear/${code}` : '/parear'
+}
+
+export function dealerAccessPath(code: string) {
+  return `/dealer/acesso/${code}`
 }
 
 export function homeGameDetailPath(id: string) {

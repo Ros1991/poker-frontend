@@ -23,7 +23,8 @@ function App() {
           <HomeGameProvider>
             <Router />
             <Toaster
-              position="top-right"
+              // No celular embaixo: o "Desfazer" fica ao alcance do polegar e não cobre o relógio do terminal
+              position={window.matchMedia('(max-width: 639px)').matches ? 'bottom-center' : 'top-right'}
               richColors
               toastOptions={{
                 style: {

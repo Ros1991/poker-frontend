@@ -12,6 +12,7 @@ import {
   BarChart3,
   Tv,
   Tablet,
+  QrCode,
   ArrowLeft,
   Play,
   Pause,
@@ -30,6 +31,7 @@ import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { LoadingSpinner } from '../../components/common/LoadingSpinner'
+import { DealerQrModal } from '../../components/tournament/DealerQrModal'
 import {
   TOURNAMENT_STATUS_LABELS,
   TOURNAMENT_STATUS_COLORS,
@@ -75,6 +77,7 @@ export function TournamentDashboardPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState<TabKey>('jogadores')
+  const [dealerQrOpen, setDealerQrOpen] = useState(false)
   const [statusConfirm, setStatusConfirm] = useState<{
     status: TournamentStatus
     label: string
@@ -433,7 +436,19 @@ export function TournamentDashboardPage() {
               Terminal Dealer
             </Button>
           </Link>
+          {tournament.status !== 'Finished' && tournament.status !== 'Cancelled' && (
+            <Button variant="ghost" size="sm" onClick={() => setDealerQrOpen(true)}>
+              <QrCode className="h-4 w-4" />
+              QR do dealer
+            </Button>
+          )}
         </div>
+        <DealerQrModal
+          isOpen={dealerQrOpen}
+          onClose={() => setDealerQrOpen(false)}
+          tournamentId={tournament.id}
+          tournamentName={tournament.name}
+        />
       </div>
 
       {/* Tabs */}
