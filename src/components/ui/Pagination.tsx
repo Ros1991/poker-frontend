@@ -17,7 +17,7 @@ export function Pagination({ page, totalPages, onPageChange, className }: Pagina
         onClick={() => onPageChange(page - 1)}
         disabled={page <= 1}
         className={cn(
-          'min-h-[40px] min-w-[40px] flex items-center justify-center rounded-lg border border-border-default',
+          'min-h-[40px] min-w-[40px] flex items-center justify-center rounded-lg border border-border-input',
           'text-text-secondary hover:bg-bg-tertiary hover:text-text-primary transition-colors',
           'disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent',
         )}
@@ -26,7 +26,7 @@ export function Pagination({ page, totalPages, onPageChange, className }: Pagina
         <ChevronLeft className="h-4 w-4" />
       </button>
 
-      <span className="text-sm text-text-secondary">
+      <span className="text-sm text-text-secondary tabular-nums">
         Página <span className="font-medium text-text-primary">{page}</span> de{' '}
         <span className="font-medium text-text-primary">{totalPages}</span>
       </span>
@@ -35,7 +35,7 @@ export function Pagination({ page, totalPages, onPageChange, className }: Pagina
         onClick={() => onPageChange(page + 1)}
         disabled={page >= totalPages}
         className={cn(
-          'min-h-[40px] min-w-[40px] flex items-center justify-center rounded-lg border border-border-default',
+          'min-h-[40px] min-w-[40px] flex items-center justify-center rounded-lg border border-border-input',
           'text-text-secondary hover:bg-bg-tertiary hover:text-text-primary transition-colors',
           'disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent',
         )}

@@ -59,12 +59,12 @@ export function Modal({
   return createPortal(
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-text-primary/40 p-4 backdrop-blur-sm"
       onClick={handleOverlayClick}
     >
       <div
         className={cn(
-          'w-full rounded-xl bg-bg-secondary border border-border-default shadow-2xl',
+          'w-full rounded-xl bg-bg-card border border-border-default shadow-lg',
           'animate-in fade-in zoom-in-95 duration-200',
           sizeClasses[size],
           className,
@@ -77,7 +77,7 @@ export function Modal({
           <h2 className="text-lg font-semibold text-text-primary">{title}</h2>
           <button
             onClick={onClose}
-            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-tertiary transition-colors"
+            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors"
             aria-label="Fechar"
           >
             <X className="h-5 w-5" />

@@ -58,13 +58,13 @@ export function BreakTableDialog({
     return (
       <Modal isOpen onClose={onClose} title={`${result.brokenTableName} quebrada`} size="sm">
         {result.finalTable && (
-          <p className="mb-3 flex items-center gap-2 rounded-lg bg-accent-yellow/15 p-3 text-base font-bold text-accent-yellow">
+          <p className="mb-3 flex items-center gap-2 rounded-lg bg-accent-gold-soft p-3 text-base font-bold text-accent-gold-deep">
             <Trophy className="h-5 w-5" /> Agora é mesa final!
           </p>
         )}
         <p className="mb-2 text-sm text-text-secondary">Avise os jogadores:</p>
         {result.moves.length === 0 ? (
-          <p className="text-sm text-text-muted">A mesa estava vazia.</p>
+          <p className="text-sm text-text-secondary">A mesa estava vazia.</p>
         ) : (
           <ul className="flex flex-col gap-1.5">
             {result.moves.map((m) => (
@@ -99,7 +99,7 @@ export function BreakTableDialog({
                 className={cn(
                   'flex min-h-[52px] items-center justify-between rounded-lg border px-3 text-left',
                   'disabled:cursor-not-allowed disabled:opacity-40',
-                  selectedId === t.id ? 'border-accent-blue bg-accent-blue/10' : 'border-border-default bg-bg-primary',
+                  selectedId === t.id ? 'border-accent-blue bg-accent-blue-soft' : 'border-border-default bg-bg-primary',
                 )}
               >
                 <span>
@@ -107,9 +107,9 @@ export function BreakTableDialog({
                     {tableLabel(t)}
                     {t.id === suggestedTableId && <span className="ml-2 text-xs text-accent-blue">(sugerida)</span>}
                   </span>
-                  {!ok && <span className="block text-xs text-text-muted">Não cabem nas outras mesas</span>}
+                  {!ok && <span className="block text-xs text-text-secondary">Não cabem nas outras mesas</span>}
                 </span>
-                <span className="text-sm text-text-muted">
+                <span className="text-sm tabular-nums text-text-secondary">
                   {count(t)} {count(t) === 1 ? 'jogador' : 'jogadores'}
                 </span>
               </button>

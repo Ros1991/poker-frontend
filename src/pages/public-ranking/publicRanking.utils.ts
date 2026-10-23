@@ -28,11 +28,13 @@ export function usePublicRanking(slug: string | undefined) {
   return { ...query, notFound }
 }
 
-export const publicButtonClass =
-  'inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-white/10 px-4 text-sm font-medium text-slate-100 transition-colors hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/70'
-
+// Anel de foco do ranking público: azul cheio (6.8:1 no branco) com folga de 2 px na cor da página.
+// O azul a 60 % ficava abaixo de 3:1 sobre o fundo claro.
 export const focusRingClass =
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/70'
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue focus-visible:ring-offset-2 focus-visible:ring-offset-bg-primary'
+
+// Botão secundário do ranking público: branco com borda border-input (≥ 3:1), como o Button secondary do painel.
+export const publicButtonClass = `inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-border-input bg-bg-card px-4 text-sm font-medium text-text-primary transition-colors hover:bg-bg-tertiary ${focusRingClass}`
 
 export function formatPoints(value: number): string {
   return value.toLocaleString('pt-BR', { maximumFractionDigits: 2 })
@@ -99,25 +101,29 @@ export function playerExplanation(ranking: PublicRanking, player: PublicRankingP
     : base
 }
 
-// Pódio: degradê saindo da posição + contorno fino na cor da medalha. Um
-// preenchimento chapado de amarelo em baixa opacidade fica oliva sobre o navy.
+// Pódio no tema claro: fundo pastel (-soft) + contorno fino na cor da medalha; o texto usa a
+// variante -deep, a única de cada cor que passa AA em texto pequeno (dourado puro nunca é texto).
+// Prata = cinza neutro dos tokens. Fora do pódio o número fica em text-secondary (text-muted
+// reprova AA como texto lido). O contorno é `border` (não `ring-inset`) para o anel de foco
+// (ring + offset) continuar do lado de fora; as linhas fora do pódio levam `border-transparent`
+// (ver PlayerRow) para todas terem a mesma caixa.
 export function positionTone(position: number): { text: string; row: string } {
   if (position === 1)
     return {
-      text: 'text-yellow-400',
-      row: 'bg-gradient-to-r from-yellow-400/[0.14] to-yellow-400/[0.02] ring-1 ring-inset ring-yellow-400/25',
+      text: 'text-accent-gold-deep',
+      row: 'bg-accent-gold-soft border-accent-gold/40',
     }
   if (position === 2)
     return {
-      text: 'text-slate-200',
-      row: 'bg-gradient-to-r from-slate-300/[0.10] to-slate-300/[0.02] ring-1 ring-inset ring-slate-300/15',
+      text: 'text-text-secondary',
+      row: 'bg-bg-tertiary border-border-default',
     }
   if (position === 3)
     return {
-      text: 'text-orange-400',
-      row: 'bg-gradient-to-r from-orange-400/[0.13] to-orange-400/[0.02] ring-1 ring-inset ring-orange-400/20',
+      text: 'text-accent-orange-deep',
+      row: 'bg-accent-orange-soft border-accent-orange/40',
     }
-  return { text: 'text-slate-400', row: '' }
+  return { text: 'text-text-secondary', row: '' }
 }
 
 export type StageStatus = 'counted' | 'discarded' | 'absent'

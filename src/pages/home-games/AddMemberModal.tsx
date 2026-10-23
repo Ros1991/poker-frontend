@@ -178,7 +178,7 @@ export function AddMemberModal({
               Buscar
             </Button>
           </div>
-          <p className="text-xs text-text-muted">
+          <p className="text-xs text-text-secondary">
             Peça o e-mail que a pessoa usou no cadastro.
           </p>
         </div>
@@ -187,7 +187,7 @@ export function AddMemberModal({
         {lookupMessage && !found && (
           <div className="flex items-start gap-2 rounded-lg border border-border-default px-3 py-2.5">
             <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0 text-accent-red" />
-            <p className="text-sm text-text-muted">{lookupMessage}</p>
+            <p className="text-sm text-text-secondary">{lookupMessage}</p>
           </div>
         )}
 
@@ -196,7 +196,7 @@ export function AddMemberModal({
             className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 ${
               alreadyMember
                 ? 'border-border-default bg-bg-tertiary'
-                : 'border-accent-blue bg-accent-blue/10'
+                : 'border-accent-blue bg-accent-blue-soft'
             }`}
           >
             <Avatar src={found.photoUrl} name={found.name} size="sm" />
@@ -204,10 +204,10 @@ export function AddMemberModal({
               <p className="text-sm font-medium text-text-primary truncate">
                 {found.name}
               </p>
-              <p className="text-xs text-text-muted truncate">{found.email}</p>
+              <p className="text-xs text-text-secondary truncate">{found.email}</p>
             </div>
             {alreadyMember ? (
-              <span className="text-xs text-text-muted whitespace-nowrap">
+              <span className="text-xs text-text-secondary whitespace-nowrap">
                 Já é membro deste home game
               </span>
             ) : (
@@ -225,7 +225,7 @@ export function AddMemberModal({
             <select
               value={selectedPersonId ?? ''}
               onChange={(e) => setSelectedPersonId(e.target.value || null)}
-              className="w-full appearance-none rounded-lg border border-border-default bg-bg-primary px-3 py-2 pr-8 text-sm text-text-primary focus:border-border-focus focus:outline-none"
+              className="w-full appearance-none rounded-lg border border-border-input bg-bg-primary px-3 py-2 pr-8 text-sm text-text-primary focus:border-border-focus focus:outline-none"
             >
               <option value="">Nenhum</option>
               {availablePersons.map((p) => (
@@ -242,7 +242,7 @@ export function AddMemberModal({
             type="checkbox"
             checked={isAdmin}
             onChange={(e) => setIsAdmin(e.target.checked)}
-            className="h-4 w-4 rounded border-border-default bg-bg-primary text-accent-blue focus:ring-border-focus"
+            className="h-4 w-4 rounded border-border-input bg-bg-primary text-accent-blue focus:ring-border-focus"
           />
           <span className="text-sm text-text-primary">
             Administrador do Home Game

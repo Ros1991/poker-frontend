@@ -33,7 +33,7 @@ export function TableAlerts({
   return (
     <div className="flex flex-col gap-2 px-3 pt-3">
       {breakable ? (
-        <div className="rounded-xl border border-accent-yellow/40 bg-accent-yellow/10 p-3">
+        <div className="rounded-xl border border-accent-yellow/40 bg-accent-yellow-soft p-3">
           <p className="flex items-start gap-2 text-sm font-medium text-text-primary">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-accent-yellow" />
             Dá para juntar em {breakable.targetTables}{' '}
@@ -46,7 +46,7 @@ export function TableAlerts({
           </Button>
         </div>
       ) : imbalance ? (
-        <div className="rounded-xl border border-accent-yellow/40 bg-accent-yellow/10 p-3">
+        <div className="rounded-xl border border-accent-yellow/40 bg-accent-yellow-soft p-3">
           <p className="flex items-start gap-2 text-sm font-medium text-text-primary">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-accent-yellow" />
             {name(imbalance.fromTableId)} com {imbalance.fromCount} e {name(imbalance.toTableId)} com{' '}

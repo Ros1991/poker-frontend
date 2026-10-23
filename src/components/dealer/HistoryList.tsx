@@ -48,10 +48,10 @@ export function HistoryList({ tournamentId, entryId, search, onUndo }: HistoryLi
   }
 
   if (isLoading) return <LoadingSpinner size="md" text="Carregando histórico..." className="py-8" />
-  if (isError) return <p className="py-8 text-center text-sm text-accent-red">Não foi possível carregar o histórico.</p>
+  if (isError) return <p className="py-8 text-center text-sm text-accent-red-deep">Não foi possível carregar o histórico.</p>
   if (items.length === 0)
     return (
-      <p className="py-8 text-center text-sm text-text-muted">
+      <p className="py-8 text-center text-sm text-text-secondary">
         {search?.trim() ? 'Nada encontrado para essa busca.' : 'Nada registrado ainda.'}
       </p>
     )
@@ -61,7 +61,7 @@ export function HistoryList({ tournamentId, entryId, search, onUndo }: HistoryLi
       <ul className="flex flex-col gap-1.5">
         {items.map((item) => (
           <li key={item.id} className="flex gap-2.5 rounded-lg border border-border-default bg-bg-secondary p-2.5">
-            <span className="w-11 shrink-0 pt-0.5 font-mono text-xs text-text-muted">{formatTime(item.at)}</span>
+            <span className="w-11 shrink-0 pt-0.5 font-mono text-xs tabular-nums text-text-secondary">{formatTime(item.at)}</span>
             <div className="min-w-0 flex-1">
               <p
                 className={cn(
@@ -71,21 +71,21 @@ export function HistoryList({ tournamentId, entryId, search, onUndo }: HistoryLi
               >
                 {item.description}
               </p>
-              <p className="mt-0.5 text-xs text-text-muted">
+              <p className="mt-0.5 text-xs text-text-secondary">
                 {!entryId && item.playerName && (
-                  <span className="font-medium text-text-secondary">{item.playerName}</span>
+                  <span className="font-medium text-text-primary">{item.playerName}</span>
                 )}
                 {!entryId && item.playerName && item.by && ' · '}
                 {item.by && `por ${item.by}`}
               </p>
               {item.undone && (
-                <p className="mt-0.5 text-xs text-accent-yellow">
+                <p className="mt-0.5 text-xs text-accent-gold-deep">
                   desfeito{item.undoneAt ? ` às ${formatTime(item.undoneAt)}` : ''}
                   {item.undoneBy ? ` por ${item.undoneBy}` : ''}
                 </p>
               )}
               {!item.undone && !item.canUndo && item.undoBlockedReason && (
-                <p className="mt-0.5 text-[11px] text-text-muted">{item.undoBlockedReason}</p>
+                <p className="mt-0.5 text-[11px] text-text-secondary">{item.undoBlockedReason}</p>
               )}
             </div>
             {item.canUndo && (

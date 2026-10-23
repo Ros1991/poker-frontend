@@ -63,27 +63,27 @@ export function FinancialTab({ tournament, entries }: FinancialTabProps) {
         <div className="rounded-xl border border-border-default bg-bg-primary p-4">
           <div className="flex items-center gap-2 mb-2">
             <TrendingUp className="h-4 w-4 text-accent-green" />
-            <span className="text-xs text-text-muted">Receitas</span>
+            <span className="text-xs text-text-secondary">Receitas</span>
           </div>
-          <p className="text-2xl font-bold text-accent-green">
+          <p className="text-2xl font-bold text-accent-green-deep tabular-nums">
             {formatCurrency(totalRevenue)}
           </p>
         </div>
         <div className="rounded-xl border border-border-default bg-bg-primary p-4">
           <div className="flex items-center gap-2 mb-2">
             <TrendingDown className="h-4 w-4 text-accent-red" />
-            <span className="text-xs text-text-muted">Custos</span>
+            <span className="text-xs text-text-secondary">Custos</span>
           </div>
-          <p className="text-2xl font-bold text-accent-red">
+          <p className="text-2xl font-bold text-accent-red-deep tabular-nums">
             {formatCurrency(totalCosts)}
           </p>
         </div>
         <div className="rounded-xl border border-border-default bg-bg-primary p-4">
           <div className="flex items-center gap-2 mb-2">
             <DollarSign className="h-4 w-4 text-accent-blue" />
-            <span className="text-xs text-text-muted">Premiação Líquida</span>
+            <span className="text-xs text-text-secondary">Premiação Líquida</span>
           </div>
-          <p className="text-2xl font-bold text-accent-blue">
+          <p className="text-2xl font-bold text-accent-blue tabular-nums">
             {formatCurrency(tournament.netPrizePool)}
           </p>
         </div>
@@ -100,7 +100,7 @@ export function FinancialTab({ tournament, entries }: FinancialTabProps) {
               Buy-ins ({entries.length}x {formatCurrency(tournament.buyInAmount)}
               )
             </span>
-            <span className="text-sm font-semibold text-text-primary">
+            <span className="text-sm font-semibold text-text-primary tabular-nums">
               {formatCurrency(buyInTotal)}
             </span>
           </div>
@@ -109,7 +109,7 @@ export function FinancialTab({ tournament, entries }: FinancialTabProps) {
               Rebuys ({tournament.totalRebuys}x{' '}
               {formatCurrency(tournament.rebuyAmount)})
             </span>
-            <span className="text-sm font-semibold text-text-primary">
+            <span className="text-sm font-semibold text-text-primary tabular-nums">
               {formatCurrency(rebuyTotal)}
             </span>
           </div>
@@ -118,13 +118,13 @@ export function FinancialTab({ tournament, entries }: FinancialTabProps) {
               Add-ons ({tournament.totalAddons}x{' '}
               {formatCurrency(tournament.addonAmount)})
             </span>
-            <span className="text-sm font-semibold text-text-primary">
+            <span className="text-sm font-semibold text-text-primary tabular-nums">
               {formatCurrency(addonTotal)}
             </span>
           </div>
           <div className="flex items-center justify-between py-2 font-semibold">
             <span className="text-sm text-text-primary">Total</span>
-            <span className="text-sm text-accent-green">
+            <span className="text-sm text-accent-green-deep tabular-nums">
               {formatCurrency(totalRevenue)}
             </span>
           </div>
@@ -136,7 +136,7 @@ export function FinancialTab({ tournament, entries }: FinancialTabProps) {
         <h3 className="text-sm font-semibold text-text-secondary uppercase tracking-wider mb-3">
           Status de Pagamentos
         </h3>
-        <div className="flex justify-between text-xs text-text-muted mb-2">
+        <div className="flex justify-between text-xs text-text-secondary tabular-nums mb-2">
           <span>
             {formatCurrency(totalPaid)} de {formatCurrency(totalDue)}
           </span>
@@ -144,11 +144,11 @@ export function FinancialTab({ tournament, entries }: FinancialTabProps) {
         </div>
         <div className="w-full bg-bg-tertiary rounded-full h-4 mb-4">
           <div
-            className="bg-accent-green h-4 rounded-full transition-all flex items-center justify-center"
+            className="bg-accent-green-deep text-white h-4 rounded-full transition-all flex items-center justify-center"
             style={{ width: `${Math.max(paymentPct, 5)}%` }}
           >
             {paymentPct > 15 && (
-              <span className="text-[10px] font-bold text-white">
+              <span className="text-[10px] font-bold">
                 {paymentPct.toFixed(0)}%
               </span>
             )}
@@ -157,20 +157,20 @@ export function FinancialTab({ tournament, entries }: FinancialTabProps) {
 
         <div className="grid grid-cols-3 gap-3 text-center">
           <div>
-            <p className="text-xs text-text-muted">Recebido</p>
-            <p className="text-sm font-bold text-accent-green">
+            <p className="text-xs text-text-secondary">Recebido</p>
+            <p className="text-sm font-bold text-accent-green-deep tabular-nums">
               {formatCurrency(totalPaid)}
             </p>
           </div>
           <div>
-            <p className="text-xs text-text-muted">Pendente</p>
-            <p className="text-sm font-bold text-accent-red">
+            <p className="text-xs text-text-secondary">Pendente</p>
+            <p className="text-sm font-bold text-accent-red-deep tabular-nums">
               {formatCurrency(totalPending)}
             </p>
           </div>
           <div>
-            <p className="text-xs text-text-muted">Total</p>
-            <p className="text-sm font-bold text-text-primary">
+            <p className="text-xs text-text-secondary">Total</p>
+            <p className="text-sm font-bold text-text-primary tabular-nums">
               {formatCurrency(totalDue)}
             </p>
           </div>
@@ -197,18 +197,14 @@ export function FinancialTab({ tournament, entries }: FinancialTabProps) {
                       {entry.person.nickname ?? entry.person.fullName}
                     </span>
                     <Badge
-                      className={
-                        PAYMENT_STATUS_COLORS[
-                          entry.paymentStatus as PaymentStatus
-                        ] ?? ''
-                      }
+                      color={PAYMENT_STATUS_COLORS[entry.paymentStatus as PaymentStatus]}
                     >
                       {PAYMENT_STATUS_LABELS[
                         entry.paymentStatus as PaymentStatus
                       ] ?? entry.paymentStatus}
                     </Badge>
                   </div>
-                  <span className="text-sm font-semibold text-accent-red">
+                  <span className="text-sm font-semibold text-accent-red-deep tabular-nums">
                     {formatCurrency(entry.balance)}
                   </span>
                 </div>
@@ -218,9 +214,9 @@ export function FinancialTab({ tournament, entries }: FinancialTabProps) {
       )}
 
       {pendingEntries.length === 0 && entries.length > 0 && (
-        <div className="rounded-xl border border-green-500/30 bg-green-500/5 p-4 text-center">
+        <div className="rounded-xl border border-accent-green/30 bg-accent-green-soft p-4 text-center">
           <CreditCard className="mx-auto h-8 w-8 text-accent-green mb-2" />
-          <p className="text-sm font-semibold text-accent-green">
+          <p className="text-sm font-semibold text-accent-green-deep">
             Todos os pagamentos recebidos!
           </p>
         </div>

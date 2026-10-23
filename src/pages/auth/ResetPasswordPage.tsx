@@ -105,10 +105,10 @@ export function ResetPasswordPage() {
 
           {serverError && (
             <div
-              className="flex flex-col gap-1 rounded-lg border border-accent-red/40 bg-accent-red/10 p-3"
+              className="flex flex-col gap-1 rounded-lg border border-accent-red/40 bg-accent-red-soft p-3"
               role="alert"
             >
-              <p className="text-sm text-accent-red">{serverError}</p>
+              <p className="text-sm text-accent-red-deep">{serverError}</p>
               <Link
                 to={ROUTES.FORGOT_PASSWORD}
                 className="text-sm font-medium text-accent-blue hover:underline"
@@ -119,7 +119,7 @@ export function ResetPasswordPage() {
           )}
 
           {rateLimited && (
-            <p className="text-sm text-accent-red" role="alert">
+            <p className="text-sm text-accent-red-deep" role="alert">
               Muitas tentativas. Aguarde um minuto e tente de novo.
             </p>
           )}

@@ -216,7 +216,7 @@ export function AddPlayerModal({
                 placeholder="Apelido *"
                 value={newNickname}
                 onChange={(e) => setNewNickname(e.target.value)}
-                className="rounded-lg border border-border-default bg-bg-primary px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-border-focus focus:outline-none"
+                className="rounded-lg border border-border-input bg-bg-primary px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-border-focus focus:outline-none"
                 autoFocus
               />
               <input
@@ -224,14 +224,14 @@ export function AddPlayerModal({
                 placeholder="Nome completo"
                 value={newFullName}
                 onChange={(e) => setNewFullName(e.target.value)}
-                className="rounded-lg border border-border-default bg-bg-primary px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-border-focus focus:outline-none"
+                className="rounded-lg border border-border-input bg-bg-primary px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-border-focus focus:outline-none"
               />
               <input
                 type="text"
                 placeholder="(11) 99999-9999"
                 value={formatPhone(newWhatsapp)}
                 onChange={(e) => setNewWhatsapp(e.target.value)}
-                className="rounded-lg border border-border-default bg-bg-primary px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-border-focus focus:outline-none"
+                className="rounded-lg border border-border-input bg-bg-primary px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-border-focus focus:outline-none"
               />
             </div>
             <div className="flex justify-end gap-2">
@@ -264,7 +264,7 @@ export function AddPlayerModal({
         {/* Barra de seleção em massa */}
         {!isLoading && !isError && availablePersons.length > 0 && (
           <div className="flex items-center justify-between text-xs">
-            <span className="text-text-muted">
+            <span className="text-text-secondary">
               {filteredPersons.length} disponíve
               {filteredPersons.length === 1 ? 'l' : 'is'}
               {selectedCount > 0 && (
@@ -288,7 +288,7 @@ export function AddPlayerModal({
                 <button
                   type="button"
                   onClick={() => setSelectedIds(new Set())}
-                  className="text-text-muted hover:text-text-primary hover:underline"
+                  className="text-text-secondary hover:text-text-primary hover:underline"
                 >
                   Limpar
                 </button>
@@ -299,7 +299,7 @@ export function AddPlayerModal({
 
         {/* Lista de jogadores (multi-seleção) */}
         {(isLoading || (isFetching && !personsData)) && (
-          <p className="text-sm text-text-muted text-center py-4">
+          <p className="text-sm text-text-secondary text-center py-4">
             Carregando jogadores...
           </p>
         )}
@@ -325,7 +325,7 @@ export function AddPlayerModal({
         {!isLoading && !isError && filteredPersons.length === 0 && (
           <div className="flex flex-col items-center justify-center gap-2 py-8 text-center">
             <Users className="h-10 w-10 text-text-muted" />
-            <p className="text-sm text-text-muted">
+            <p className="text-sm text-text-secondary">
               {search
                 ? 'Nenhum jogador encontrado com esse termo.'
                 : availablePersons.length === 0 && (personsData?.length ?? 0) > 0
@@ -357,7 +357,7 @@ export function AddPlayerModal({
                   onClick={() => toggle(person.id)}
                   className={`flex items-center gap-3 rounded-lg p-3 text-left transition-colors min-h-[56px] border ${
                     selected
-                      ? 'bg-accent-blue/10 border-accent-blue/50'
+                      ? 'bg-accent-blue-soft border-accent-blue/50'
                       : 'border-transparent hover:bg-bg-tertiary'
                   }`}
                 >
@@ -383,13 +383,13 @@ export function AddPlayerModal({
                     {person.nickname &&
                       person.fullName &&
                       person.nickname !== person.fullName && (
-                        <p className="text-xs text-text-muted truncate">
+                        <p className="text-xs text-text-secondary truncate">
                           {person.fullName}
                         </p>
                       )}
                   </div>
                   {person.whatsapp && (
-                    <Phone className="h-3.5 w-3.5 text-accent-green flex-shrink-0" />
+                    <Phone className="h-3.5 w-3.5 text-accent-green-deep flex-shrink-0" />
                   )}
                 </button>
               )
@@ -404,7 +404,7 @@ export function AddPlayerModal({
               type="checkbox"
               checked={payNow}
               onChange={(e) => setPayNow(e.target.checked)}
-              className="h-5 w-5 rounded border-border-default bg-bg-input text-accent-blue focus:ring-accent-blue"
+              className="h-5 w-5 rounded border-border-input bg-bg-input text-accent-blue focus:ring-accent-blue"
             />
             <span className="text-sm text-text-primary">
               Buy-in pago na entrada (todos os selecionados)

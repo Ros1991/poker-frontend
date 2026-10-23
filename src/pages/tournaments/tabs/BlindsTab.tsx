@@ -204,18 +204,18 @@ export function BlindsTab({
       <div className="rounded-xl border border-border-default bg-bg-primary p-6 text-center">
         {timerState.isBreak ? (
           <div className="flex items-center justify-center gap-2 mb-2">
-            <Coffee className="h-5 w-5 text-yellow-400" />
-            <span className="text-sm font-semibold text-yellow-400 uppercase">
+            <Coffee className="h-5 w-5 text-accent-gold-deep" />
+            <span className="text-sm font-semibold text-accent-gold-deep uppercase">
               Intervalo
             </span>
           </div>
         ) : (
-          <p className="text-sm text-text-muted mb-1">
+          <p className="text-sm text-text-secondary mb-1">
             Nivel {timerState.currentLevel}
           </p>
         )}
 
-        <div className="text-6xl font-mono font-bold text-text-primary mb-2">
+        <div className="text-6xl font-mono font-bold text-text-primary tabular-nums mb-2">
           {localFormattedTime}
         </div>
 
@@ -229,21 +229,21 @@ export function BlindsTab({
         {!timerState.isBreak && (
           <div className="flex justify-center gap-8 mb-4">
             <div>
-              <p className="text-xs text-text-muted">Small Blind</p>
-              <p className="text-2xl font-bold text-text-primary">
+              <p className="text-xs text-text-secondary">Small Blind</p>
+              <p className="text-2xl font-bold text-text-primary tabular-nums">
                 {formatNumber(timerState.smallBlind)}
               </p>
             </div>
             <div>
-              <p className="text-xs text-text-muted">Big Blind</p>
-              <p className="text-2xl font-bold text-text-primary">
+              <p className="text-xs text-text-secondary">Big Blind</p>
+              <p className="text-2xl font-bold text-text-primary tabular-nums">
                 {formatNumber(timerState.bigBlind)}
               </p>
             </div>
             {timerState.ante > 0 && (
               <div>
-                <p className="text-xs text-text-muted">Ante</p>
-                <p className="text-2xl font-bold text-text-primary">
+                <p className="text-xs text-text-secondary">Ante</p>
+                <p className="text-2xl font-bold text-text-primary tabular-nums">
                   {formatNumber(timerState.ante)}
                 </p>
               </div>
@@ -252,7 +252,7 @@ export function BlindsTab({
         )}
 
         {timerState.nextSmallBlind !== null && (
-          <p className="text-xs text-text-muted mb-4">
+          <p className="text-xs text-text-secondary tabular-nums mb-4">
             Proximo: {formatNumber(timerState.nextSmallBlind!)}/
             {formatNumber(timerState.nextBigBlind!)}
             {timerState.nextAnte ? ` (ante ${formatNumber(timerState.nextAnte)})` : ''}
@@ -321,7 +321,7 @@ export function BlindsTab({
               <h3 className="text-sm font-semibold text-text-secondary uppercase tracking-wider">
                 Estrutura de Blinds
               </h3>
-              <p className="text-xs text-text-muted mt-0.5">
+              <p className="text-xs text-text-secondary mt-0.5">
                 Edite livremente - nao afeta a estrutura padrao
               </p>
             </div>
@@ -372,7 +372,7 @@ export function BlindsTab({
           </div>
 
           {blindLevels.length === 0 && !editMode && (
-            <p className="text-sm text-text-muted py-4 text-center">
+            <p className="text-sm text-text-secondary py-4 text-center">
               Nenhum nivel configurado. Clique em "Editar Blinds" para adicionar.
             </p>
           )}
@@ -383,7 +383,7 @@ export function BlindsTab({
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-border-default text-left text-text-muted">
+                    <tr className="border-b border-border-default text-left text-text-secondary">
                       <th className="px-2 py-2 w-16">Nivel</th>
                       <th className="px-2 py-2">Small Blind</th>
                       <th className="px-2 py-2">Big Blind</th>
@@ -400,7 +400,7 @@ export function BlindsTab({
                         className={`border-b border-border-default ${level.isBreak ? 'bg-accent-blue/5' : ''}`}
                       >
                         <td className="px-2 py-1.5">
-                          <span className="text-text-muted font-mono text-xs">
+                          <span className="text-text-secondary font-mono text-xs tabular-nums">
                             {level.levelNumber}
                           </span>
                         </td>
@@ -415,7 +415,7 @@ export function BlindsTab({
                                 })
                               }
                               placeholder="Intervalo"
-                              className="w-full rounded border border-border-default bg-bg-input px-2 py-1 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-border-focus"
+                              className="w-full rounded border border-border-input bg-bg-input px-2 py-1 text-sm text-text-primary tabular-nums focus:outline-none focus:ring-1 focus:ring-border-focus"
                             />
                           ) : (
                             <input
@@ -426,7 +426,7 @@ export function BlindsTab({
                                   smallBlind: Number(e.target.value),
                                 })
                               }
-                              className="w-full rounded border border-border-default bg-bg-input px-2 py-1 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-border-focus"
+                              className="w-full rounded border border-border-input bg-bg-input px-2 py-1 text-sm text-text-primary tabular-nums focus:outline-none focus:ring-1 focus:ring-border-focus"
                             />
                           )}
                         </td>
@@ -442,7 +442,7 @@ export function BlindsTab({
                                   bigBlind: Number(e.target.value),
                                 })
                               }
-                              className="w-full rounded border border-border-default bg-bg-input px-2 py-1 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-border-focus"
+                              className="w-full rounded border border-border-input bg-bg-input px-2 py-1 text-sm text-text-primary tabular-nums focus:outline-none focus:ring-1 focus:ring-border-focus"
                             />
                           )}
                         </td>
@@ -458,7 +458,7 @@ export function BlindsTab({
                                   ante: Number(e.target.value),
                                 })
                               }
-                              className="w-full rounded border border-border-default bg-bg-input px-2 py-1 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-border-focus"
+                              className="w-full rounded border border-border-input bg-bg-input px-2 py-1 text-sm text-text-primary tabular-nums focus:outline-none focus:ring-1 focus:ring-border-focus"
                             />
                           )}
                         </td>
@@ -471,7 +471,7 @@ export function BlindsTab({
                                 durationMinutes: Number(e.target.value),
                               })
                             }
-                            className="w-full rounded border border-border-default bg-bg-input px-2 py-1 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-border-focus"
+                            className="w-full rounded border border-border-input bg-bg-input px-2 py-1 text-sm text-text-primary tabular-nums focus:outline-none focus:ring-1 focus:ring-border-focus"
                           />
                         </td>
                         <td className="px-2 py-1.5 text-center">
@@ -485,7 +485,7 @@ export function BlindsTab({
                           <button
                             type="button"
                             onClick={() => removeLevel(index)}
-                            className="p-1 rounded text-text-muted hover:text-accent-red hover:bg-red-500/10 transition-colors"
+                            className="p-1 rounded text-accent-red hover:text-accent-red-deep hover:bg-accent-red-soft transition-colors"
                             title="Remover"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -514,19 +514,19 @@ export function BlindsTab({
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-bg-tertiary">
-                      <th className="px-3 py-2 text-left text-xs font-medium text-text-muted">
+                      <th className="px-3 py-2 text-left text-xs font-medium text-text-secondary">
                         Nivel
                       </th>
-                      <th className="px-3 py-2 text-right text-xs font-medium text-text-muted">
+                      <th className="px-3 py-2 text-right text-xs font-medium text-text-secondary">
                         SB
                       </th>
-                      <th className="px-3 py-2 text-right text-xs font-medium text-text-muted">
+                      <th className="px-3 py-2 text-right text-xs font-medium text-text-secondary">
                         BB
                       </th>
-                      <th className="px-3 py-2 text-right text-xs font-medium text-text-muted">
+                      <th className="px-3 py-2 text-right text-xs font-medium text-text-secondary">
                         Ante
                       </th>
-                      <th className="px-3 py-2 text-right text-xs font-medium text-text-muted">
+                      <th className="px-3 py-2 text-right text-xs font-medium text-text-secondary">
                         Duracao
                       </th>
                     </tr>
@@ -540,15 +540,15 @@ export function BlindsTab({
                           key={level.id ?? level.levelNumber}
                           className={
                             isCurrent
-                              ? 'bg-accent-blue/10 border-l-2 border-l-accent-blue'
+                              ? 'bg-accent-blue-soft border-l-2 border-l-accent-blue'
                               : level.isBreak
-                                ? 'bg-gray-500/5'
+                                ? 'bg-bg-zebra'
                                 : ''
                           }
                         >
                           <td className="px-3 py-2 font-medium text-text-primary">
                             {level.isBreak ? (
-                              <span className="flex items-center gap-1 text-yellow-400">
+                              <span className="flex items-center gap-1 text-accent-gold-deep">
                                 <Coffee className="h-3 w-3" />
                                 Intervalo
                               </span>
@@ -561,20 +561,20 @@ export function BlindsTab({
                               </span>
                             )}
                           </td>
-                          <td className="px-3 py-2 text-right text-text-primary">
+                          <td className="px-3 py-2 text-right text-text-primary tabular-nums">
                             {level.isBreak ? '-' : formatNumber(level.smallBlind)}
                           </td>
-                          <td className="px-3 py-2 text-right text-text-primary">
+                          <td className="px-3 py-2 text-right text-text-primary tabular-nums">
                             {level.isBreak ? '-' : formatNumber(level.bigBlind)}
                           </td>
-                          <td className="px-3 py-2 text-right text-text-primary">
+                          <td className="px-3 py-2 text-right text-text-primary tabular-nums">
                             {level.isBreak
                               ? '-'
                               : level.ante > 0
                                 ? formatNumber(level.ante)
                                 : '-'}
                           </td>
-                          <td className="px-3 py-2 text-right text-text-muted">
+                          <td className="px-3 py-2 text-right text-text-secondary tabular-nums">
                             {level.durationMinutes} min
                           </td>
                         </tr>

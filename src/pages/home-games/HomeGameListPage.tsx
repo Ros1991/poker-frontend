@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { Plus, MapPin, Users, Trophy, Loader2 } from 'lucide-react'
 import * as homeGamesApi from '../../api/homeGames.api'
 import { Button } from '../../components/ui/Button'
+import { Badge } from '../../components/ui/Badge'
 import { SearchInput } from '../../components/ui/SearchInput'
 import { homeGameDetailPath } from '../../constants/routes'
 import { HomeGameFormModal } from './HomeGameFormModal'
@@ -69,7 +70,7 @@ export function HomeGameListPage() {
 
       {/* Error */}
       {isError && (
-        <div className="rounded-lg border border-accent-red/30 bg-red-500/10 p-6 text-center">
+        <div className="rounded-lg border border-accent-red/30 bg-accent-red-soft p-6 text-center">
           <p className="text-text-primary">Erro ao carregar os home games.</p>
           <Button
             variant="secondary"
@@ -119,13 +120,13 @@ export function HomeGameListPage() {
                   {hg.name}
                 </h3>
                 {hg.isActive ? (
-                  <span className="shrink-0 inline-flex items-center rounded-full bg-green-500/20 px-2 py-0.5 text-xs font-medium text-green-400">
+                  <Badge color="green" className="shrink-0 px-2">
                     Ativo
-                  </span>
+                  </Badge>
                 ) : (
-                  <span className="shrink-0 inline-flex items-center rounded-full bg-gray-500/20 px-2 py-0.5 text-xs font-medium text-gray-400">
+                  <Badge color="gray" className="shrink-0 px-2">
                     Inativo
-                  </span>
+                  </Badge>
                 )}
               </div>
 
@@ -136,7 +137,7 @@ export function HomeGameListPage() {
               )}
 
               {hg.location && (
-                <div className="mt-3 flex items-center gap-1.5 text-xs text-text-muted">
+                <div className="mt-3 flex items-center gap-1.5 text-xs text-text-secondary">
                   <MapPin className="h-3.5 w-3.5" />
                   <span className="line-clamp-1">{hg.location}</span>
                 </div>

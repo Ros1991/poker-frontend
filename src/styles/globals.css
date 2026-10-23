@@ -3,49 +3,102 @@
 @import "@fontsource-variable/nunito";
 @import "tailwindcss";
 
-@custom-variant dark (&:where(.dark, .dark *));
-
+/*
+ * Paleta Poker da Galera — tema ÚNICO, claro, derivado da logo (D8; SPEC-20261023-1204).
+ *
+ * Estes tokens são a única fonte de cor do frontend. Nos componentes não existe variante escura,
+ * atributo de tema, media query de esquema de cor nem cor crua (`text-slate-400`, `bg-red-500/10`,
+ * `#hex`): `npm run lint:colors` (scripts/check-raw-colors.mjs) falha se voltar.
+ *
+ * Regras de contraste (AA sobre #FFFFFF e #F5F7FA; razões medidas no state.md da SPEC):
+ * - Dourado (#F0B340) e amarelo (#E0A100) NUNCA viram texto: só preenchimento com texto marinho,
+ *   borda ou ícone. O único dourado de texto é `accent-gold-deep`.
+ * - Verde, vermelho, roxo e laranja em texto pequeno usam a variante `-deep`; a cor base fica para
+ *   preenchimentos grandes (botões do dealer, barra do telão), bordas e ícones.
+ * - `-soft` é o fundo pastel de chips, badges e alertas (sempre com texto `-deep` ou marinho).
+ * - `-hover` é o preenchimento pressionado: mais escuro que `-deep`, para um botão de base
+ *   (texto grande) e um de deep (texto pequeno) convergirem no mesmo hover.
+ * - Borda que identifica controle (campo, botão secundário, paginação) é `border-input` (≥ 3:1);
+ *   `border-default` é só decorativa (cards, modais, divisórias).
+ * - `text-muted` (2.93:1) nunca é texto lido: só placeholder, ícone decorativo, traço "-" e texto
+ *   riscado de propósito; rótulo e texto secundário vão em `text-secondary`.
+ * - Branco (`text-white`) só sobre preenchimento sólido escuro (azul, marinho, green/red-deep…);
+ *   sobre dourado e laranja base o texto é marinho.
+ */
 @theme {
-  --color-bg-primary: #0f172a;
-  --color-bg-secondary: #1e293b;
-  --color-bg-tertiary: #334155;
-  --color-bg-card: #1e293b;
-  --color-bg-input: #1e293b;
-  --color-border-default: #334155;
-  --color-border-focus: #3b82f6;
-  --color-text-primary: #f8fafc;
-  --color-text-secondary: #94a3b8;
-  --color-text-muted: #64748b;
-  --color-accent-blue: #3b82f6;
-  --color-accent-green: #22c55e;
-  --color-accent-red: #ef4444;
-  --color-accent-yellow: #eab308;
-  --color-accent-purple: #a855f7;
-  --color-accent-orange: #f97316;
+  /* Superfícies */
+  --color-bg-primary: #F5F7FA;       /* fundo da página, telão, terminal, ranking */
+  --color-bg-secondary: #FFFFFF;     /* header, sidebar, sheets */
+  --color-bg-tertiary: #EDF1F6;      /* hover/pressionado, chips neutros, trilho da scrollbar */
+  --color-bg-card: #FFFFFF;          /* cards, modais */
+  --color-bg-input: #FFFFFF;         /* campos */
+  --color-bg-zebra: #F9FAFC;         /* linhas alternadas */
+  --color-border-default: #E1E6EE;   /* bordas de cards, modais e divisórias (decorativas: 1.25:1) */
+  --color-border-input: #7D8BA0;     /* borda de campo (Input/Select/Textarea/SearchInput/FileUpload) e do
+                                        botão secundário: o fundo do campo é branco igual ao card, então a
+                                        borda é a única pista do controle — 3.46:1 no branco, 3.22:1 no
+                                        bg-primary e 3.05:1 no bg-tertiary (hover) — AA de componente ≥ 3:1 */
+  --color-border-focus: #1E5AA8;     /* anel de foco */
+
+  /* Texto */
+  --color-text-primary: #1B2E4B;     /* marinho: texto, relógio, títulos */
+  --color-text-secondary: #5A6B82;   /* texto secundário, rótulos */
+  --color-text-muted: #8A98AB;       /* apagado: placeholder, ícone decorativo, traço "-", texto riscado (2.93:1 — nunca texto lido) */
+
+  /* Azul-royal (primária): botões, links, aba ativa, blinds */
+  --color-accent-blue: #1E5AA8;
+  --color-accent-blue-hover: #174A8B;
+  --color-accent-blue-soft: #E4EEF9;
+  --color-accent-blue-deep: #174A8B;   /* = hover: o azul base já passa AA como texto (7:1) */
+
+  /* Dourado: CTA, troféu, campeão, premiado */
+  --color-accent-gold: #F0B340;        /* preenchimento com texto marinho — nunca como texto */
+  --color-accent-gold-hover: #D99A25;
+  --color-accent-gold-soft: #FDF3DC;
+  --color-accent-gold-deep: #946200;   /* ÚNICO dourado permitido como texto (#9A6700 do plano dava 4.4:1 sobre gold-soft; este passa AA) */
+
+  /* Verde: sucesso, "Pago", prêmio */
+  --color-accent-green: #2E9E5B;       /* preenchimento grande, borda, ícone (3.4:1 com branco) */
+  --color-accent-green-hover: #196536;
+  --color-accent-green-soft: #E6F4EC;
+  --color-accent-green-deep: #1F7A43;  /* texto e botões pequenos */
+
+  /* Vermelho: erro, "Deve", Eliminar */
+  --color-accent-red: #D64545;         /* preenchimento grande, borda, ícone (4.4:1 com branco) */
+  --color-accent-red-hover: #9E2B2B;
+  --color-accent-red-soft: #FBE9E9;
+  --color-accent-red-deep: #B23434;    /* texto e botões pequenos */
+
+  /* Amarelo: alerta (ícone, borda, fundo — nunca texto; o texto do alerta é marinho) */
+  --color-accent-yellow: #E0A100;
+  --color-accent-yellow-soft: #FFF6DA;
+
+  /* Roxo: status "Finalizado"/"Pago" */
+  --color-accent-purple: #6B4FB0;
+  --color-accent-purple-soft: #EEE9F8;
+  --color-accent-purple-deep: #52398F;
+
+  /* Laranja: bronze do pódio */
+  --color-accent-orange: #D9822B;      /* preenchimento com texto marinho (2.9:1 com branco) */
+  --color-accent-orange-soft: #FBEEDF;
+  --color-accent-orange-deep: #8F4E12;
+
+  /* Só para as iniciais do Avatar (fundos sólidos com texto branco) */
+  --color-accent-teal: #177A6E;
+  --color-accent-indigo: #4A55B5;
+
+  /* Aliases da marca (SPEC-20261023-1202) — mesmos valores dos tokens acima; nos componentes prefira accent-… e text-… */
+  --color-brand-blue: #1E5AA8;         /* = accent-blue (o "POKER DA") */
+  --color-brand-blue-hover: #174A8B;   /* = accent-blue-hover */
+  --color-brand-blue-soft: #E4EEF9;    /* = accent-blue-soft */
+  --color-brand-gold: #F0B340;         /* = accent-gold (o "GALERA") */
+  --color-brand-gold-hover: #D99A25;   /* = accent-gold-hover */
+  --color-brand-gold-soft: #FDF3DC;    /* = accent-gold-soft */
+  --color-brand-navy: #1B2E4B;         /* = text-primary (marinho do subtítulo) */
 
   /* Fontes (SPEC-20261023-1202): Inter no corpo, Nunito nos títulos */
   --font-sans: 'Inter Variable', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-display: 'Nunito Variable', 'Nunito', var(--font-sans);
-
-  /* Paleta Poker da Galera (D8) — tokens NOVOS; os componentes migram na SPEC-20261023-1204 */
-  --color-brand-blue: #1E5AA8;        /* primária (o "POKER DA") */
-  --color-brand-blue-hover: #174A8B;
-  --color-brand-blue-soft: #E4EEF9;   /* fundo de destaque */
-  --color-brand-gold: #F0B340;        /* acento (o "GALERA"); texto marinho em cima, nunca branco */
-  --color-brand-gold-hover: #D99A25;
-  --color-brand-gold-soft: #FDF3DC;
-  --color-brand-navy: #1B2E4B;        /* marinho do subtítulo */
-  --color-surface-page: #F5F7FA;
-  --color-surface-card: #FFFFFF;
-  --color-surface-zebra: #F9FAFC;
-  --color-surface-border: #E1E6EE;
-  --color-ink-primary: #1B2E4B;
-  --color-ink-secondary: #5A6B82;
-  --color-ink-muted: #8A98AB;
-  --color-state-success: #2E9E5B;     /* ficha verde */
-  --color-state-danger: #D64545;      /* ficha vermelha */
-  --color-state-warning: #E0A100;
-  --color-state-info: #1E5AA8;
 }
 
 @layer base {
@@ -54,6 +107,12 @@
   h3 {
     font-family: var(--font-display);
   }
+}
+
+/* Tema único (D8): controles nativos, barra de rolagem e <input type="date"> ficam claros
+   mesmo com o SO em modo escuro */
+:root {
+  color-scheme: light;
 }
 
 *,
@@ -83,29 +142,42 @@ select {
   font: inherit;
 }
 
+/* Chevron do <select> (única fonte: o Select.tsx não repete o SVG). Traço = text-secondary (#5A6B82:
+   5.44:1 no branco) — o chevron é a pista de que o campo abre uma lista, então precisa de ≥ 3:1. */
 select {
   appearance: none;
   padding-right: 2.5rem !important;
-  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%239ca3af%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E");
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%235A6B82%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E");
   background-repeat: no-repeat;
   background-position: right 0.75rem center;
   background-size: 1rem;
 }
 
+/* Barra de rolagem visível sobre fundo claro: trilho bg-tertiary, polegar entre text-muted e o
+   trilho (text-muted cheio no hover). ::-webkit-* cobre Chrome/Safari/Edge e os navegadores das
+   TVs; o bloco @supports cobre Firefox com a propriedade padrão. */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--color-bg-secondary);
+  background: var(--color-bg-tertiary);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--color-bg-tertiary);
+  background: var(--color-text-muted);
+  background: color-mix(in srgb, var(--color-text-muted) 55%, var(--color-bg-tertiary));
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-text-muted);
+}
+
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-text-muted) var(--color-bg-tertiary);
+  }
 }

@@ -80,7 +80,7 @@ export function UserListPage() {
           <p className="text-lg font-medium text-text-secondary">
             Nenhum usuário cadastrado
           </p>
-          <p className="text-sm text-text-muted">
+          <p className="text-sm text-text-secondary">
             Crie o primeiro usuário para dar acesso ao sistema.
           </p>
         </div>
@@ -91,7 +91,7 @@ export function UserListPage() {
         <div className="overflow-x-auto rounded-xl border border-border-default bg-bg-secondary">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-border-default text-left text-text-muted">
+              <tr className="border-b border-border-default text-left text-text-secondary">
                 <th className="px-6 py-4 font-medium">Nome</th>
                 <th className="px-6 py-4 font-medium">E-mail</th>
                 <th className="px-6 py-4 font-medium">Perfil</th>

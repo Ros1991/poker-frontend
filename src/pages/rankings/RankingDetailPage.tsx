@@ -16,16 +16,16 @@ import { isForbiddenError } from '../../utils/httpErrors'
 import { useAuth } from '../../hooks/useAuth'
 
 function positionColor(position: number): string {
-  if (position === 1) return 'text-yellow-400'
-  if (position === 2) return 'text-gray-300'
-  if (position === 3) return 'text-orange-400'
+  if (position === 1) return 'text-accent-gold-deep'
+  if (position === 2) return 'text-text-secondary'
+  if (position === 3) return 'text-accent-orange-deep'
   return 'text-text-secondary'
 }
 
 function positionBg(position: number): string {
-  if (position === 1) return 'bg-yellow-500/10'
-  if (position === 2) return 'bg-gray-400/10'
-  if (position === 3) return 'bg-orange-500/10'
+  if (position === 1) return 'bg-accent-gold-soft'
+  if (position === 2) return 'bg-bg-tertiary'
+  if (position === 3) return 'bg-accent-orange-soft'
   return ''
 }
 
@@ -89,7 +89,7 @@ export function RankingDetailPage() {
   if (!ranking) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
-        <p className="text-sm text-accent-red">Ranking não encontrado.</p>
+        <p className="text-sm text-accent-red-deep">Ranking não encontrado.</p>
       </div>
     )
   }
@@ -106,8 +106,8 @@ export function RankingDetailPage() {
 
       <div className="mb-6">
         <div className="flex items-center gap-3 mb-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-yellow-500/10">
-            <Trophy className="h-5 w-5 text-yellow-400" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent-gold-soft">
+            <Trophy className="h-5 w-5 text-accent-gold-deep" />
           </div>
           <div className="min-w-0 flex-1">
             <h1 className="text-2xl font-bold text-text-primary">
@@ -153,8 +153,8 @@ export function RankingDetailPage() {
           </p>
         )}
         {ranking.accumulatedPrize > 0 && (
-          <div className="mt-3 inline-flex items-center gap-2 rounded-lg bg-accent-green/10 px-4 py-2">
-            <span className="text-sm font-medium text-accent-green">
+          <div className="mt-3 inline-flex items-center gap-2 rounded-lg bg-accent-green-soft px-4 py-2">
+            <span className="text-sm font-medium text-accent-green-deep tabular-nums">
               Premio acumulado: R$ {ranking.accumulatedPrize.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </span>
           </div>
@@ -162,8 +162,8 @@ export function RankingDetailPage() {
       </div>
 
       {leaderboard && leaderboard.length > 0 && (
-        <div className="flex items-center gap-2 mb-3 text-xs text-text-muted">
-          <span className="inline-block w-2 h-2 rounded-full bg-yellow-400" />
+        <div className="flex items-center gap-2 mb-3 text-xs text-text-secondary">
+          <span className="inline-block w-2 h-2 rounded-full bg-accent-gold-deep" />
           <span>Top {FINAL_TABLE_SIZE} — classificados para a Mesa Final</span>
         </div>
       )}
@@ -186,48 +186,49 @@ export function RankingDetailPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border-default bg-bg-tertiary/50">
-                  <th className="px-4 py-3 text-left font-medium text-text-muted w-16">
+                  <th className="px-4 py-3 text-left font-medium text-text-secondary w-16">
                     #
                   </th>
-                  <th className="px-4 py-3 text-left font-medium text-text-muted">
+                  <th className="px-4 py-3 text-left font-medium text-text-secondary">
                     Jogador
                   </th>
-                  <th className="px-4 py-3 text-right font-medium text-text-muted">
+                  <th className="px-4 py-3 text-right font-medium text-text-secondary">
                     Pontos
                   </th>
-                  <th className="px-4 py-3 text-right font-medium text-text-muted hidden sm:table-cell">
+                  <th className="px-4 py-3 text-right font-medium text-text-secondary hidden sm:table-cell">
                     Torneios
                   </th>
-                  <th className="px-4 py-3 text-right font-medium text-text-muted hidden md:table-cell">
+                  <th className="px-4 py-3 text-right font-medium text-text-secondary hidden md:table-cell">
                     Melhor Pos.
                   </th>
-                  <th className="px-4 py-3 text-right font-medium text-text-muted hidden md:table-cell">
+                  <th className="px-4 py-3 text-right font-medium text-text-secondary hidden md:table-cell">
                     Media/Torneio
                   </th>
-                  <th className="px-4 py-3 text-right font-medium text-text-muted hidden md:table-cell">
+                  <th className="px-4 py-3 text-right font-medium text-text-secondary hidden md:table-cell">
                     Descartados
                   </th>
                 </tr>
               </thead>
               <tbody>
                 {leaderboard.map((entry) => (
+                  /* Abaixo da Mesa Final: fundo zebra e nome em text-secondary, sem opacidade (que derrubava o texto abaixo de AA) */
                   <tr
                     key={entry.person.id}
                     className={`border-b last:border-0 ${positionBg(entry.position)} ${
                       entry.position <= FINAL_TABLE_SIZE
                         ? 'border-border-default'
-                        : 'border-border-default opacity-60'
-                    } ${entry.position === FINAL_TABLE_SIZE ? 'border-b-2 border-b-yellow-500/50' : ''}`}
+                        : 'border-border-default bg-bg-zebra'
+                    } ${entry.position === FINAL_TABLE_SIZE ? 'border-b-2 border-b-accent-gold' : ''}`}
                   >
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1.5">
                         <span
-                          className={`text-base font-bold ${positionColor(entry.position)}`}
+                          className={`text-base font-bold tabular-nums ${positionColor(entry.position)}`}
                         >
                           {entry.position}
                         </span>
                         {entry.position <= FINAL_TABLE_SIZE && (
-                          <span className="inline-block w-2 h-2 rounded-full bg-yellow-400" title="Mesa Final" />
+                          <span className="inline-block w-2 h-2 rounded-full bg-accent-gold-deep" title="Mesa Final" />
                         )}
                       </div>
                     </td>
@@ -239,35 +240,39 @@ export function RankingDetailPage() {
                           size="sm"
                         />
                         <div className="min-w-0">
-                          <span className="font-medium text-text-primary block truncate">
+                          <span
+                            className={`font-medium block truncate ${
+                              entry.position <= FINAL_TABLE_SIZE ? 'text-text-primary' : 'text-text-secondary'
+                            }`}
+                          >
                             {entry.person.nickname ?? entry.person.fullName}
                           </span>
-                          <span className="text-[10px] text-text-muted sm:hidden">
+                          <span className="text-[10px] text-text-secondary tabular-nums sm:hidden">
                             {entry.tournamentsPlayed} torneios · Melhor {entry.bestPosition}º · Media {entry.averagePoints.toFixed(1)}
                             {entry.discardedPoints > 0 && (
-                              <> · <span className="text-accent-red">Desc. -{entry.discardedPoints}</span></>
+                              <> · <span className="text-accent-red-deep">Desc. -{entry.discardedPoints}</span></>
                             )}
                           </span>
                         </div>
                       </div>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <span className="font-semibold text-text-primary">
+                      <span className="font-semibold text-text-primary tabular-nums">
                         {entry.totalPoints}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-right text-text-secondary hidden sm:table-cell">
+                    <td className="px-4 py-3 text-right text-text-secondary tabular-nums hidden sm:table-cell">
                       {entry.tournamentsPlayed}
                     </td>
-                    <td className="px-4 py-3 text-right text-text-secondary hidden md:table-cell">
+                    <td className="px-4 py-3 text-right text-text-secondary tabular-nums hidden md:table-cell">
                       {entry.bestPosition}º
                     </td>
-                    <td className="px-4 py-3 text-right text-text-secondary hidden md:table-cell">
+                    <td className="px-4 py-3 text-right text-text-secondary tabular-nums hidden md:table-cell">
                       {entry.averagePoints.toFixed(1)}
                     </td>
-                    <td className="px-4 py-3 text-right text-text-secondary hidden md:table-cell">
+                    <td className="px-4 py-3 text-right text-text-secondary tabular-nums hidden md:table-cell">
                       {entry.discardedPoints > 0 ? (
-                        <span className="text-accent-red">-{entry.discardedPoints}</span>
+                        <span className="text-accent-red-deep">-{entry.discardedPoints}</span>
                       ) : '-'}
                     </td>
                   </tr>

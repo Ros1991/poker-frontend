@@ -31,7 +31,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           'transition-colors',
           error
             ? 'border-accent-red focus:ring-accent-red'
-            : 'border-border-default',
+            : 'border-border-input',
           endAdornment && 'pr-11',
           className,
         )}
@@ -57,9 +57,9 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         ) : (
           field
         )}
-        {error && <p className="text-xs text-accent-red">{error}</p>}
+        {error && <p className="text-xs text-accent-red-deep">{error}</p>}
         {helperText && !error && (
-          <p className="text-xs text-text-muted">{helperText}</p>
+          <p className="text-xs text-text-secondary">{helperText}</p>
         )}
       </div>
     )

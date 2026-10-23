@@ -262,18 +262,18 @@ export function RankingFormPage() {
           <div className="rounded-xl border border-border-default bg-bg-secondary p-6">
             <h2 className="text-lg font-semibold text-text-primary mb-4">Premio Acumulado</h2>
             <div className="flex items-center gap-3">
-              <span className="text-sm text-text-muted">R$</span>
+              <span className="text-sm text-text-secondary">R$</span>
               <input
                 type="number"
                 min={0}
                 step={0.01}
                 value={accumulatedPrize}
                 onChange={(e) => setAccumulatedPrize(Number(e.target.value))}
-                className="w-40 rounded-lg border border-border-default bg-bg-primary px-3 py-2 text-sm text-text-primary focus:border-border-focus focus:outline-none"
+                className="w-40 rounded-lg border border-border-input bg-bg-primary px-3 py-2 text-sm text-text-primary tabular-nums focus:border-border-focus focus:outline-none"
                 placeholder="0,00"
               />
             </div>
-            <p className="text-xs text-text-muted mt-2">
+            <p className="text-xs text-text-secondary mt-2">
               Valor total acumulado dos torneios para premiacao deste ranking.
             </p>
           </div>
@@ -289,11 +289,11 @@ export function RankingFormPage() {
               step={1}
               value={discardCount}
               onChange={(e) => setDiscardCount(Math.max(0, Number(e.target.value) || 0))}
-              className="w-28 rounded-lg border border-border-default bg-bg-primary px-3 py-2 text-sm text-text-primary focus:border-border-focus focus:outline-none"
+              className="w-28 rounded-lg border border-border-input bg-bg-primary px-3 py-2 text-sm text-text-primary tabular-nums focus:border-border-focus focus:outline-none"
             />
-            <span className="text-sm text-text-muted">piores resultados descartados por jogador</span>
+            <span className="text-sm text-text-secondary">piores resultados descartados por jogador</span>
           </div>
-          <p className="text-xs text-text-muted mt-2">
+          <p className="text-xs text-text-secondary mt-2">
             Cada jogador pode descartar os N piores resultados ao calcular o total de pontos.
           </p>
         </div>
@@ -342,9 +342,9 @@ export function RankingFormPage() {
                   value={formula}
                   onChange={(e) => setFormula(e.target.value)}
                   placeholder="jogadores - posicao + 1"
-                  className="w-full rounded-lg border border-border-default bg-bg-primary px-3 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:border-border-focus focus:outline-none font-mono"
+                  className="w-full rounded-lg border border-border-input bg-bg-primary px-3 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:border-border-focus focus:outline-none font-mono"
                 />
-                <div className="mt-2 text-xs text-text-muted space-y-1">
+                <div className="mt-2 text-xs text-text-secondary space-y-1">
                   <p>
                     Variaveis:{' '}
                     <code className="bg-bg-tertiary px-1.5 py-0.5 rounded text-text-secondary font-mono">
@@ -368,7 +368,7 @@ export function RankingFormPage() {
 
               {/* Exemplos rapidos */}
               <div>
-                <p className="text-xs font-medium text-text-muted mb-2">Exemplos rapidos:</p>
+                <p className="text-xs font-medium text-text-secondary mb-2">Exemplos rapidos:</p>
                 <div className="flex flex-wrap gap-2">
                   {[
                     {
@@ -393,7 +393,7 @@ export function RankingFormPage() {
                       key={ex.label}
                       type="button"
                       onClick={() => setFormula(ex.formula)}
-                      className="text-xs px-2.5 py-1.5 rounded-md bg-bg-tertiary text-text-secondary hover:bg-accent-blue/10 hover:text-accent-blue transition-colors"
+                      className="text-xs px-2.5 py-1.5 rounded-md bg-bg-tertiary text-text-secondary hover:bg-accent-blue-soft hover:text-accent-blue transition-colors"
                     >
                       {ex.label}
                     </button>
@@ -425,13 +425,13 @@ export function RankingFormPage() {
                         onChange={(e) =>
                           setSimulatedPlayers(Math.max(2, Math.min(100, Number(e.target.value))))
                         }
-                        className="w-14 rounded-lg border border-border-default bg-bg-primary px-2 py-1 text-xs text-text-primary text-center focus:border-border-focus focus:outline-none"
+                        className="w-14 rounded-lg border border-border-input bg-bg-primary px-2 py-1 text-xs text-text-primary text-center focus:border-border-focus focus:outline-none"
                       />
                     </div>
                   </div>
 
                   {simulation.error && (
-                    <p className="text-xs text-accent-red mb-2">
+                    <p className="text-xs text-accent-red-deep mb-2">
                       Formula invalida. Verifique a sintaxe.
                     </p>
                   )}
@@ -441,25 +441,25 @@ export function RankingFormPage() {
                       <div
                         key={row.position}
                         className={`flex flex-col items-center rounded-lg p-2 ${
-                          row.position <= 3 ? 'bg-yellow-500/10' : 'bg-bg-tertiary'
+                          row.position <= 3 ? 'bg-accent-gold-soft' : 'bg-bg-tertiary'
                         }`}
                       >
                         <span
-                          className={`text-xs font-bold ${
+                          className={`text-xs font-bold tabular-nums ${
                             row.position === 1
-                              ? 'text-yellow-400'
+                              ? 'text-accent-gold-deep'
                               : row.position === 2
-                                ? 'text-gray-300'
+                                ? 'text-text-secondary'
                                 : row.position === 3
-                                  ? 'text-amber-600'
-                                  : 'text-text-muted'
+                                  ? 'text-accent-orange-deep'
+                                  : 'text-text-secondary'
                           }`}
                         >
                           {row.position}º
                         </span>
                         <span
-                          className={`text-sm font-semibold ${
-                            row.points === null ? 'text-accent-red' : 'text-text-primary'
+                          className={`text-sm font-semibold tabular-nums ${
+                            row.points === null ? 'text-accent-red-deep' : 'text-text-primary'
                           }`}
                         >
                           {row.points !== null ? row.points : 'ERR'}
@@ -475,7 +475,7 @@ export function RankingFormPage() {
           {/* Table mode */}
           {scoringMode === 'Table' && (
             <div className="flex flex-col gap-3">
-              <div className="grid grid-cols-[1fr_1fr_44px] gap-3 text-xs font-medium text-text-muted px-1">
+              <div className="grid grid-cols-[1fr_1fr_44px] gap-3 text-xs font-medium text-text-secondary px-1">
                 <span>Posicao</span>
                 <span>Pontos</span>
                 <span></span>
@@ -487,19 +487,19 @@ export function RankingFormPage() {
                     min={1}
                     value={row.position}
                     onChange={(e) => updateTableRow(index, 'position', Number(e.target.value))}
-                    className="rounded-lg border border-border-default bg-bg-primary px-3 py-2 text-sm text-text-primary focus:border-border-focus focus:outline-none"
+                    className="rounded-lg border border-border-input bg-bg-primary px-3 py-2 text-sm text-text-primary tabular-nums focus:border-border-focus focus:outline-none"
                   />
                   <input
                     type="number"
                     min={0}
                     value={row.points}
                     onChange={(e) => updateTableRow(index, 'points', Number(e.target.value))}
-                    className="rounded-lg border border-border-default bg-bg-primary px-3 py-2 text-sm text-text-primary focus:border-border-focus focus:outline-none"
+                    className="rounded-lg border border-border-input bg-bg-primary px-3 py-2 text-sm text-text-primary tabular-nums focus:border-border-focus focus:outline-none"
                   />
                   <button
                     type="button"
                     onClick={() => removeTableRow(index)}
-                    className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-text-muted hover:text-accent-red hover:bg-red-500/10 transition-colors"
+                    className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-text-secondary hover:text-accent-red hover:bg-accent-red-soft transition-colors"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -509,7 +509,7 @@ export function RankingFormPage() {
                 <Plus className="h-4 w-4" />
                 Adicionar Posicao
               </Button>
-              <p className="text-xs text-text-muted mt-1">
+              <p className="text-xs text-text-secondary mt-1">
                 Posicoes nao listadas recebem 0 pontos. Ordene da 1a posicao para baixo.
               </p>
             </div>

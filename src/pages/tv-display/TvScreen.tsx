@@ -10,9 +10,9 @@ import { ROUTES } from '../../constants/routes'
 import { DisplayPairingScreen } from './DisplayPairingScreen'
 import { TvDisplayPage } from './TvDisplayPage'
 
-function DarkLoading() {
+function TvLoading() {
   return (
-    <div className="flex h-screen items-center justify-center bg-[#0a0f1c]">
+    <div className="flex h-screen items-center justify-center bg-bg-primary">
       <LoadingSpinner size="lg" />
     </div>
   )
@@ -73,7 +73,7 @@ export function TvDirectPairPage() {
     }
   }, [isLoading, isAuthenticated, tournamentId, navigate])
 
-  if (isLoading) return <DarkLoading />
+  if (isLoading) return <TvLoading />
   if (!isAuthenticated || failed) return <Navigate to={ROUTES.TV} replace />
-  return <DarkLoading />
+  return <TvLoading />
 }

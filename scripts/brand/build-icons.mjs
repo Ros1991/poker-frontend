@@ -9,6 +9,11 @@
  * Entrada (scripts/brand/favicon.svg): desenho simplificado ficha + carta → public/favicon.svg e os 16/32 do .ico
  * Saída: public/ (versionada). A geração é determinística: rodar duas vezes não altera o `git status`.
  *
+ * Cor do tema (SPEC-20261023-1204, tema único claro): `BG` (= --color-bg-primary de globals.css) é a
+ * fonte de `theme_color`/`background_color` do site.webmanifest e do <meta name="theme-color"> do
+ * index.html — o gerador reescreve os três, então manifest e index.html não divergem mais
+ * (antes o manifest tinha theme_color #1E5AA8 e o index.html #F5F7FA).
+ *
  * Versionamento (cache): depois de gerar, calcula um hash curto (8 hex) do conteúdo de TODOS os
  * arquivos gerados e carimba `?v=<hash>` nas referências em index.html (favicon.ico/.svg,
  * apple-touch-icon, manifest, og:image) e nos ícones de public/site.webmanifest. Trocar a arte muda
@@ -31,7 +36,7 @@ const PUBLIC = path.join(FRONTEND, 'public')
 const INDEX_HTML = path.join(FRONTEND, 'index.html')
 const MANIFEST = path.join(PUBLIC, 'site.webmanifest')
 
-const BG = '#F5F7FA' // surface-page
+const BG = '#F5F7FA' // = --color-bg-primary (globals.css): fundo dos ícones, theme_color/background_color e theme-color
 const TRANSPARENT = { r: 0, g: 0, b: 0, alpha: 0 }
 const PNG = { compressionLevel: 9, adaptiveFiltering: false }
 
@@ -135,6 +140,16 @@ export function stampVersion(text, version) {
   return text.replace(re, `$1?v=${version}`)
 }
 
+/** Alinha theme_color e background_color do site.webmanifest com BG (tema único claro). */
+export function syncManifestColors(text) {
+  return text.replace(/("(?:theme_color|background_color)"\s*:\s*)"[^"]*"/g, `$1"${BG}"`)
+}
+
+/** Alinha o <meta name="theme-color"> do index.html com BG. */
+export function syncHtmlThemeColor(text) {
+  return text.replace(/(<meta\s+name="theme-color"\s+content=")[^"]*(")/, `$1${BG}$2`)
+}
+
 /** Reescreve o arquivo só se o texto mudou (mantém mtime/git status estáveis). */
 async function rewriteIfChanged(file, transform) {
   const before = await readFile(file, 'utf8')
@@ -171,10 +186,10 @@ async function main() {
 
   for (const [name, buf] of outputs) await writeFile(out(name), buf)
 
-  // 5. Versão das referências (?v=) em index.html e site.webmanifest
+  // 5. Versão das referências (?v=) e cor do tema em index.html e site.webmanifest
   const version = versionOf(outputs)
-  const changedHtml = await rewriteIfChanged(INDEX_HTML, (t) => stampVersion(t, version))
-  const changedManifest = await rewriteIfChanged(MANIFEST, (t) => stampVersion(t, version))
+  const changedHtml = await rewriteIfChanged(INDEX_HTML, (t) => stampVersion(syncHtmlThemeColor(t), version))
+  const changedManifest = await rewriteIfChanged(MANIFEST, (t) => stampVersion(syncManifestColors(t), version))
 
   console.log('Marca gerada em', PUBLIC)
   console.log(

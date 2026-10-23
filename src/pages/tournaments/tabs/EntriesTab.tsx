@@ -197,9 +197,10 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
     tournament.status === 'InProgress'
 
   function getRowBorderColor(entry: TournamentEntry): string {
-    if (entry.paymentStatus === 'Paid') return 'border-green-500/30 bg-green-500/5'
-    if (entry.paymentStatus === 'PartiallyPaid') return 'border-yellow-500/30 bg-yellow-500/5'
-    if (entry.status === 'Eliminated') return 'border-red-500/20 bg-red-500/5 opacity-70'
+    if (entry.paymentStatus === 'Paid') return 'border-accent-green/30 bg-accent-green-soft'
+    if (entry.paymentStatus === 'PartiallyPaid') return 'border-accent-yellow/40 bg-accent-yellow-soft'
+    // Eliminado: sem opacidade (derrubava o texto abaixo de AA); o estado vem do fundo vermelho-claro e do nome em text-secondary
+    if (entry.status === 'Eliminated') return 'border-accent-red/30 bg-accent-red-soft'
     return 'border-border-default bg-bg-primary'
   }
 
@@ -219,10 +220,10 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
               setBonusChips(String(tournament.punctualityBonusChips ?? 0))
               setShowBonusModal(true)
             }}
-            className="flex w-full min-h-[44px] items-center justify-center gap-1.5 rounded-lg border border-border-default bg-bg-tertiary px-2.5 py-1.5 text-xs text-text-secondary hover:text-text-primary hover:border-accent-blue/50 transition-colors sm:w-auto sm:min-h-0 sm:justify-start"
+            className="flex w-full min-h-[44px] items-center justify-center gap-1.5 rounded-lg border border-border-default bg-bg-tertiary px-2.5 py-1.5 text-xs text-text-secondary tabular-nums hover:text-text-primary hover:border-accent-blue/50 transition-colors sm:w-auto sm:min-h-0 sm:justify-start"
             title="Bônus de pontualidade (fichas extras)"
           >
-            <AlarmClock className="h-3.5 w-3.5 text-yellow-500" />
+            <AlarmClock className="h-3.5 w-3.5 text-accent-gold-deep" />
             Bônus: {tournament.punctualityBonusCount ?? 0} ×{' '}
             {(tournament.punctualityBonusChips ?? 0).toLocaleString('pt-BR')}
           </button>
@@ -247,7 +248,7 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
 
       {/* Success toast with WhatsApp link */}
       {successMessage && successMessage.entry.person.whatsapp && (
-        <div className="flex items-center justify-between rounded-lg bg-accent-green/10 border border-accent-green/30 p-3">
+        <div className="flex items-center justify-between rounded-lg bg-accent-green-soft border border-accent-green/30 p-3">
           <p className="text-sm text-text-primary">
             {successMessage.action} registrado para{' '}
             {successMessage.entry.person.nickname ??
@@ -258,14 +259,14 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
               href={`https://wa.me/${successMessage.entry.person.whatsapp.replace(/\D/g, '')}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700 transition-colors"
+              className="flex items-center gap-1 rounded-lg bg-accent-green-deep px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-green-hover transition-colors"
             >
               <Phone className="h-3 w-3" />
               WhatsApp
             </a>
             <button
               onClick={() => setSuccessMessage(null)}
-              className="text-text-muted hover:text-text-primary text-xs"
+              className="text-text-secondary hover:text-text-primary text-xs"
             >
               Fechar
             </button>
@@ -307,14 +308,16 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
                   size="sm"
                 />
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-text-primary truncate">
+                  <p
+                    className={`text-sm font-medium truncate ${
+                      entry.status === 'Eliminated' ? 'text-text-secondary' : 'text-text-primary'
+                    }`}
+                  >
                     {entry.person.nickname ?? entry.person.fullName}
                   </p>
                   <div className="flex items-center gap-2 mt-0.5">
                     <Badge
-                      className={
-                        ENTRY_STATUS_COLORS[entry.status as EntryStatus] ?? ''
-                      }
+                      color={ENTRY_STATUS_COLORS[entry.status as EntryStatus]}
                     >
                       {ENTRY_STATUS_LABELS[entry.status as EntryStatus] ??
                         entry.status}
@@ -328,11 +331,7 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
                         : ''}
                     </Badge>
                     <Badge
-                      className={
-                        PAYMENT_STATUS_COLORS[
-                          entry.paymentStatus as PaymentStatus
-                        ] ?? ''
-                      }
+                      color={PAYMENT_STATUS_COLORS[entry.paymentStatus as PaymentStatus]}
                     >
                       {PAYMENT_STATUS_LABELS[
                         entry.paymentStatus as PaymentStatus
@@ -343,7 +342,7 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
               </div>
 
               {/* Financial info */}
-              <div className="grid grid-cols-3 gap-2 w-full text-xs text-text-muted sm:flex sm:w-auto sm:items-center sm:gap-4">
+              <div className="grid grid-cols-3 gap-2 w-full text-xs text-text-secondary tabular-nums sm:flex sm:w-auto sm:items-center sm:gap-4">
                 <div className="text-center">
                   <p>Buy-in</p>
                   <p className="font-semibold text-text-primary">
@@ -360,7 +359,7 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
                       <button
                         type="button"
                         onClick={() => removeRebuyMutation.mutate(entry.id)}
-                        className="rounded p-0.5 text-text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                        className="rounded p-0.5 text-text-secondary hover:text-accent-red hover:bg-accent-red-soft transition-colors"
                         title="Remover 1 rebuy"
                       >
                         <MinusCircle className="h-3.5 w-3.5" />
@@ -382,7 +381,7 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
                       <button
                         type="button"
                         onClick={() => removeAddonMutation.mutate(entry.id)}
-                        className="rounded p-0.5 text-text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                        className="rounded p-0.5 text-text-secondary hover:text-accent-red hover:bg-accent-red-soft transition-colors"
                         title="Remover addon"
                       >
                         <MinusCircle className="h-3.5 w-3.5" />
@@ -398,14 +397,14 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
                 </div>
                 <div className="text-center">
                   <p>Pago</p>
-                  <p className="font-semibold text-accent-green">
+                  <p className="font-semibold text-accent-green-deep">
                     {formatCurrency(entry.totalPaid)}
                   </p>
                 </div>
                 <div className="text-center">
                   <p>Saldo</p>
                   <p
-                    className={`font-semibold ${entry.balance > 0 ? 'text-accent-red' : entry.balance < 0 ? 'text-accent-blue' : 'text-accent-green'}`}
+                    className={`font-semibold ${entry.balance > 0 ? 'text-accent-red-deep' : entry.balance < 0 ? 'text-accent-blue' : 'text-accent-green-deep'}`}
                   >
                     {formatCurrency(entry.balance)}
                   </p>
@@ -421,7 +420,7 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
                     size="sm"
                     onClick={() => undoEliminationMutation.mutate(entry.id)}
                     title="Desfazer eliminação"
-                    className="text-accent-blue hover:text-blue-300"
+                    className="text-accent-blue hover:text-accent-blue-hover hover:bg-accent-blue-soft"
                     loading={undoEliminationMutation.isPending}
                   >
                     <Undo2 className="h-4 w-4" />
@@ -452,7 +451,7 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
                       size="sm"
                       onClick={() => setEliminateEntry(entry)}
                       title="Eliminar"
-                      className="text-accent-red hover:text-red-300"
+                      className="text-accent-red hover:text-accent-red-deep hover:bg-accent-red-soft"
                     >
                       <XCircle className="h-4 w-4" />
                     </Button>
@@ -461,7 +460,7 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
                       size="sm"
                       onClick={() => setRemoveConfirm(entry)}
                       title="Remover do torneio"
-                      className="text-text-muted hover:text-red-400"
+                      className="text-accent-red hover:text-accent-red-deep hover:bg-accent-red-soft"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -474,8 +473,8 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
                   title={entry.balance > 0 ? 'Pagar / Ver pagamentos' : 'Ver / Estornar pagamentos'}
                   className={
                     entry.balance > 0
-                      ? 'text-accent-green hover:text-green-300'
-                      : 'text-text-muted hover:text-accent-blue'
+                      ? 'text-accent-green-deep hover:text-accent-green-hover hover:bg-accent-green-soft'
+                      : 'text-text-secondary hover:text-accent-blue hover:bg-accent-blue-soft'
                   }
                 >
                   <CreditCard className="h-4 w-4" />
@@ -541,8 +540,8 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
 
       {/* Bônus de Pontualidade Modal */}
       {showBonusModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-sm rounded-xl border border-border-default bg-bg-secondary p-6 shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-text-primary/40 p-4">
+          <div className="w-full max-w-sm rounded-xl border border-border-default bg-bg-card p-6 shadow-lg">
             <h3 className="text-lg font-semibold text-text-primary mb-1">
               Bônus de Pontualidade
             </h3>
@@ -558,7 +557,7 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
                   min={0}
                   value={bonusCount}
                   onChange={(e) => setBonusCount(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-border-default bg-bg-input px-3 py-2 text-text-primary focus:border-accent-blue focus:outline-none"
+                  className="mt-1 w-full rounded-lg border border-border-input bg-bg-input px-3 py-2 text-text-primary focus:border-accent-blue focus:outline-none"
                 />
               </label>
               <label className="text-sm text-text-secondary">
@@ -569,7 +568,7 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
                   step={500}
                   value={bonusChips}
                   onChange={(e) => setBonusChips(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-border-default bg-bg-input px-3 py-2 text-text-primary focus:border-accent-blue focus:outline-none"
+                  className="mt-1 w-full rounded-lg border border-border-input bg-bg-input px-3 py-2 text-text-primary focus:border-accent-blue focus:outline-none"
                 />
               </label>
               <div className="mt-1 flex gap-2">
@@ -600,8 +599,8 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
 
       {/* Addon Modal */}
       {addonConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-sm rounded-xl border border-border-default bg-bg-secondary p-6 shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-text-primary/40 p-4">
+          <div className="w-full max-w-sm rounded-xl border border-border-default bg-bg-card p-6 shadow-lg">
             <h3 className="text-lg font-semibold text-text-primary mb-2">
               Confirmar Add-on
             </h3>

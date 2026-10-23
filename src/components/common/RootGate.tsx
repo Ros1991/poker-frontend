@@ -15,7 +15,7 @@ export function RootGate() {
 
   if (isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-[#0a0f1c]">
+      <div className="flex h-screen items-center justify-center bg-bg-primary">
         <LoadingSpinner
           size="lg"
           text={isReconnecting ? 'Sem conexão com o servidor. Tentando de novo…' : undefined}

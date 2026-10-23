@@ -1,19 +1,33 @@
 import type { ReactNode } from 'react'
 import { cn } from '../../utils/cn'
 
+/**
+ * Chip de status/rótulo. Fundo pastel (`-soft`) com texto na variante `-deep`, a única que passa
+ * AA em texto pequeno sobre o pastel (SPEC-20261023-1204).
+ *
+ * - `gold`: dourado (premiado, campeão, destaque)
+ * - `yellow`: alerta — fundo amarelo com texto marinho, porque amarelo nunca vira texto
+ * - `gray`: neutro (rascunho, inativo)
+ *
+ * As tabelas de `constants/statuses.ts` devolvem exatamente estas chaves (`BadgeColor`).
+ */
 const colorVariants = {
-  green: 'bg-green-500/20 text-green-400',
-  red: 'bg-red-500/20 text-red-400',
-  yellow: 'bg-yellow-500/20 text-yellow-400',
-  blue: 'bg-blue-500/20 text-blue-400',
-  purple: 'bg-purple-500/20 text-purple-400',
-  gray: 'bg-gray-500/20 text-gray-300',
-  orange: 'bg-orange-500/20 text-orange-400',
+  green: 'bg-accent-green-soft text-accent-green-deep',
+  red: 'bg-accent-red-soft text-accent-red-deep',
+  yellow: 'bg-accent-yellow-soft text-text-primary',
+  gold: 'bg-accent-gold-soft text-accent-gold-deep',
+  blue: 'bg-accent-blue-soft text-accent-blue',
+  purple: 'bg-accent-purple-soft text-accent-purple-deep',
+  orange: 'bg-accent-orange-soft text-accent-orange-deep',
+  gray: 'bg-bg-tertiary text-text-secondary',
 } as const
+
+/** Chave de cor aceita pelo Badge — é o que `*_STATUS_COLORS` de `constants/statuses.ts` devolve. */
+export type BadgeColor = keyof typeof colorVariants
 
 interface BadgeProps {
   children: ReactNode
-  color?: keyof typeof colorVariants
+  color?: BadgeColor
   className?: string
 }
 

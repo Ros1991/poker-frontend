@@ -9,8 +9,13 @@ import * as publicDisplayApi from '../../api/publicDisplay.api'
 import { useBlindTimer } from '../../hooks/useBlindTimer'
 import { pairDisplayPath } from '../../constants/routes'
 import { formatPairingCode } from '../../utils/pairingCode'
+import { Badge } from '../../components/ui/Badge'
+import { Button } from '../../components/ui/Button'
+import { BrandLogo } from '../../components/brand/BrandLogo'
+import { TOURNAMENT_STATUS_COLORS, TOURNAMENT_STATUS_LABELS } from '../../constants/statuses'
 import type { TimerState } from '../../types/blind.types'
 import type { TvEntry } from '../../types/display.types'
+import type { TournamentStatus } from '../../types/tournament.types'
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat('pt-BR', {
@@ -308,55 +313,59 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
     }
   }
 
-  // Status label
-  const statusLabels: Record<string, { label: string; color: string }> = {
-    Draft: { label: 'Rascunho', color: 'bg-gray-500/20 text-gray-300' },
-    OpenForRegistration: { label: 'Iniciado', color: 'bg-blue-500/20 text-blue-400' },
-    InProgress: { label: 'Iniciado', color: 'bg-blue-500/20 text-blue-400' },
-    BreakSettlement: { label: 'Rebuys Finalizados', color: 'bg-yellow-500/20 text-yellow-400' },
-    Finished: { label: 'Finalizado', color: 'bg-emerald-500/20 text-emerald-400' },
-    Cancelled: { label: 'Cancelado', color: 'bg-red-500/20 text-red-400' },
-  }
-  const statusInfo = tournament ? statusLabels[tournament.status] ?? { label: tournament.status, color: 'bg-gray-500/20 text-gray-300' } : null
+  // Status do torneio: rótulo e cor vêm da tabela única de statuses.ts (o snapshot manda string)
+  const status = tournament?.status
+  const knownStatus =
+    status && status in TOURNAMENT_STATUS_LABELS ? (status as TournamentStatus) : null
 
+  // Relógio: marinho; dourado-deep no último minuto; vermelho nos 30 s finais
   const timerColor =
-    timerState.remainingSeconds <= 60
-      ? 'text-red-400'
-      : timerState.remainingSeconds <= 120
-        ? 'text-yellow-400'
-        : 'text-emerald-400'
+    timerState.remainingSeconds <= 30
+      ? 'text-accent-red'
+      : timerState.remainingSeconds <= 60
+        ? 'text-accent-gold-deep'
+        : 'text-text-primary'
 
   function renderBalance(e: TvEntry) {
     if (e.balance > 0) {
-      return <span className="font-semibold text-red-400">{formatCurrency(e.balance)}</span>
+      return <span className="font-semibold tabular-nums text-accent-red-deep">{formatCurrency(e.balance)}</span>
     }
     if (e.balance < 0) {
-      return <span className="font-semibold text-blue-400">{formatCurrency(e.balance)}</span>
+      return <span className="font-semibold tabular-nums text-accent-blue">{formatCurrency(e.balance)}</span>
     }
-    return <span className="font-semibold text-emerald-400">Pago</span>
+    return <span className="font-semibold text-accent-green-deep">Pago</span>
   }
 
   return (
-    <div className="h-screen bg-[#0a0f1c] text-white overflow-hidden select-none">
+    <div className="h-screen bg-bg-primary text-text-primary overflow-hidden select-none">
       <style>{`@keyframes tv-scroll { from { transform: translateY(0); } to { transform: translateY(calc(-1 * var(--tv-scroll-h))); } }`}</style>
-      {/* Background gradient */}
-      <div className="fixed inset-0 bg-gradient-to-br from-[#0a0f1c] via-[#0d1529] to-[#0a1628]" />
-      <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top,rgba(59,130,246,0.08),transparent_60%)]" />
+      {/* Marca d'água: a marca gráfica (/brand/marca-grafica.png, via BrandLogo) fixa no centro a 8 %,
+          só aqui no telão pareado; os cards brancos das colunas passam por cima dela. A 8 % o pior pixel
+          (contorno preto da arte) vira o cinza R225 G227 B230 atrás da coluna central: text-primary 10.6:1,
+          accent-blue 5.3:1, text-secondary 4.2:1 — por isso todo texto solto ali é grande (≥ 24 px). */}
+      <BrandLogo
+        variant="mark"
+        decorative
+        className="pointer-events-none fixed left-1/2 top-1/2 z-0 h-[60vh] -translate-x-1/2 -translate-y-1/2 opacity-[0.08]"
+      />
 
       <div className="relative z-10 flex h-screen flex-col">
         {/* Top Bar */}
-        <header className="flex items-center justify-between border-b border-white/10 px-6 py-3">
+        <header className="flex items-center justify-between border-b border-border-default bg-bg-card px-6 py-3">
           <div className="flex items-center gap-4">
             <h1 className="text-3xl font-bold tracking-tight">
               {tournament?.name ?? 'Torneio'}
             </h1>
-            {statusInfo && (
-              <span className={`rounded-full px-3 py-1 text-sm font-medium ${statusInfo.color}`}>
-                {statusInfo.label}
-              </span>
+            {status && (
+              <Badge
+                color={knownStatus ? TOURNAMENT_STATUS_COLORS[knownStatus] : 'gray'}
+                className="px-3 py-1 text-sm"
+              >
+                {knownStatus ? TOURNAMENT_STATUS_LABELS[knownStatus] : status}
+              </Badge>
             )}
           </div>
-          <div className="flex items-center gap-5 text-base text-slate-400">
+          <div className="flex items-center gap-5 text-base text-text-secondary">
             <span>Pressione F para tela cheia</span>
             <span>
               {now.toLocaleDateString('pt-BR', {
@@ -365,10 +374,11 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
                 year: 'numeric',
               })}
             </span>
-            <button
+            <Button
               type="button"
+              variant="secondary"
               onClick={() => setView(view === 'clock' ? 'tables' : 'clock')}
-              className="flex items-center gap-2 rounded-lg border border-white/15 bg-white/10 px-4 py-2 text-base font-semibold text-white transition-colors hover:bg-white/20"
+              className="text-base font-semibold"
               title="Também alterna com a tecla M"
             >
               {view === 'clock' ? (
@@ -382,10 +392,10 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
                   Voltar ao Telão
                 </>
               )}
-            </button>
+            </Button>
             {pairingCode && (
               <div
-                className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/5 py-1.5 pl-1.5 pr-3"
+                className="flex items-center gap-3 rounded-lg border border-border-default bg-bg-card py-1.5 pl-1.5 pr-3"
                 title="Leia com o celular logado para mostrar outro torneio"
               >
                 <div className="rounded bg-white p-1">
@@ -395,22 +405,23 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
                   />
                 </div>
                 <div className="flex flex-col leading-tight">
-                  <span className="text-xs uppercase tracking-wider text-slate-500">Trocar torneio</span>
-                  <span className="font-mono text-lg font-bold tracking-widest text-slate-200">
+                  <span className="text-xs uppercase tracking-wider text-text-secondary">Trocar torneio</span>
+                  <span className="font-mono text-lg font-bold tracking-widest text-text-primary tabular-nums">
                     {formatPairingCode(pairingCode)}
                   </span>
                 </div>
               </div>
             )}
-            <button
+            <Button
               type="button"
+              variant="secondary"
               onClick={onLeave}
-              className="flex items-center gap-2 rounded-lg border border-white/15 px-4 py-2 text-base font-semibold text-slate-300 transition-colors hover:bg-white/10 hover:text-white"
+              className="text-base font-semibold"
               title="Sai deste torneio e volta para o QR grande"
             >
               <ArrowLeft className="h-5 w-5" />
               Voltar
-            </button>
+            </Button>
           </div>
         </header>
 
@@ -427,16 +438,16 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
                     .map((table) => (
                       <div
                         key={table.id}
-                        className="rounded-xl border border-white/10 bg-white/5 p-5"
+                        className="rounded-xl border border-border-default bg-bg-card p-5"
                       >
                         <div className="mb-3 flex items-baseline justify-between gap-2">
-                          <h3 className="text-3xl font-bold text-white">
+                          <h3 className="text-3xl font-bold text-text-primary">
                             {table.tableName ?? `Mesa ${table.tableNumber}`}
                           </h3>
                           {table.dealerName && (
-                            <span className="truncate text-base text-slate-400">
+                            <span className="truncate text-base text-text-secondary">
                               Dealer:{' '}
-                              <span className="font-semibold text-slate-200">
+                              <span className="font-semibold text-text-primary">
                                 {table.dealerName}
                               </span>
                             </span>
@@ -452,15 +463,21 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
                                 <div
                                   key={seat}
                                   className={`flex items-center gap-3 rounded-lg px-3 py-1.5 text-xl ${
-                                    p ? 'bg-white/5' : 'opacity-35'
+                                    p ? 'border border-transparent bg-bg-tertiary' : 'border border-dashed border-border-default'
                                   }`}
                                 >
-                                  <span className="w-8 shrink-0 text-right font-mono font-bold text-blue-400">
+                                  {/* Assento vago: sem opacidade (deixava o texto abaixo de 2:1); o
+                                      tracejado e o cinza text-secondary (5.4:1) já marcam que está livre */}
+                                  <span
+                                    className={`w-8 shrink-0 text-right font-mono font-bold tabular-nums ${
+                                      p ? 'text-accent-blue' : 'text-text-secondary'
+                                    }`}
+                                  >
                                     {seat}
                                   </span>
                                   <span
-                                    className={`truncate font-semibold ${
-                                      p ? 'text-white' : 'text-slate-500'
+                                    className={`truncate ${
+                                      p ? 'font-semibold text-text-primary' : 'italic text-text-secondary'
                                     }`}
                                   >
                                     {p ? (nicknameByPersonId.get(p.personId) ?? p.name) : 'vago'}
@@ -475,7 +492,7 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
                 </div>
               </AutoScrollList>
             ) : (
-              <div className="flex h-full flex-col items-center justify-center gap-3 text-slate-500">
+              <div className="flex h-full flex-col items-center justify-center gap-3 text-text-secondary">
                 <LayoutGrid className="h-12 w-12" />
                 <p className="text-2xl">Mesas ainda não sorteadas.</p>
               </div>
@@ -484,21 +501,21 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
         ) : (
         <div className="grid flex-1 min-h-0 grid-cols-[1fr_2fr_1fr] gap-4 px-6 py-4">
           {/* ==== Coluna esquerda: jogadores ==== */}
-          <aside className="flex min-h-0 flex-col rounded-xl border border-white/10 bg-white/5 p-4">
+          <aside className="flex min-h-0 flex-col rounded-xl border border-border-default bg-bg-card p-4">
             <div className="mb-1 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Users className="h-6 w-6 text-blue-400" />
-                <h2 className="text-2xl font-semibold text-slate-200">Jogadores</h2>
+                <Users className="h-6 w-6 text-accent-blue" />
+                <h2 className="text-2xl font-semibold text-text-primary">Jogadores</h2>
               </div>
-              <p className="text-2xl font-bold">
-                <span className="text-emerald-400">{activeEntries.length}</span>
-                <span className="text-slate-500"> / {entries?.length ?? 0}</span>
+              <p className="text-2xl font-bold tabular-nums">
+                <span className="text-accent-green-deep">{activeEntries.length}</span>
+                <span className="text-text-secondary"> / {entries?.length ?? 0}</span>
               </p>
             </div>
-            <p className="mb-2 text-base text-slate-500">
+            <p className="mb-2 text-base tabular-nums text-text-secondary">
               {tournament?.totalRebuys ?? 0} rebuys | {tournament?.totalAddons ?? 0} add-ons
             </p>
-            <div className="mb-1 grid grid-cols-[minmax(0,1fr)_3rem_3rem_8rem] gap-1 px-2 text-sm uppercase tracking-wider text-slate-500">
+            <div className="mb-1 grid grid-cols-[minmax(0,1fr)_3rem_3rem_8rem] gap-1 px-2 text-sm uppercase tracking-wider text-text-secondary">
               <span>Jogador</span>
               <span className="text-center">Reb</span>
               <span className="text-center">Add</span>
@@ -510,10 +527,10 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
                   <div key={group.key} className="flex flex-col gap-1">
                     {group.label && (
                       <div className="mt-2 flex items-center gap-2 px-2 first:mt-0">
-                        <span className="text-lg font-bold uppercase tracking-wider text-blue-400">
+                        <span className="text-lg font-bold uppercase tracking-wider text-accent-blue">
                           {group.label}
                         </span>
-                        <span className="h-px flex-1 bg-white/10" />
+                        <span className="h-px flex-1 bg-border-default" />
                       </div>
                     )}
                     {group.players.map((e) => {
@@ -528,32 +545,32 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
                           : 'grid-cols-[minmax(0,1fr)_3rem_3rem_8rem]'
                       } ${
                         isChampion
-                          ? 'border border-yellow-500/30 bg-yellow-500/10'
+                          ? 'border border-accent-gold/40 bg-accent-gold-soft'
                           : finished
-                            ? 'bg-white/[0.03] opacity-60'
-                            : 'border border-white/10 bg-white/5'
+                            ? 'bg-bg-zebra'
+                            : 'border border-border-default bg-bg-primary'
                       }`}
                     >
                       <span className="flex min-w-0 items-center gap-1.5">
                         {isChampion ? (
-                          <span className="flex shrink-0 items-center gap-1 font-bold text-yellow-400">
+                          <span className="flex shrink-0 items-center gap-1 font-bold text-accent-gold-deep">
                             <Trophy className="h-5 w-5" />
                             1º
                           </span>
                         ) : finished ? (
-                          <span className="flex shrink-0 items-center gap-1 font-bold text-red-400">
+                          <span className="flex shrink-0 items-center gap-1 font-bold tabular-nums text-accent-red-deep">
                             <Skull className="h-5 w-5" />
                             {e.finalPosition ? `${e.finalPosition}º` : ''}
                           </span>
                         ) : null}
-                        <span className={`truncate font-semibold ${isChampion ? 'text-white' : finished ? 'text-slate-400' : 'text-white'}`}>
+                        <span className={`truncate font-semibold ${finished && !isChampion ? 'text-text-secondary' : 'text-text-primary'}`}>
                           {e.displayName}
                         </span>
                       </span>
                       {!finished && (
                         <>
-                          <span className="text-center text-slate-300">{e.rebuyCount || '-'}</span>
-                          <span className="text-center text-slate-300">
+                          <span className="text-center tabular-nums text-text-secondary">{e.rebuyCount || '-'}</span>
+                          <span className="text-center tabular-nums text-text-secondary">
                             {e.addonPurchased ? (e.addonDouble ? '2' : '1') : '-'}
                           </span>
                         </>
@@ -565,7 +582,7 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
                   </div>
                 ))}
                 {totalListedPlayers === 0 && (
-                  <p className="py-6 text-center text-sm text-slate-500">Nenhum jogador inscrito.</p>
+                  <p className="py-6 text-center text-sm text-text-secondary">Nenhum jogador inscrito.</p>
                 )}
               </div>
             </AutoScrollList>
@@ -582,21 +599,15 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
                   ?? entries?.find((e) => e.status === 'Awarded')
                 const name = champion?.displayName ?? '—'
                 return (
-                  <div className="flex flex-col items-center gap-4">
-                    <span className="text-4xl font-semibold uppercase tracking-[0.3em] text-yellow-400">
+                  <div className="flex max-w-full flex-col items-center gap-4 rounded-2xl border border-accent-gold/40 bg-accent-gold-soft px-12 py-8">
+                    <span className="text-4xl font-semibold uppercase tracking-[0.3em] text-accent-gold-deep">
                       Campeão
                     </span>
-                    <div
-                      className="max-w-full break-words text-center text-[6rem] font-bold leading-none text-white"
-                      style={{
-                        textShadow:
-                          '0 0 80px rgba(234,179,8,0.5), 0 0 30px rgba(234,179,8,0.3)',
-                      }}
-                    >
+                    <div className="max-w-full break-words text-center text-[6rem] font-bold leading-none text-text-primary">
                       {name}
                     </div>
                     {champion?.prizeAmount ? (
-                      <div className="text-4xl font-semibold text-emerald-400">
+                      <div className="text-4xl font-semibold tabular-nums text-accent-green-deep">
                         {formatCurrency(champion.prizeAmount)}
                       </div>
                     ) : null}
@@ -606,14 +617,14 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
             ) : (
               <div className="flex flex-col items-center gap-2">
                 {timerState.isBreak ? (
-                  <div className="rounded-full bg-yellow-500/20 px-8 py-2 text-2xl font-semibold text-yellow-400">
+                  <div className="rounded-full bg-accent-gold-soft px-8 py-2 text-2xl font-semibold text-accent-gold-deep">
                     INTERVALO
                   </div>
                 ) : (
-                  <div className="flex items-center gap-3 text-slate-400">
+                  <div className="flex items-center gap-3 text-accent-blue">
                     <Clock className="h-6 w-6" />
                     <span className="text-2xl font-medium">
-                      Nivel {timerState.currentLevel}
+                      Nível {timerState.currentLevel}
                     </span>
                   </div>
                 )}
@@ -621,17 +632,14 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
                 {/* Timer */}
                 <div
                   className={`font-mono tabular-nums text-[10rem] font-bold leading-none tracking-tighter transition-colors duration-500 ${timerColor}`}
-                  style={{
-                    textShadow: `0 0 80px ${timerState.remainingSeconds <= 60 ? 'rgba(239,68,68,0.3)' : timerState.remainingSeconds <= 120 ? 'rgba(234,179,8,0.3)' : 'rgba(34,197,94,0.3)'}`,
-                  }}
                 >
                   {formattedTime}
                 </div>
 
                 {/* Progress Bar */}
-                <div className="h-2 w-full max-w-xl overflow-hidden rounded-full bg-white/10">
+                <div className="h-2 w-full max-w-xl overflow-hidden rounded-full bg-border-default">
                   <div
-                    className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-blue-500 transition-all duration-1000 ease-linear"
+                    className="h-full rounded-full bg-accent-blue transition-all duration-1000 ease-linear"
                     style={{ width: `${progressPercentage}%` }}
                   />
                 </div>
@@ -640,31 +648,31 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
                 <div className="mt-4 flex flex-col items-center gap-3">
                   <div className="flex items-end gap-10">
                     <div className="flex flex-col items-center">
-                      <span className="text-lg uppercase tracking-wider text-slate-500">
+                      <span className="text-2xl font-semibold uppercase tracking-wider text-text-secondary">
                         Blinds
                       </span>
-                      <span className="text-8xl font-bold text-white">
+                      <span className="text-8xl font-bold tabular-nums text-accent-blue">
                         {timerState.smallBlind.toLocaleString('pt-BR')} /{' '}
                         {timerState.bigBlind.toLocaleString('pt-BR')}
                       </span>
                     </div>
                     {timerState.ante > 0 && (
                       <div className="flex flex-col items-center">
-                        <span className="text-lg uppercase tracking-wider text-slate-500">
+                        <span className="text-2xl font-semibold uppercase tracking-wider text-text-secondary">
                           Ante
                         </span>
-                        <span className="text-7xl font-bold text-orange-400">
+                        <span className="text-7xl font-bold tabular-nums text-accent-orange-deep">
                           {timerState.ante.toLocaleString('pt-BR')}
                         </span>
                       </div>
                     )}
                   </div>
                   {timerState.nextSmallBlind != null && (
-                    <div className="flex flex-col items-center opacity-70">
-                      <span className="text-base uppercase tracking-wider text-slate-500">
-                        Proximo
+                    <div className="flex flex-col items-center">
+                      <span className="text-2xl font-semibold uppercase tracking-wider text-text-secondary">
+                        Próximo
                       </span>
-                      <span className="text-4xl font-semibold text-slate-300">
+                      <span className="text-4xl font-semibold tabular-nums text-text-secondary">
                         {timerState.nextSmallBlind.toLocaleString('pt-BR')} /{' '}
                         {timerState.nextBigBlind?.toLocaleString('pt-BR')}
                       </span>
@@ -673,7 +681,7 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
 
                   {/* PIX do dia: QR (copia e cola estático) + chave */}
                   {tournament?.responsiblePixKey && (
-                    <div className="mt-4 flex items-center gap-5 rounded-xl border border-emerald-500/20 bg-white/5 px-6 py-4">
+                    <div className="mt-4 flex items-center gap-5 rounded-xl border border-border-default bg-bg-card px-6 py-4">
                       <div className="shrink-0 rounded-lg bg-white p-2">
                         <QRCodeSVG
                           value={buildPixPayload(tournament.responsiblePixKey)}
@@ -681,10 +689,10 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
                         />
                       </div>
                       <div className="flex min-w-0 flex-col">
-                        <span className="text-lg font-semibold uppercase tracking-[0.2em] text-emerald-400">
+                        <span className="text-lg font-semibold uppercase tracking-[0.2em] text-accent-green-deep">
                           PIX
                         </span>
-                        <span className="max-w-md break-all text-3xl font-bold text-white">
+                        <span className="max-w-md break-all text-3xl font-bold text-text-primary">
                           {tournament.responsiblePixKey}
                         </span>
                       </div>
@@ -698,40 +706,40 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
           {/* ==== Coluna direita: hora / fichas / intervalo / premiação ==== */}
           <aside className="flex min-h-0 flex-col gap-3">
             {/* Hora atual */}
-            <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-              <div className="mb-1 flex items-center gap-2 text-slate-400">
-                <Clock className="h-5 w-5" />
+            <div className="rounded-xl border border-border-default bg-bg-card p-4">
+              <div className="mb-1 flex items-center gap-2 text-text-secondary">
+                <Clock className="h-5 w-5 text-text-muted" />
                 <span className="text-base font-medium uppercase tracking-wider">Hora</span>
               </div>
-              <p className="font-mono text-6xl font-bold text-white">
+              <p className="font-mono text-6xl font-bold tabular-nums text-text-primary">
                 {now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
               </p>
             </div>
 
             {/* Fichas */}
-            <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-              <div className="mb-1 flex items-center gap-2 text-slate-400">
-                <Coins className="h-5 w-5" />
+            <div className="rounded-xl border border-border-default bg-bg-card p-4">
+              <div className="mb-1 flex items-center gap-2 text-text-secondary">
+                <Coins className="h-5 w-5 text-text-muted" />
                 <span className="text-base font-medium uppercase tracking-wider">Fichas em jogo</span>
               </div>
-              <p className="text-5xl font-bold text-white">
+              <p className="text-5xl font-bold tabular-nums text-text-primary">
                 {totalChips.toLocaleString('pt-BR')}
               </p>
-              <p className="mt-1 text-xl text-slate-400">
+              <p className="mt-1 text-xl text-text-secondary">
                 Média por jogador:{' '}
-                <span className="font-semibold text-emerald-400">
+                <span className="font-semibold tabular-nums text-accent-green-deep">
                   {avgStack.toLocaleString('pt-BR')}
                 </span>
               </p>
             </div>
 
             {/* Próximo intervalo */}
-            <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-              <div className="mb-1 flex items-center gap-2 text-slate-400">
-                <Hourglass className="h-5 w-5" />
+            <div className="rounded-xl border border-border-default bg-bg-card p-4">
+              <div className="mb-1 flex items-center gap-2 text-text-secondary">
+                <Hourglass className="h-5 w-5 text-text-muted" />
                 <span className="text-base font-medium uppercase tracking-wider">Próximo intervalo</span>
               </div>
-              <p className="font-mono text-5xl font-bold text-yellow-400">
+              <p className="font-mono text-5xl font-bold tabular-nums text-accent-gold-deep">
                 {timerState.isBreak
                   ? 'Agora'
                   : secondsToBreak != null
@@ -741,13 +749,13 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
             </div>
 
             {/* Premiação por posição — o mais abaixo possível */}
-            <div className="mt-auto flex min-h-0 flex-col rounded-xl border border-white/10 bg-white/5 p-4">
+            <div className="mt-auto flex min-h-0 flex-col rounded-xl border border-border-default bg-bg-card p-4">
               <div className="mb-2 flex items-center justify-between">
-                <div className="flex items-center gap-2 text-slate-400">
-                  <Trophy className="h-5 w-5 text-yellow-400" />
+                <div className="flex items-center gap-2 text-text-secondary">
+                  <Trophy className="h-5 w-5 text-accent-gold-deep" />
                   <span className="text-base font-medium uppercase tracking-wider">Premiação</span>
                 </div>
-                <span className="text-xl font-bold text-emerald-400">{formatCurrency(premiacao)}</span>
+                <span className="text-xl font-bold tabular-nums text-accent-green-deep">{formatCurrency(premiacao)}</span>
               </div>
               <AutoScrollList className="min-h-0" anchorBottom>
                 <div className="flex flex-col gap-1">
@@ -756,14 +764,14 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
                     return (
                       <div
                         key={p.position}
-                        className="flex items-center gap-2 rounded-lg bg-white/[0.04] px-2 py-2 text-xl"
+                        className="flex items-center gap-2 rounded-lg bg-bg-tertiary px-2 py-2 text-xl"
                       >
-                        <span className="w-12 shrink-0 font-bold text-yellow-400">{p.position}º</span>
-                        <span className="shrink-0 font-semibold text-emerald-400">
+                        <span className="w-12 shrink-0 font-bold tabular-nums text-accent-gold-deep">{p.position}º</span>
+                        <span className="shrink-0 font-semibold tabular-nums text-accent-green-deep">
                           {formatCurrency(p.amount)}
                         </span>
                         {winner && (
-                          <span className="min-w-0 flex-1 truncate text-right text-slate-400">
+                          <span className="min-w-0 flex-1 truncate text-right text-text-secondary">
                             {winner.displayName}
                           </span>
                         )}
@@ -771,7 +779,7 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
                     )
                   })}
                   {prizesList.length === 0 && (
-                    <p className="py-3 text-center text-base text-slate-500">Sem premiação calculada</p>
+                    <p className="py-3 text-center text-base text-text-secondary">Sem premiação calculada</p>
                   )}
                 </div>
               </AutoScrollList>

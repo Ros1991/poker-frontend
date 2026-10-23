@@ -58,7 +58,7 @@ export function SearchInput({
         onChange={(e) => handleChange(e.target.value)}
         placeholder={placeholder}
         className={cn(
-          'min-h-[44px] w-full rounded-lg border border-border-default bg-bg-input pl-10 pr-10 py-2.5 text-sm text-text-primary',
+          'min-h-[44px] w-full rounded-lg border border-border-input bg-bg-input pl-10 pr-10 py-2.5 text-sm text-text-primary',
           'placeholder:text-text-muted',
           'focus:outline-none focus:ring-2 focus:ring-border-focus focus:border-border-focus',
           'transition-colors',
@@ -67,7 +67,7 @@ export function SearchInput({
       {localValue && (
         <button
           onClick={handleClear}
-          className="absolute right-2 top-1/2 -translate-y-1/2 min-h-[32px] min-w-[32px] flex items-center justify-center rounded text-text-muted hover:text-text-primary transition-colors"
+          className="absolute right-2 top-1/2 -translate-y-1/2 min-h-[32px] min-w-[32px] flex items-center justify-center rounded text-text-secondary hover:text-text-primary transition-colors"
           aria-label="Limpar busca"
         >
           <X className="h-4 w-4" />

@@ -13,14 +13,14 @@ interface AddonDialogProps {
   onClose: () => void
 }
 
-/** Add-on simples ou duplo (duplo só se o torneio permitir) */
+/** Add-on simples ou duplo (duplo só se o torneio permitir). Confirmação dourada, a cor do Add-on no terminal. */
 export function AddonDialog({ entry, tournament, loading, onConfirm, onClose }: AddonDialogProps) {
   if (!entry) return null
   const amount = tournament?.addonAmount ?? 0
   return (
     <Modal isOpen onClose={onClose} title={`Add-on para ${playerName(entry)}`} size="sm">
       <div className="flex flex-col gap-2">
-        <Button size="lg" className="w-full" loading={loading} onClick={() => onConfirm(false)}>
+        <Button size="lg" variant="gold" className="w-full tabular-nums" loading={loading} onClick={() => onConfirm(false)}>
           <PlusCircle className="h-5 w-5" />
           Add-on simples — {formatCurrency(amount)}
         </Button>
@@ -28,7 +28,7 @@ export function AddonDialog({ entry, tournament, loading, onConfirm, onClose }: 
           <Button
             size="lg"
             variant="secondary"
-            className="w-full"
+            className="w-full tabular-nums"
             loading={loading}
             onClick={() => onConfirm(true)}
           >

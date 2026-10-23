@@ -38,22 +38,22 @@ export function TableSelectDialog({
             className={cn(
               'flex min-h-[52px] items-center justify-between rounded-lg border px-3 text-left transition-colors',
               selectedTableId === t.id
-                ? 'border-accent-blue bg-accent-blue/10'
+                ? 'border-accent-blue bg-accent-blue-soft'
                 : 'border-border-default bg-bg-primary hover:bg-bg-tertiary',
             )}
           >
             <span>
               <span className="block font-semibold text-text-primary">
                 {tableLabel(t)}
-                {t.isFinalTable && <span className="ml-2 text-xs text-accent-yellow">Mesa final</span>}
+                {t.isFinalTable && <span className="ml-2 text-xs text-accent-gold-deep">Mesa final</span>}
               </span>
-              {t.dealerName && <span className="block text-xs text-text-muted">Dealer: {t.dealerName}</span>}
+              {t.dealerName && <span className="block text-xs text-text-secondary">Dealer: {t.dealerName}</span>}
             </span>
-            <span className="text-sm text-text-muted">{seated.get(t.id)?.length ?? 0} jogadores</span>
+            <span className="text-sm tabular-nums text-text-secondary">{seated.get(t.id)?.length ?? 0} jogadores</span>
           </button>
         ))}
         {tables.length === 0 && (
-          <p className="py-4 text-center text-sm text-text-muted">Nenhuma mesa sorteada.</p>
+          <p className="py-4 text-center text-sm text-text-secondary">Nenhuma mesa sorteada.</p>
         )}
         <Button variant="secondary" className="mt-1" onClick={onOpenTables}>
           Ver todas as mesas

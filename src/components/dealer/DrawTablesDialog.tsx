@@ -106,25 +106,25 @@ export function DrawTablesDialog({
             />
           </div>
           {!seatsValid && (
-            <p className="text-xs text-accent-red">
+            <p className="text-xs text-accent-red-deep">
               Lugares por mesa: de {MIN_SEATS} a {MAX_SEATS}.
             </p>
           )}
           {!tablesValid && (
-            <p className="text-xs text-accent-red">
+            <p className="text-xs text-accent-red-deep">
               Nº de mesas: de 1 a {maxTables} (não pode passar do número de jogadores ativos).
             </p>
           )}
           {seatsValid && tablesValid && tooFew && (
-            <p className="text-xs text-accent-red">
+            <p className="text-xs text-accent-red-deep">
               {tableCount} {tableCount === 1 ? 'mesa' : 'mesas'} de {seatsNum} não cabem {activePlayers} jogadores.
             </p>
           )}
           {serverError && (
-            <p className="rounded-lg bg-accent-red/10 p-2.5 text-sm text-accent-red">{serverError}</p>
+            <p className="rounded-lg bg-accent-red-soft p-2.5 text-sm text-accent-red-deep">{serverError}</p>
           )}
           {hasTables && (
-            <p className="flex items-start gap-2 rounded-lg border border-accent-red/40 bg-accent-red/10 p-2.5 text-sm text-text-primary">
+            <p className="flex items-start gap-2 rounded-lg border border-accent-red/40 bg-accent-red-soft p-2.5 text-sm text-text-primary">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-accent-red" />
               {REDRAW_WARNING}
             </p>

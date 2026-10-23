@@ -154,7 +154,7 @@ export function PlayerFormPage() {
       <div className="flex items-center gap-3">
         <button
           onClick={() => navigate(-1)}
-          className="flex h-10 w-10 items-center justify-center rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-tertiary transition-colors"
+          className="flex h-10 w-10 items-center justify-center rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors"
           aria-label="Voltar"
         >
           <ArrowLeft className="h-5 w-5" />

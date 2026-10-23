@@ -98,7 +98,7 @@ export function PublicPlayerPage() {
         <Link
           to={publicRankingPath(ranking.slug)}
           className={cn(
-            'inline-flex min-h-11 min-w-0 items-center gap-1 rounded-lg px-2 text-sm font-medium text-slate-300 transition-colors hover:text-white',
+            'inline-flex min-h-11 min-w-0 items-center gap-1 rounded-lg px-2 text-sm font-medium text-text-secondary transition-colors hover:text-text-primary',
             focusRingClass,
           )}
         >
@@ -111,7 +111,7 @@ export function PublicPlayerPage() {
             void shareLink(`${player.displayName} · ${ranking.name}`, window.location.href)
           }
           className={cn(
-            'inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg text-slate-300 transition-colors hover:bg-white/10 hover:text-white',
+            'inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg text-text-secondary transition-colors hover:bg-bg-tertiary hover:text-text-primary',
             focusRingClass,
           )}
           aria-label="Compartilhar resumo"
@@ -120,14 +120,14 @@ export function PublicPlayerPage() {
         </button>
       </nav>
 
-      <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+      <section className="rounded-2xl border border-border-default bg-bg-card p-4">
         <div className="flex items-center gap-4">
           <Avatar src={resolveMediaUrl(player.photoUrl)} name={player.displayName} size="lg" />
           <div className="min-w-0">
-            <h1 className="truncate text-2xl font-bold tracking-tight text-white">
+            <h1 className="truncate text-2xl font-bold tracking-tight text-text-primary">
               {player.displayName}
             </h1>
-            <p className="mt-0.5 text-sm text-slate-400">
+            <p className="mt-0.5 text-sm tabular-nums text-text-secondary">
               <span className={cn('font-semibold', tone.text)}>{player.position}º lugar</span>{' '}
               de {ranking.leaderboard.length}
             </p>
@@ -143,19 +143,19 @@ export function PublicPlayerPage() {
           />
         </dl>
 
-        <p className="mt-3 text-sm leading-relaxed text-slate-400">
+        <p className="mt-3 text-sm leading-relaxed text-text-secondary">
           {playerExplanation(ranking, player)}
         </p>
       </section>
 
       <div className="mb-2 mt-6 flex items-center justify-between gap-3 pl-1">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-300">
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
           Etapa por etapa
         </h2>
         <div
           role="group"
           aria-label="Ordenar etapas"
-          className="inline-flex rounded-lg border border-white/10 bg-white/[0.04] p-0.5"
+          className="inline-flex rounded-lg border border-border-input bg-bg-card p-0.5"
         >
           <SortButton active={sortBy === 'date'} onClick={() => setSortBy('date')}>
             Data
@@ -166,7 +166,7 @@ export function PublicPlayerPage() {
         </div>
       </div>
 
-      <ol className="flex flex-col gap-0.5 rounded-2xl border border-white/10 bg-white/[0.035] p-1.5">
+      <ol className="flex flex-col gap-0.5 rounded-2xl border border-border-default bg-bg-card p-1.5">
         {rows.map((row) => (
           <li key={row.key}>
             <StageRow row={row} />
@@ -174,7 +174,7 @@ export function PublicPlayerPage() {
         ))}
       </ol>
 
-      <p className="mt-4 text-center text-xs text-slate-400">
+      <p className="mt-4 text-center text-xs tabular-nums text-text-secondary">
         Atualizado às {formatTime(ranking.generatedAt)}
       </p>
     </PublicShell>
@@ -183,12 +183,12 @@ export function PublicPlayerPage() {
 
 function Stat({ label, value, emphasis = false }: { label: string; value: string; emphasis?: boolean }) {
   return (
-    <div className="rounded-xl bg-white/[0.05] px-3 py-2.5">
-      <dt className="text-[11px] font-medium uppercase tracking-wider text-slate-400">{label}</dt>
+    <div className="rounded-xl bg-bg-tertiary px-3 py-2.5">
+      <dt className="text-[11px] font-medium uppercase tracking-wider text-text-secondary">{label}</dt>
       <dd
         className={cn(
           'mt-0.5 text-lg font-bold tabular-nums',
-          emphasis ? 'text-white' : 'text-slate-200',
+          emphasis ? 'text-accent-blue' : 'text-text-primary',
         )}
       >
         {value}
@@ -214,7 +214,7 @@ function SortButton({
       className={cn(
         'min-h-11 rounded-md px-3.5 text-sm font-medium transition-colors',
         focusRingClass,
-        active ? 'bg-white/15 text-white' : 'text-slate-400 hover:text-slate-200',
+        active ? 'bg-accent-blue-soft text-accent-blue' : 'text-text-secondary hover:text-text-primary',
       )}
     >
       {children}
@@ -222,33 +222,34 @@ function SortButton({
   )
 }
 
+// Chip da etapa: contou = verde (soft + deep), descartada = neutra, falta = vermelho tracejado
 const STATUS_PILL: Record<StageStatus, { label: string; className: string }> = {
-  counted: { label: 'Contou', className: 'bg-emerald-400/15 text-emerald-300' },
-  discarded: { label: 'Descartado', className: 'bg-white/[0.07] text-slate-400' },
-  absent: { label: 'Falta', className: 'border border-dashed border-white/20 text-slate-400' },
+  counted: { label: 'Contou', className: 'bg-accent-green-soft text-accent-green-deep' },
+  discarded: { label: 'Descartado', className: 'bg-bg-tertiary text-text-secondary' },
+  absent: { label: 'Falta', className: 'border border-dashed border-accent-red/40 text-accent-red-deep' },
 }
 
 function StageRow({ row }: { row: PlayerStageRow }) {
   const { stage, result } = row
   const status = stageStatus(row)
   const pill = STATUS_PILL[status]
-  const podiumText = result && result.position <= 3 ? positionTone(result.position).text : 'text-slate-400'
+  const podiumText = result && result.position <= 3 ? positionTone(result.position).text : 'text-text-secondary'
 
   return (
     <div className="flex min-h-14 items-center gap-3 rounded-xl px-2.5 py-2">
-      <span className="w-10 shrink-0 text-xs font-medium tabular-nums text-slate-400">
+      <span className="w-10 shrink-0 text-xs font-medium tabular-nums text-text-secondary">
         {formatShortDate(stage.date)}
       </span>
       <span className="min-w-0 flex-1">
         <span
           className={cn(
             'block truncate text-sm font-medium',
-            result ? 'text-slate-100' : 'text-slate-400',
+            result ? 'text-text-primary' : 'text-text-secondary',
           )}
         >
           {stage.name}
         </span>
-        <span className={cn('block text-xs', result ? podiumText : 'text-slate-400')}>
+        <span className={cn('block text-xs tabular-nums', result ? podiumText : 'text-text-secondary')}>
           {result ? `${result.position}º de ${stage.playerCount}` : 'Não jogou'}
         </span>
       </span>
@@ -256,10 +257,11 @@ function StageRow({ row }: { row: PlayerStageRow }) {
         <span
           className={cn(
             'text-base font-bold leading-none tabular-nums',
-            status === 'counted' && 'text-white',
-            // linha mais clara que o dígito: na mesma cor ela some dentro do número
-            status === 'discarded' && 'text-slate-400 line-through decoration-slate-200/90 decoration-2',
-            status === 'absent' && 'text-slate-500',
+            status === 'counted' && 'text-text-primary',
+            // descartada: apagada e riscada; a linha mais escura que o dígito, senão some dentro do número
+            status === 'discarded' && 'text-text-muted line-through decoration-text-secondary decoration-2',
+            // falta: o "0" é lido (não é riscado) — text-secondary, não text-muted
+            status === 'absent' && 'text-text-secondary',
           )}
         >
           {result ? formatPoints(result.points) : '0'}

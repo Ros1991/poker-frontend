@@ -279,7 +279,7 @@ export function TournamentFormPage() {
       <div className="flex items-center gap-3 mb-6">
         <button
           onClick={() => navigate(-1)}
-          className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-tertiary transition-colors"
+          className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors"
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
@@ -329,7 +329,7 @@ export function TournamentFormPage() {
             </label>
             <select
               {...register('blindStructureId')}
-              className="min-h-[44px] w-full rounded-lg border border-border-default bg-bg-input px-3 py-2.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-border-focus"
+              className="min-h-[44px] w-full rounded-lg border border-border-input bg-bg-input px-3 py-2.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-border-focus"
             >
               <option value="">Selecione...</option>
               {blindStructures?.map((bs) => (
@@ -341,7 +341,7 @@ export function TournamentFormPage() {
                 </option>
               ))}
             </select>
-            <p className="text-xs text-text-muted">
+            <p className="text-xs text-text-secondary">
               Ao selecionar, os valores abaixo serao preenchidos automaticamente
             </p>
           </div>
@@ -352,7 +352,7 @@ export function TournamentFormPage() {
             </label>
             <select
               {...register('rankingId')}
-              className="min-h-[44px] w-full rounded-lg border border-border-default bg-bg-input px-3 py-2.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-border-focus"
+              className="min-h-[44px] w-full rounded-lg border border-border-input bg-bg-input px-3 py-2.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-border-focus"
             >
               <option value="">Nenhum</option>
               {rankings?.map((r) => (
@@ -392,7 +392,7 @@ export function TournamentFormPage() {
               error={errors.addonAmount?.message}
             />
           </div>
-          <p className="mt-2 text-xs text-text-muted">
+          <p className="mt-2 text-xs text-text-secondary">
             O valor cobrado de cada jogador é buy-in + staff
             {watch('rankingId') && watch('rankingContribMode') === 'PerPlayer'
               ? ' + ranking'
@@ -421,7 +421,7 @@ export function TournamentFormPage() {
                 </label>
                 <select
                   {...register('rankingContribMode')}
-                  className="min-h-[44px] w-full rounded-lg border border-border-default bg-bg-input px-3 py-2.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-border-focus"
+                  className="min-h-[44px] w-full rounded-lg border border-border-input bg-bg-input px-3 py-2.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-border-focus"
                 >
                   <option value="PerPlayer">Valor fixo por jogador</option>
                   <option value="Percent">% do líquido</option>
@@ -440,7 +440,7 @@ export function TournamentFormPage() {
               />
             </div>
           ) : (
-            <p className="mt-2 text-xs text-text-muted">
+            <p className="mt-2 text-xs text-text-secondary">
               Selecione um ranking acima para definir a contribuição acumulada.
             </p>
           )}
@@ -490,7 +490,7 @@ export function TournamentFormPage() {
               <input
                 type="checkbox"
                 {...register('addonAllowed')}
-                className="h-5 w-5 rounded border-border-default bg-bg-input text-accent-blue focus:ring-accent-blue"
+                className="h-5 w-5 rounded border-border-input bg-bg-input text-accent-blue focus:ring-accent-blue"
               />
               <span className="text-sm text-text-primary">
                 Permitir add-on
@@ -501,7 +501,7 @@ export function TournamentFormPage() {
                 <input
                   type="checkbox"
                   {...register('addonDoubleAllowed')}
-                  className="h-5 w-5 rounded border-border-default bg-bg-input text-accent-blue focus:ring-accent-blue"
+                  className="h-5 w-5 rounded border-border-input bg-bg-input text-accent-blue focus:ring-accent-blue"
                 />
                 <span className="text-sm text-text-primary">
                   Permitir addon duplo

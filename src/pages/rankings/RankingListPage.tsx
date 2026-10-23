@@ -52,7 +52,7 @@ export function RankingListPage() {
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
-        <p className="text-sm text-accent-red">
+        <p className="text-sm text-accent-red-deep">
           Erro ao carregar rankings. Tente novamente.
         </p>
       </div>
@@ -108,15 +108,15 @@ export function RankingListPage() {
             >
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-yellow-500/10">
-                    <Trophy className="h-5 w-5 text-yellow-400" />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent-gold-soft">
+                    <Trophy className="h-5 w-5 text-accent-gold-deep" />
                   </div>
                   <div>
                     <h3 className="font-semibold text-text-primary group-hover:text-accent-blue transition-colors">
                       {ranking.name}
                     </h3>
                     {ranking.season && (
-                      <p className="text-xs text-text-muted">
+                      <p className="text-xs text-text-secondary">
                         {ranking.season}
                       </p>
                     )}
@@ -133,7 +133,7 @@ export function RankingListPage() {
                 </p>
               )}
 
-              <div className="flex items-center gap-4 text-xs text-text-muted">
+              <div className="flex items-center gap-4 text-xs text-text-secondary">
                 {ranking.season && (
                   <span className="flex items-center gap-1">
                     <Calendar className="h-3.5 w-3.5" />

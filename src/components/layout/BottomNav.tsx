@@ -28,7 +28,7 @@ export function BottomNav({ className }: BottomNavProps) {
                   'flex flex-col items-center gap-1 py-2 px-1 text-xs font-medium transition-colors min-h-[56px] justify-center',
                   isActive || selectedHomeGame?.id === homeGame.id
                     ? 'text-accent-blue'
-                    : 'text-text-muted hover:text-text-secondary',
+                    : 'text-text-secondary hover:text-text-primary',
                 )
               }
             >
@@ -44,8 +44,8 @@ export function BottomNav({ className }: BottomNavProps) {
               cn(
                 'flex flex-col items-center gap-1 py-2 px-1 text-xs font-medium transition-colors min-h-[56px] justify-center',
                 isActive
-                  ? 'text-accent-green'
-                  : 'text-text-muted hover:text-text-secondary',
+                  ? 'text-accent-green-deep'
+                  : 'text-text-secondary hover:text-text-primary',
               )
             }
           >

@@ -20,11 +20,13 @@ import {
   XCircle,
   Pencil,
   UserCog,
+  UserCheck,
 } from 'lucide-react'
 import * as tournamentsApi from '../../api/tournaments.api'
 import * as entriesApi from '../../api/entries.api'
 import * as costExtrasApi from '../../api/costExtras.api'
 import * as timerApi from '../../api/timer.api'
+import * as dealerAccessApi from '../../api/dealerAccess.api'
 import { useBlindTimer } from '../../hooks/useBlindTimer'
 import { useWebSocket } from '../../hooks/useWebSocket'
 import { Badge } from '../../components/ui/Badge'
@@ -32,6 +34,7 @@ import { Button } from '../../components/ui/Button'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { LoadingSpinner } from '../../components/common/LoadingSpinner'
 import { DealerQrModal } from '../../components/tournament/DealerQrModal'
+import { apiErrorMessage, formatTime } from '../../components/dealer/terminalFormat'
 import {
   TOURNAMENT_STATUS_LABELS,
   TOURNAMENT_STATUS_COLORS,
@@ -51,6 +54,7 @@ import { CostExtrasTab } from './tabs/CostExtrasTab'
 import { FinancialTab } from './tabs/FinancialTab'
 import type { TimerState } from '../../types/blind.types'
 import type { TournamentStatus } from '../../types/tournament.types'
+import type { DealerRequest } from '../../types/display.types'
 
 const tabs = [
   { key: 'jogadores', label: 'Jogadores', icon: Users },
@@ -70,6 +74,12 @@ function formatCurrency(value: number): string {
     style: 'currency',
     currency: 'BRL',
   }).format(value)
+}
+
+/** 401/403/404: a consulta periódica dos pedidos do dealer não insiste */
+function isAccessError(err: unknown): boolean {
+  const status = (err as { response?: { status?: number } } | null)?.response?.status
+  return status === 401 || status === 403 || status === 404
 }
 
 export function TournamentDashboardPage() {
@@ -101,6 +111,50 @@ export function TournamentDashboardPage() {
     queryFn: () => costExtrasApi.getAll(id!),
     enabled: !!id,
   })
+
+  // Pedidos de acesso do dealer (SPEC-20261023-1208): consulta a cada 5 s enquanto a aba está
+  // visível e o torneio não terminou; o banner no topo e o modal do QR usam a mesma lista
+  const tournamentOver = tournament?.status === 'Finished' || tournament?.status === 'Cancelled'
+  const { data: dealerRequests = [] } = useQuery({
+    queryKey: ['dealer-requests', id],
+    queryFn: () => dealerAccessApi.listRequests(id!),
+    enabled: !!id && !!tournament && !tournamentOver,
+    // Sem acesso ao torneio (401/403/404) não adianta insistir; queda de rede continua tentando
+    refetchInterval: (query) =>
+      isAccessError(query.state.error) || document.visibilityState !== 'visible' ? false : 5000,
+    retry: false,
+  })
+  const pendingDealerRequests = dealerRequests.filter((r) => r.status === 'Pending')
+  const connectedDealers = dealerRequests.filter((r) => r.status === 'Approved')
+
+  const decideDealerMutation = useMutation({
+    mutationFn: ({ action, request }: { action: 'approve' | 'reject'; request: DealerRequest }) =>
+      action === 'approve'
+        ? dealerAccessApi.approve(id!, request.id)
+        : dealerAccessApi.reject(id!, request.id),
+    onSuccess: (_data, { action, request }) => {
+      toast.success(
+        action === 'approve'
+          ? `${request.name} autorizado como dealer.`
+          : `Pedido de ${request.name} recusado.`,
+      )
+      void queryClient.invalidateQueries({ queryKey: ['dealer-requests', id] })
+      void queryClient.invalidateQueries({ queryKey: ['dealer-access', id] })
+    },
+    onError: (err, { action }) => {
+      toast.error(
+        apiErrorMessage(
+          err,
+          action === 'approve' ? 'Não foi possível autorizar o dealer.' : 'Não foi possível recusar o pedido.',
+        ),
+      )
+      // 400 (pedido venceu, QR revogado…): a lista do servidor já mudou
+      void queryClient.invalidateQueries({ queryKey: ['dealer-requests', id] })
+    },
+  })
+  const decidingDealerId = decideDealerMutation.isPending
+    ? decideDealerMutation.variables?.request.id
+    : undefined
 
   const { timerState, formattedTime, syncFromServer } = useBlindTimer(() => {
     void queryClient.invalidateQueries({ queryKey: ['timer', id] })
@@ -196,7 +250,7 @@ export function TournamentDashboardPage() {
   }
 
   const statusColor =
-    TOURNAMENT_STATUS_COLORS[tournament.status as TournamentStatus] ?? ''
+    TOURNAMENT_STATUS_COLORS[tournament.status as TournamentStatus]
   const statusLabel =
     TOURNAMENT_STATUS_LABELS[tournament.status as TournamentStatus] ??
     tournament.status
@@ -292,13 +346,63 @@ export function TournamentDashboardPage() {
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Pedidos de acesso do dealer aguardando autorização (um aviso por pedido; no máximo 5) */}
+      {pendingDealerRequests.length > 0 && (
+        <div className="flex flex-col gap-2">
+          {pendingDealerRequests.map((request) => (
+            <div
+              key={request.id}
+              className="flex flex-col gap-3 rounded-xl border border-accent-blue/30 bg-accent-blue-soft p-4 sm:flex-row sm:items-center"
+            >
+              <div className="flex min-w-0 flex-1 items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-bg-card">
+                  <UserCheck className="h-5 w-5 text-accent-blue" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm text-text-primary">
+                    <span className="font-bold">{request.name}</span> quer entrar como dealer
+                  </p>
+                  <p className="text-xs tabular-nums text-text-secondary">
+                    Pediu às {formatTime(request.requestedAt)} · o pedido vale por 15 min
+                  </p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2 sm:flex">
+                <Button
+                  variant="success"
+                  className="min-h-[44px] sm:min-w-[120px]"
+                  loading={
+                    decidingDealerId === request.id && decideDealerMutation.variables?.action === 'approve'
+                  }
+                  disabled={decidingDealerId === request.id}
+                  onClick={() => decideDealerMutation.mutate({ action: 'approve', request })}
+                >
+                  Autorizar
+                </Button>
+                <Button
+                  variant="secondary"
+                  className="min-h-[44px] sm:min-w-[120px]"
+                  loading={
+                    decidingDealerId === request.id && decideDealerMutation.variables?.action === 'reject'
+                  }
+                  disabled={decidingDealerId === request.id}
+                  onClick={() => decideDealerMutation.mutate({ action: 'reject', request })}
+                >
+                  Recusar
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col gap-4 rounded-xl border border-border-default bg-bg-secondary p-4 lg:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <Link
               to={`/home-games/${tournament.homeGameId}?tab=torneios`}
-              className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-tertiary transition-colors"
+              className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors"
             >
               <ArrowLeft className="h-5 w-5" />
             </Link>
@@ -306,14 +410,14 @@ export function TournamentDashboardPage() {
               <h1 className="text-xl font-bold text-text-primary">
                 {tournament.name}
               </h1>
-              <p className="text-sm text-text-muted">
+              <p className="text-sm text-text-secondary">
                 {tournament.homeGameName}
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            <Badge className={statusColor}>{statusLabel}</Badge>
+            <Badge color={statusColor}>{statusLabel}</Badge>
             {tournament.status === 'Draft' && (
               <Button
                 variant="secondary"
@@ -373,26 +477,26 @@ export function TournamentDashboardPage() {
         {/* Stats Row */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
           <div className="rounded-lg bg-bg-primary p-3">
-            <p className="text-xs text-text-muted">Timer</p>
-            <p className="text-xl font-mono font-bold text-accent-green">
+            <p className="text-xs text-text-secondary">Timer</p>
+            <p className="text-xl font-mono font-bold text-text-primary tabular-nums">
               {formattedTime}
             </p>
           </div>
           <div className="rounded-lg bg-bg-primary p-3">
-            <p className="text-xs text-text-muted">Jogadores</p>
-            <p className="text-xl font-bold text-text-primary">
+            <p className="text-xs text-text-secondary">Jogadores</p>
+            <p className="text-xl font-bold text-text-primary tabular-nums">
               {activeEntries.length}/{tournament.totalEntries}
             </p>
           </div>
           <div className="rounded-lg bg-bg-primary p-3">
-            <p className="text-xs text-text-muted">Rebuys</p>
-            <p className="text-xl font-bold text-text-primary">
+            <p className="text-xs text-text-secondary">Rebuys</p>
+            <p className="text-xl font-bold text-text-primary tabular-nums">
               {tournament.totalRebuys}
             </p>
           </div>
           <div className="rounded-lg bg-bg-primary p-3">
-            <p className="text-xs text-text-muted">Add-ons</p>
-            <p className="text-xl font-bold text-text-primary">
+            <p className="text-xs text-text-secondary">Add-ons</p>
+            <p className="text-xl font-bold text-text-primary tabular-nums">
               {tournament.totalAddons}
             </p>
           </div>
@@ -406,14 +510,14 @@ export function TournamentDashboardPage() {
             return (
               <>
                 <div className="rounded-lg bg-bg-primary p-3">
-                  <p className="text-xs text-text-muted">Premiação</p>
-                  <p className="text-xl font-bold text-accent-green">
+                  <p className="text-xs text-text-secondary">Premiação</p>
+                  <p className="text-xl font-bold text-accent-green-deep tabular-nums">
                     {formatCurrency(premiacao)}
                   </p>
                 </div>
                 <div className="rounded-lg bg-bg-primary p-3">
-                  <p className="text-xs text-text-muted">Total</p>
-                  <p className="text-xl font-bold text-accent-blue">
+                  <p className="text-xs text-text-secondary">Total</p>
+                  <p className="text-xl font-bold text-accent-blue tabular-nums">
                     {formatCurrency(totalGeral)}
                   </p>
                 </div>
@@ -425,7 +529,7 @@ export function TournamentDashboardPage() {
         {/* Quick Links */}
         <div className="flex flex-wrap gap-2">
           <Link to={tvDisplayPath(tournament.id)} target="_blank">
-            <Button variant="ghost" size="sm">
+            <Button variant="gold" size="sm">
               <Tv className="h-4 w-4" />
               TV Display
             </Button>
@@ -436,10 +540,15 @@ export function TournamentDashboardPage() {
               Terminal Dealer
             </Button>
           </Link>
-          {tournament.status !== 'Finished' && tournament.status !== 'Cancelled' && (
+          {!tournamentOver && (
             <Button variant="ghost" size="sm" onClick={() => setDealerQrOpen(true)}>
               <QrCode className="h-4 w-4" />
               QR do dealer
+              {connectedDealers.length > 0 && (
+                <Badge color="green">
+                  {connectedDealers.length} {connectedDealers.length === 1 ? 'conectado' : 'conectados'}
+                </Badge>
+              )}
             </Button>
           )}
         </div>
@@ -460,7 +569,7 @@ export function TournamentDashboardPage() {
             className={`flex items-center gap-2 whitespace-nowrap border-b-2 px-4 py-3 text-sm font-medium transition-colors min-h-[44px] ${
               activeTab === tab.key
                 ? 'border-accent-blue text-accent-blue'
-                : 'border-transparent text-text-muted hover:text-text-secondary'
+                : 'border-transparent text-text-secondary hover:text-text-primary'
             }`}
           >
             <tab.icon className="h-4 w-4" />

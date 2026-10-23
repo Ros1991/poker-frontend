@@ -243,8 +243,8 @@ export function TablesTab({ tournament }: TablesTabProps) {
       </div>
 
       {imbalance && (
-        <div className="flex items-start gap-3 rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3">
-          <Users className="h-5 w-5 text-yellow-400 flex-shrink-0 mt-0.5" />
+        <div className="flex items-start gap-3 rounded-lg border border-accent-yellow/40 bg-accent-yellow-soft p-3">
+          <Users className="h-5 w-5 text-accent-yellow flex-shrink-0 mt-0.5" />
           <div className="text-sm">
             <p className="font-medium text-text-primary">Mesas desbalanceadas</p>
             <p className="text-text-secondary">
@@ -259,7 +259,7 @@ export function TablesTab({ tournament }: TablesTabProps) {
         <div className="text-center py-12">
           <LayoutGrid className="mx-auto h-10 w-10 text-text-muted mb-3" />
           <p className="text-text-secondary">Nenhuma mesa criada ainda.</p>
-          <p className="text-sm text-text-muted mt-1">
+          <p className="text-sm text-text-secondary mt-1">
             Use &quot;Sortear Mesas&quot; para distribuir os jogadores.
           </p>
         </div>
@@ -276,7 +276,7 @@ export function TablesTab({ tournament }: TablesTabProps) {
                 <h3 className="font-semibold text-text-primary">
                   Mesa {table.tableNumber}
                 </h3>
-                <span className="text-xs text-text-muted flex items-center gap-1">
+                <span className="text-xs text-text-secondary tabular-nums flex items-center gap-1">
                   <Users className="h-3 w-3" />
                   {(table.players?.length ?? 0)}/
                   {table.maxSeats}
@@ -284,9 +284,9 @@ export function TablesTab({ tournament }: TablesTabProps) {
               </div>
 
               <div className="mb-3">
-                <label className="text-xs text-text-muted">Dealer</label>
+                <label className="text-xs text-text-secondary">Dealer</label>
                 <select
-                  className="w-full mt-1 rounded-md border border-border-default bg-bg-secondary p-2 text-sm text-text-primary"
+                  className="w-full mt-1 rounded-md border border-border-input bg-bg-secondary p-2 text-sm text-text-primary"
                   value={table.dealerPersonId ?? ''}
                   onChange={(e) =>
                     setDealerMutation.mutate({
@@ -347,11 +347,11 @@ export function TablesTab({ tournament }: TablesTabProps) {
                       }}
                       className={`rounded-lg p-2 text-center text-xs transition-colors cursor-pointer ${
                         player
-                          ? 'bg-accent-blue/10 border border-accent-blue/30 hover:bg-accent-blue/20'
+                          ? 'bg-accent-blue-soft border border-accent-blue/30 hover:bg-accent-blue/20'
                           : 'bg-bg-tertiary border border-dashed border-border-default hover:border-accent-blue/50 hover:bg-bg-secondary'
                       }`}
                     >
-                      <p className="text-text-muted text-[10px]">
+                      <p className="text-text-secondary text-[10px]">
                         Posicao {seatNum}
                       </p>
                       <p className="font-medium text-text-primary truncate">
@@ -375,7 +375,7 @@ export function TablesTab({ tournament }: TablesTabProps) {
       >
         <div className="flex flex-col gap-4">
           {tables && tables.length > 0 && (
-            <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3 text-sm text-yellow-300">
+            <div className="rounded-lg border border-accent-yellow/40 bg-accent-yellow-soft p-3 text-sm text-text-primary">
               ⚠️ Já existem {tables.length} mesa(s). Sortear novamente vai{' '}
               <strong>apagar todas as mesas atuais</strong> e re-sortear todos os jogadores do zero.
             </div>
@@ -420,7 +420,7 @@ export function TablesTab({ tournament }: TablesTabProps) {
                 { length: tableCount ? parseInt(tableCount) : calculatedTableCount },
                 (_, idx) => (
                   <div key={idx} className="flex items-center gap-2">
-                    <span className="text-xs text-text-muted w-14 shrink-0">
+                    <span className="text-xs text-text-secondary w-14 shrink-0">
                       Mesa {idx + 1}
                     </span>
                     <select
@@ -430,7 +430,7 @@ export function TablesTab({ tournament }: TablesTabProps) {
                         newDealers[idx] = e.target.value || null
                         setDrawDealers(newDealers)
                       }}
-                      className="flex-1 rounded-md border border-border-default bg-bg-secondary px-2 py-1.5 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-border-focus"
+                      className="flex-1 rounded-md border border-border-input bg-bg-secondary px-2 py-1.5 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-border-focus"
                     >
                       <option value="">Sem dealer</option>
                       {dealers.map((d) => (
@@ -444,7 +444,7 @@ export function TablesTab({ tournament }: TablesTabProps) {
               )}
             </div>
             {dealers.length === 0 && (
-              <p className="text-xs text-text-muted mt-1">
+              <p className="text-xs text-text-secondary mt-1">
                 Nenhum dealer cadastrado neste torneio.
               </p>
             )}
@@ -546,7 +546,7 @@ export function TablesTab({ tournament }: TablesTabProps) {
                   setMoveToTableId(e.target.value)
                   setMoveToSeat('')
                 }}
-                className="w-full rounded-md border border-border-default bg-bg-secondary px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-border-focus"
+                className="w-full rounded-md border border-border-input bg-bg-secondary px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-border-focus"
               >
                 {tables?.map((t) => (
                   <option key={t.id} value={t.id}>
@@ -563,7 +563,7 @@ export function TablesTab({ tournament }: TablesTabProps) {
               <select
                 value={moveToSeat}
                 onChange={(e) => setMoveToSeat(e.target.value)}
-                className="w-full rounded-md border border-border-default bg-bg-secondary px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-border-focus"
+                className="w-full rounded-md border border-border-input bg-bg-secondary px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-border-focus"
               >
                 <option value="">Selecione...</option>
                 {(() => {
@@ -648,7 +648,7 @@ export function TablesTab({ tournament }: TablesTabProps) {
               </div>
 
               {playersWithoutTable.length === 0 ? (
-                <p className="text-sm text-text-muted text-center py-4">
+                <p className="text-sm text-text-secondary text-center py-4">
                   Nenhum jogador ativo sem mesa.
                 </p>
               ) : (

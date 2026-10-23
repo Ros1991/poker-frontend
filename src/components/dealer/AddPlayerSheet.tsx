@@ -137,7 +137,7 @@ function AddPlayerContent({ onClose, tournamentId, tournament, onAdded, onPay }:
               ? `Sentou na ${result.tableName ?? 'mesa'}, lugar ${result.seatNumber}`
               : 'Ainda sem mesa'}
           </p>
-          <p className="text-sm text-accent-red">Buy-in de {buyIn} pendente.</p>
+          <p className="text-sm tabular-nums text-accent-red-deep">Buy-in de {buyIn} pendente.</p>
           <Button size="lg" variant="success" className="w-full" onClick={() => onPay(result.entry)}>
             <CreditCard className="h-5 w-5" /> Registrar pagamento agora
           </Button>
@@ -169,8 +169,8 @@ function AddPlayerContent({ onClose, tournamentId, tournament, onAdded, onPay }:
             maxLength={60}
             onChange={(e) => setNickname(e.target.value)}
           />
-          <p className="text-sm text-text-muted">Buy-in de {buyIn} fica pendente.</p>
-          {formError && <p className="rounded-lg bg-accent-red/10 p-2.5 text-sm text-accent-red">{formError}</p>}
+          <p className="text-sm tabular-nums text-text-secondary">Buy-in de {buyIn} fica pendente.</p>
+          {formError && <p className="rounded-lg bg-accent-red-soft p-2.5 text-sm text-accent-red-deep">{formError}</p>}
           <Button size="lg" className="w-full" loading={addMutation.isPending} onClick={submitNew}>
             <UserPlus className="h-5 w-5" />
             {fullName.trim() ? `Adicionar ${nickname.trim() || fullName.trim()}` : 'Adicionar ao torneio'}
@@ -190,13 +190,13 @@ function AddPlayerContent({ onClose, tournamentId, tournament, onAdded, onPay }:
       title="Adicionar jogador"
       toolbar={<SearchInput value={search} onChange={setSearch} placeholder="Buscar pelo nome ou apelido" debounceMs={150} />}
     >
-      {formError && <p className="mb-3 rounded-lg bg-accent-red/10 p-2.5 text-sm text-accent-red">{formError}</p>}
+      {formError && <p className="mb-3 rounded-lg bg-accent-red-soft p-2.5 text-sm text-accent-red-deep">{formError}</p>}
       {isLoading ? (
         <LoadingSpinner size="md" text="Carregando jogadores..." className="py-8" />
       ) : (
         <>
           {filtered.length === 0 ? (
-            <p className="py-6 text-center text-sm text-text-muted">
+            <p className="py-6 text-center text-sm text-text-secondary">
               {search.trim() ? 'Ninguém com esse nome.' : 'Todos os jogadores do home game já estão no torneio.'}
             </p>
           ) : (
@@ -217,7 +217,7 @@ function AddPlayerContent({ onClose, tournamentId, tournament, onAdded, onPay }:
                         {p.nickname?.trim() || p.fullName}
                       </span>
                       {p.nickname?.trim() && (
-                        <span className="block truncate text-xs text-text-muted">{p.fullName}</span>
+                        <span className="block truncate text-xs text-text-secondary">{p.fullName}</span>
                       )}
                     </span>
                     <span className="text-sm font-medium text-accent-blue">Adicionar</span>

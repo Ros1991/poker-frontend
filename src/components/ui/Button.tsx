@@ -3,18 +3,33 @@ import type { ButtonHTMLAttributes, ReactNode } from 'react'
 import { Loader2 } from 'lucide-react'
 import { cn } from '../../utils/cn'
 
+/**
+ * Variantes (SPEC-20261023-1204, tema claro):
+ * - `primary`: azul-royal cheio, texto branco
+ * - `secondary`: branco com borda `border-input` (≥ 3:1 no branco e no bg-primary: o fundo do botão
+ *   é igual ao do card, então a borda é o que mostra que ali tem um botão)
+ * - `danger` / `success`: vermelho / verde na variante `-deep` — o texto do botão é pequeno
+ *   (14 px) e só o `-deep` passa AA com branco; o hover é o `-hover` da cor
+ * - `ghost`: transparente, só texto
+ * - `gold`: dourado com texto marinho (CTAs como "Telão da TV"; dourado nunca leva texto branco)
+ */
 const variants = {
   primary:
-    'bg-accent-blue hover:bg-blue-600 text-white focus-visible:ring-blue-500',
+    'bg-accent-blue hover:bg-accent-blue-hover text-white focus-visible:ring-accent-blue',
   secondary:
-    'bg-bg-tertiary hover:bg-slate-600 text-text-primary focus-visible:ring-slate-500',
+    'bg-bg-card border border-border-input text-text-primary hover:bg-bg-tertiary focus-visible:ring-accent-blue',
   danger:
-    'bg-accent-red hover:bg-red-600 text-white focus-visible:ring-red-500',
+    'bg-accent-red-deep hover:bg-accent-red-hover text-white focus-visible:ring-accent-red',
   ghost:
-    'bg-transparent hover:bg-bg-tertiary text-text-secondary hover:text-text-primary focus-visible:ring-slate-500',
+    'bg-transparent hover:bg-bg-tertiary text-text-secondary hover:text-text-primary focus-visible:ring-accent-blue',
   success:
-    'bg-accent-green hover:bg-green-600 text-white focus-visible:ring-green-500',
+    'bg-accent-green-deep hover:bg-accent-green-hover text-white focus-visible:ring-accent-green',
+  gold:
+    'bg-accent-gold hover:bg-accent-gold-hover text-text-primary focus-visible:ring-accent-gold',
 } as const
+
+/** Variante aceita pelo Button. */
+export type ButtonVariant = keyof typeof variants
 
 const sizes = {
   sm: 'min-h-[36px] px-3 py-1.5 text-sm',
@@ -23,7 +38,7 @@ const sizes = {
 } as const
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: keyof typeof variants
+  variant?: ButtonVariant
   size?: keyof typeof sizes
   loading?: boolean
   children: ReactNode

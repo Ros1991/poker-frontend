@@ -63,7 +63,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
       <nav className="flex-1 overflow-y-auto py-4">
         {!collapsed && (
           <div className="px-3 mb-2">
-            <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">
+            <span className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
               Meus Home Games
             </span>
           </div>
@@ -71,11 +71,11 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
 
         <ul className="flex flex-col gap-1 px-2">
           {isLoading ? (
-            <li className="px-3 py-2 text-sm text-text-muted">
+            <li className="px-3 py-2 text-sm text-text-secondary">
               {collapsed ? '...' : 'Carregando...'}
             </li>
           ) : homeGames.length === 0 ? (
-            <li className="px-3 py-2 text-sm text-text-muted">
+            <li className="px-3 py-2 text-sm text-text-secondary">
               {collapsed ? '-' : 'Nenhum home game'}
             </li>
           ) : (
@@ -86,7 +86,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
                   className={cn(
                     'w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors min-h-[44px] text-left',
                     selectedHomeGame?.id === homeGame.id
-                      ? 'bg-accent-blue/10 text-accent-blue'
+                      ? 'bg-accent-blue-soft text-accent-blue'
                       : 'text-text-secondary hover:bg-bg-tertiary hover:text-text-primary',
                   )}
                 >
@@ -111,8 +111,8 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
                 cn(
                   'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors min-h-[44px]',
                   isActive
-                    ? 'bg-accent-green/10 text-accent-green'
-                    : 'text-text-muted hover:bg-bg-tertiary hover:text-text-primary',
+                    ? 'bg-accent-green-soft text-accent-green-deep'
+                    : 'text-text-secondary hover:bg-bg-tertiary hover:text-text-primary',
                 )
               }
             >
@@ -128,7 +128,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
             <div className="my-3 mx-3 border-t border-border-default" />
             {!collapsed && (
               <div className="px-3 mb-2">
-                <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">
+                <span className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
                   Administracao
                 </span>
               </div>
@@ -142,7 +142,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
                       cn(
                         'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors min-h-[44px]',
                         isActive
-                          ? 'bg-accent-blue/10 text-accent-blue'
+                          ? 'bg-accent-blue-soft text-accent-blue'
                           : 'text-text-secondary hover:bg-bg-tertiary hover:text-text-primary',
                       )
                     }
@@ -159,7 +159,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
 
       <button
         onClick={() => setCollapsed(!collapsed)}
-        className="flex items-center justify-center border-t border-border-default py-3 text-text-muted hover:text-text-primary transition-colors min-h-[44px]"
+        className="flex items-center justify-center border-t border-border-default py-3 text-text-secondary hover:text-text-primary transition-colors min-h-[44px]"
         aria-label={collapsed ? 'Expandir menu' : 'Recolher menu'}
       >
         {collapsed ? (

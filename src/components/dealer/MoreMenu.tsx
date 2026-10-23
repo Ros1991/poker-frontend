@@ -32,7 +32,7 @@ export function MoreMenu({ isOpen, onClose, onSelect }: MoreMenuProps) {
             <span className="text-accent-blue">{item.icon}</span>
             <span className="min-w-0 flex-1">
               <span className="block font-semibold text-text-primary">{item.label}</span>
-              <span className="block text-xs text-text-muted">{item.hint}</span>
+              <span className="block text-xs text-text-secondary">{item.hint}</span>
             </span>
           </button>
         ))}

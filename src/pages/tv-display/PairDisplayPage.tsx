@@ -6,16 +6,26 @@ import { CheckCircle2, ChevronRight, Tv } from 'lucide-react'
 import * as displayPairingApi from '../../api/displayPairing.api'
 import { Button } from '../../components/ui/Button'
 import { Badge } from '../../components/ui/Badge'
+import type { BadgeColor } from '../../components/ui/Badge'
 import { LoadingSpinner } from '../../components/common/LoadingSpinner'
 import { ROUTES, pairDisplayPath, tournamentDashboardPath } from '../../constants/routes'
+import { TOURNAMENT_STATUS_COLORS } from '../../constants/statuses'
 import type { DisplayPaired } from '../../types/display.types'
+import type { TournamentStatus } from '../../types/tournament.types'
 
-const STATUS_LABEL: Record<string, { label: string; color: 'blue' | 'yellow' | 'green' | 'gray' }> = {
-  InProgress: { label: 'Em andamento', color: 'blue' },
-  BreakSettlement: { label: 'Em andamento', color: 'blue' },
-  OpenForRegistration: { label: 'Inscrições', color: 'yellow' },
-  Draft: { label: 'Rascunho', color: 'gray' },
-  Finished: { label: 'Finalizado', color: 'green' },
+// Rótulos curtos para a lista do celular; a COR vem da tabela única de statuses.ts
+const STATUS_LABEL: Record<string, string> = {
+  InProgress: 'Em andamento',
+  BreakSettlement: 'Em andamento',
+  OpenForRegistration: 'Inscrições',
+  Draft: 'Rascunho',
+  Finished: 'Finalizado',
+}
+
+function statusColor(status: string): BadgeColor {
+  return status in TOURNAMENT_STATUS_COLORS
+    ? TOURNAMENT_STATUS_COLORS[status as TournamentStatus]
+    : 'gray'
 }
 
 function normalizeCode(value: string) {
@@ -60,13 +70,13 @@ export function PairDisplayPage() {
     <div className="min-h-screen bg-bg-primary px-4 py-6">
       <div className="mx-auto flex w-full max-w-md flex-col gap-5">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent-blue/10">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent-blue-soft">
             <Tv className="h-5 w-5 text-accent-blue" />
           </div>
           <div>
             <h1 className="text-lg font-bold text-text-primary">Conectar TV</h1>
             {code.length === 6 && (
-              <p className="font-mono text-sm tracking-widest text-text-muted">
+              <p className="font-mono text-sm tracking-widest text-text-secondary tabular-nums">
                 {code.slice(0, 3)} {code.slice(3)}
               </p>
             )}
@@ -112,7 +122,7 @@ export function PairDisplayPage() {
         }}
       >
         {lookup.data?.valid === false && (
-          <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-400">
+          <p className="rounded-lg bg-accent-red-soft px-3 py-2 text-sm text-accent-red-deep">
             Código inválido ou expirado. Confira o código que aparece na TV.
           </p>
         )}
@@ -126,13 +136,13 @@ export function PairDisplayPage() {
             autoComplete="off"
             autoFocus
             placeholder="ABC123"
-            className="min-h-[52px] rounded-lg border border-border-default bg-bg-input px-4 text-center font-mono text-2xl tracking-[0.3em] text-text-primary placeholder:text-text-muted focus:border-accent-blue focus:outline-none"
+            className="min-h-[52px] rounded-lg border border-border-input bg-bg-input px-4 text-center font-mono text-2xl tracking-[0.3em] text-text-primary placeholder:text-text-muted focus:border-accent-blue focus:outline-none"
           />
         </label>
         <Button type="submit" disabled={normalizeCode(typed).length !== 6}>
           Continuar
         </Button>
-        <Link to={ROUTES.HOME} className="text-center text-sm text-text-muted hover:underline">
+        <Link to={ROUTES.HOME} className="text-center text-sm text-text-secondary hover:underline">
           Cancelar
         </Link>
       </form>,
@@ -177,12 +187,12 @@ export function PairDisplayPage() {
       <div className="flex flex-col gap-2">
         <p className="text-sm font-medium text-text-secondary">Qual torneio a TV deve mostrar?</p>
         {list.length === 0 && (
-          <p className="rounded-xl border border-border-default bg-bg-secondary p-5 text-center text-text-muted">
+          <p className="rounded-xl border border-border-default bg-bg-secondary p-5 text-center text-text-secondary">
             Nenhum torneio disponível nos seus home games.
           </p>
         )}
         {list.map((t) => {
-          const status = STATUS_LABEL[t.status] ?? { label: t.status, color: 'gray' as const }
+          const statusLabel = STATUS_LABEL[t.status] ?? t.status
           const pending = claim.isPending && claim.variables === t.id
           return (
             <button
@@ -194,11 +204,11 @@ export function PairDisplayPage() {
             >
               <div className="min-w-0 flex-1">
                 <p className="truncate font-semibold text-text-primary">{t.name}</p>
-                <p className="truncate text-xs text-text-muted">
+                <p className="truncate text-xs text-text-secondary tabular-nums">
                   {new Date(t.date).toLocaleDateString('pt-BR')} · {t.homeGameName}
                 </p>
               </div>
-              <Badge color={status.color}>{status.label}</Badge>
+              <Badge color={statusColor(t.status)}>{statusLabel}</Badge>
               {pending ? (
                 <LoadingSpinner size="sm" />
               ) : (
@@ -209,9 +219,9 @@ export function PairDisplayPage() {
         })}
       </div>
       {claim.isError && (
-        <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-400">{errorMessage(claim.error)}</p>
+        <p className="rounded-lg bg-accent-red-soft px-3 py-2 text-sm text-accent-red-deep">{errorMessage(claim.error)}</p>
       )}
-      <Link to={ROUTES.HOME} className="text-center text-sm text-text-muted hover:underline">
+      <Link to={ROUTES.HOME} className="text-center text-sm text-text-secondary hover:underline">
         Cancelar
       </Link>
     </>,

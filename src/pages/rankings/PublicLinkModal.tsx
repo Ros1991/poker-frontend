@@ -42,7 +42,7 @@ export function PublicLinkModal({ isOpen, onClose, slug, rankingName }: PublicLi
         value={url}
         onFocus={(e) => e.currentTarget.select()}
         aria-label="Endereço público do ranking"
-        className="w-full rounded-lg border border-border-default bg-bg-input px-3 py-2.5 text-sm text-text-primary focus:border-border-focus focus:outline-none"
+        className="w-full rounded-lg border border-border-input bg-bg-input px-3 py-2.5 text-sm text-text-primary focus:border-border-focus focus:outline-none"
       />
       <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
         <Button onClick={() => void handleCopy()}>

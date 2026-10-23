@@ -49,7 +49,7 @@ export function TablesSheet({
       </div>
 
       {tables.length > 0 && (
-        <p className="mb-2 text-xs text-text-muted">Toque num jogador para mudar de mesa ou de lugar.</p>
+        <p className="mb-2 text-xs text-text-secondary">Toque num jogador para mudar de mesa ou de lugar.</p>
       )}
 
       <div className="flex flex-col gap-3">
@@ -61,9 +61,9 @@ export function TablesSheet({
               <h3 className="mb-2 flex items-baseline justify-between px-1">
                 <span className="font-bold text-text-primary">
                   {tableLabel(table)}
-                  {table.isFinalTable && <span className="ml-2 text-xs text-accent-yellow">Mesa final</span>}
+                  {table.isFinalTable && <span className="ml-2 text-xs text-accent-gold-deep">Mesa final</span>}
                 </span>
-                <span className="text-xs text-text-muted">
+                <span className="text-xs tabular-nums text-text-secondary">
                   {players.length}/{table.maxSeats} jogadores
                 </span>
               </h3>
@@ -77,7 +77,7 @@ export function TablesSheet({
                       onClick={() => onMovePlayer(entry)}
                       className="flex min-h-[44px] items-center gap-2 rounded-lg bg-bg-tertiary px-2 text-left"
                     >
-                      <span className="w-5 shrink-0 text-center text-xs font-bold text-text-muted">{seat}</span>
+                      <span className="w-5 shrink-0 text-center text-xs font-bold tabular-nums text-text-secondary">{seat}</span>
                       <span className="truncate text-sm font-medium text-text-primary">{playerName(entry)}</span>
                     </button>
                   ) : (
@@ -85,8 +85,8 @@ export function TablesSheet({
                       key={seat}
                       className="flex min-h-[44px] items-center gap-2 rounded-lg border border-dashed border-border-default px-2"
                     >
-                      <span className="w-5 shrink-0 text-center text-xs font-bold text-text-muted">{seat}</span>
-                      <span className="text-sm text-text-muted">livre</span>
+                      <span className="w-5 shrink-0 text-center text-xs font-bold tabular-nums text-text-secondary">{seat}</span>
+                      <span className="text-sm text-text-secondary">livre</span>
                     </div>
                   )
                 })}
@@ -120,7 +120,7 @@ export function TablesSheet({
         )}
 
         {tables.length === 0 && unseated.length === 0 && (
-          <p className="py-8 text-center text-sm text-text-muted">Nenhum jogador no torneio ainda.</p>
+          <p className="py-8 text-center text-sm text-text-secondary">Nenhum jogador no torneio ainda.</p>
         )}
       </div>
     </Sheet>

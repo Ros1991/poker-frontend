@@ -248,9 +248,9 @@ export function PaymentModal({
     <Modal isOpen={isOpen} onClose={handleClose} title="Registrar Pagamento" size="md">
       {showSuccess ? (
         <div className="flex flex-col items-center gap-4 py-4">
-          <div className="rounded-full bg-accent-green/20 p-4">
+          <div className="rounded-full bg-accent-green-soft p-4">
             <svg
-              className="h-8 w-8 text-accent-green"
+              className="h-8 w-8 text-accent-green-deep"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -272,7 +272,7 @@ export function PaymentModal({
               href={`https://wa.me/${entry.person.whatsapp.replace(/\D/g, '')}?text=Pagamento+recebido!+Obrigado!`}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-green-700 transition-colors"
+              className="flex items-center gap-2 rounded-lg bg-accent-green-deep px-4 py-2.5 text-sm font-medium text-white hover:bg-accent-green-hover transition-colors"
             >
               <Phone className="h-4 w-4" />
               Enviar WhatsApp
@@ -290,10 +290,10 @@ export function PaymentModal({
             <p className="font-semibold text-text-primary">
               {entry.person.nickname ?? entry.person.fullName}
             </p>
-            <div className="flex gap-4 mt-1 text-sm text-text-muted">
+            <div className="flex gap-4 mt-1 text-sm text-text-secondary tabular-nums">
               <span>Total: {formatCurrency(entry.totalDue)}</span>
               <span>Pago: {formatCurrency(entry.totalPaid)}</span>
-              <span className="font-semibold text-accent-red">
+              <span className="font-semibold text-accent-red-deep">
                 Pendente: {formatCurrency(pending)}
               </span>
             </div>
@@ -325,7 +325,7 @@ export function PaymentModal({
               )}
             </div>
             {method === 'Abater' && (
-              <p className="text-xs text-text-muted">
+              <p className="text-xs text-text-secondary">
                 Quita a dívida do jogador contra um custo de que ele é favorecido
                 (ex.: dono/staff que também jogou). Reduz o saldo do jogador e o
                 "a receber" do custo, sem dinheiro trocar de mãos.
@@ -386,7 +386,7 @@ export function PaymentModal({
                       }}
                       className={`flex items-center justify-between rounded-lg p-2.5 text-left text-sm transition-colors ${
                         (selectedPix?.costExtraId ?? null) === (suggestion.costExtraId ?? null)
-                          ? 'bg-accent-blue/10 border border-accent-blue/50'
+                          ? 'bg-accent-blue-soft border border-accent-blue/50'
                           : 'bg-bg-primary hover:bg-bg-tertiary border border-transparent'
                       }`}
                     >
@@ -395,7 +395,7 @@ export function PaymentModal({
                           {suggestion.description}
                         </p>
                         {suggestion.beneficiary && (
-                          <p className="text-xs text-text-muted truncate">
+                          <p className="text-xs text-text-secondary truncate">
                             {suggestion.beneficiary}
                           </p>
                         )}
@@ -406,7 +406,7 @@ export function PaymentModal({
                         )}
                       </div>
                       {!suggestion.isCashBox && suggestion.pendingAmount > 0 && (
-                        <span className="text-sm font-semibold text-text-primary ml-2 shrink-0">
+                        <span className="text-sm font-semibold text-text-primary tabular-nums ml-2 shrink-0">
                           {formatCurrency(suggestion.pendingAmount)}
                         </span>
                       )}
@@ -421,13 +421,13 @@ export function PaymentModal({
             <p className="text-xs font-semibold text-text-secondary uppercase mb-2">
               Pagamentos registrados
               {existingPayments && existingPayments.length > 0 && (
-                <span className="ml-1 text-text-muted normal-case">
+                <span className="ml-1 text-text-secondary normal-case">
                   ({existingPayments.length})
                 </span>
               )}
             </p>
             {!existingPayments || existingPayments.length === 0 ? (
-              <p className="text-xs text-text-muted text-center py-2">
+              <p className="text-xs text-text-secondary text-center py-2">
                 Nenhum pagamento registrado ainda.
               </p>
             ) : (
@@ -438,16 +438,16 @@ export function PaymentModal({
                     className="flex items-center justify-between rounded-lg bg-bg-primary p-2 text-sm"
                   >
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-text-primary">
+                      <p className="font-semibold text-text-primary tabular-nums">
                         {formatCurrency(p.amount)}
                         {p.paymentMethod && (
-                          <span className="ml-2 text-xs text-text-muted">
+                          <span className="ml-2 text-xs text-text-secondary">
                             via {p.paymentMethod}
                           </span>
                         )}
                       </p>
                       {p.description && (
-                        <p className="text-xs text-text-muted truncate">
+                        <p className="text-xs text-text-secondary truncate">
                           {p.description}
                         </p>
                       )}
@@ -456,7 +456,7 @@ export function PaymentModal({
                       type="button"
                       onClick={() => reverseMutation.mutate(p.id)}
                       disabled={reverseMutation.isPending}
-                      className="p-1.5 rounded text-text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                      className="p-1.5 rounded text-text-secondary hover:text-accent-red hover:bg-accent-red-soft transition-colors"
                       title="Estornar pagamento"
                     >
                       <RotateCcw className="h-3.5 w-3.5" />
@@ -468,7 +468,7 @@ export function PaymentModal({
           </div>
 
           {method === 'Abater' && destinations.length === 0 && (
-            <p className="text-xs text-yellow-400">
+            <p className="text-xs text-accent-gold-deep">
               Nenhum custo disponível para abatimento (precisa de um custo com
               saldo a receber, como staff ou ranking).
             </p>

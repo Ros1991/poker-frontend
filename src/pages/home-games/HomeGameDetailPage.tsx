@@ -38,6 +38,7 @@ import {
   blindStructureNewPath,
   blindStructureEditPath,
 } from '../../constants/routes'
+import { TOURNAMENT_STATUS_LABELS, TOURNAMENT_STATUS_COLORS } from '../../constants/statuses'
 import { HomeGameFormModal } from './HomeGameFormModal'
 import { AddMemberModal } from './AddMemberModal'
 import { AccessDeniedState } from '../../components/common/AccessDeniedState'
@@ -49,18 +50,6 @@ import type { Person } from '../../types/person.types'
 import type { HomeGameMember } from '../../types/homeGame.types'
 
 type Tab = 'torneios' | 'rankings' | 'blinds' | 'membros' | 'jogadores' | 'dealers'
-
-const statusConfig: Record<
-  TournamentStatus,
-  { label: string; color: 'gray' | 'blue' | 'yellow' | 'green' | 'red' }
-> = {
-  Draft: { label: 'Rascunho', color: 'gray' },
-  OpenForRegistration: { label: 'Iniciado', color: 'blue' },
-  InProgress: { label: 'Iniciado', color: 'blue' },
-  BreakSettlement: { label: 'Rebuys Finalizados', color: 'yellow' },
-  Finished: { label: 'Finalizado', color: 'green' },
-  Cancelled: { label: 'Cancelado', color: 'red' },
-}
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat('pt-BR', {
@@ -236,7 +225,7 @@ export function HomeGameDetailPage() {
               </p>
             )}
 
-            <div className="mt-3 flex flex-wrap items-center gap-4 text-sm text-text-muted">
+            <div className="mt-3 flex flex-wrap items-center gap-4 text-sm text-text-secondary">
               {homeGame.location && (
                 <span className="flex items-center gap-1.5">
                   <MapPin className="h-4 w-4" />
@@ -433,7 +422,10 @@ function TorneiosTab({
       {!isLoading && tournaments.length > 0 && (
         <div className="space-y-2">
           {tournaments.map((t) => {
-            const sc = statusConfig[t.status] ?? { label: t.status, color: 'gray' as const }
+            const sc = {
+              label: TOURNAMENT_STATUS_LABELS[t.status] ?? t.status,
+              color: TOURNAMENT_STATUS_COLORS[t.status] ?? ('gray' as const),
+            }
             return (
               <button
                 key={t.id}
@@ -447,18 +439,18 @@ function TorneiosTab({
                     </h4>
                     <Badge color={sc.color}>{sc.label}</Badge>
                   </div>
-                  <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-text-muted">
+                  <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-text-secondary">
                     <span className="flex items-center gap-1">
                       <Calendar className="h-3.5 w-3.5" />
                       {formatDate(t.date)}
                     </span>
-                    <span>Buy-in: {formatCurrency(t.buyInAmount)}</span>
+                    <span className="tabular-nums">Buy-in: {formatCurrency(t.buyInAmount)}</span>
                     <span>
                       {t.totalEntries} entrada{t.totalEntries !== 1 && 's'}
                     </span>
                     {t.rankingName && (
                       <span
-                        className="flex items-center gap-1 text-yellow-500"
+                        className="flex items-center gap-1 text-accent-gold-deep"
                         title={`Ranking: ${t.rankingName}`}
                       >
                         <Trophy className="h-3.5 w-3.5" />
@@ -468,10 +460,10 @@ function TorneiosTab({
                   </div>
                 </div>
                 <div className="text-right shrink-0">
-                  <div className="text-sm font-semibold text-accent-green">
+                  <div className="text-sm font-semibold text-accent-green-deep tabular-nums">
                     {formatCurrency(t.totalPrizePool)}
                   </div>
-                  <div className="text-xs text-text-muted">Premiação</div>
+                  <div className="text-xs text-text-secondary">Premiação</div>
                 </div>
               </button>
             )
@@ -538,7 +530,7 @@ function RankingsTab({
               className="flex flex-col rounded-lg border border-border-default bg-bg-secondary p-4 text-left transition-all hover:border-accent-blue/50 hover:bg-bg-tertiary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
             >
               <div className="flex items-center gap-2">
-                <Crown className="h-5 w-5 text-yellow-400" />
+                <Crown className="h-5 w-5 text-accent-gold-deep" />
                 <h4 className="font-medium text-text-primary">{r.name}</h4>
                 {r.isActive ? (
                   <Badge color="green">Ativo</Badge>
@@ -552,12 +544,12 @@ function RankingsTab({
                 </p>
               )}
               {r.season && (
-                <p className="mt-2 text-xs text-text-muted">
+                <p className="mt-2 text-xs text-text-secondary">
                   Temporada: {r.season}
                 </p>
               )}
               {r.accumulatedPrize != null && r.accumulatedPrize > 0 && (
-                <p className="mt-2 text-sm font-medium text-accent-green">
+                <p className="mt-2 text-sm font-medium text-accent-green-deep tabular-nums">
                   Acumulado: R$ {r.accumulatedPrize.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </p>
               )}
@@ -685,7 +677,7 @@ function MembrosTab({
                   <Avatar src={m.userPhotoUrl} name={m.userName} size="md" />
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-text-primary">{m.userName}</p>
-                    <p className="text-xs text-text-muted">{m.userEmail}</p>
+                    <p className="text-xs text-text-secondary">{m.userEmail}</p>
                   </div>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -694,16 +686,16 @@ function MembrosTab({
                       type="checkbox"
                       checked={editIsAdmin}
                       onChange={(e) => setEditIsAdmin(e.target.checked)}
-                      className="h-4 w-4 rounded border-border-default bg-bg-primary text-accent-blue focus:ring-border-focus"
+                      className="h-4 w-4 rounded border-border-input bg-bg-primary text-accent-blue focus:ring-border-focus"
                     />
                     <span className="text-sm text-text-primary">Administrador</span>
                   </label>
                   <div className="space-y-1">
-                    <label className="text-xs text-text-muted">Vincular a jogador/dealer</label>
+                    <label className="text-xs text-text-secondary">Vincular a jogador/dealer</label>
                     <select
                       value={editPersonId ?? ''}
                       onChange={(e) => setEditPersonId(e.target.value || null)}
-                      className="w-full appearance-none rounded-lg border border-border-default bg-bg-primary px-3 py-2 pr-8 text-sm text-text-primary focus:border-border-focus focus:outline-none"
+                      className="w-full appearance-none rounded-lg border border-border-input bg-bg-primary px-3 py-2 pr-8 text-sm text-text-primary focus:border-border-focus focus:outline-none"
                     >
                       <option value="">Nenhum</option>
                       {availablePersons.map((p) => (
@@ -738,13 +730,13 @@ function MembrosTab({
                       <Badge color="blue">{m.personNickname}</Badge>
                     )}
                   </div>
-                  <p className="text-xs text-text-muted">{m.userEmail}</p>
+                  <p className="text-xs text-text-secondary">{m.userEmail}</p>
                 </div>
                 {m.isAdmin && <Badge color="purple">Admin</Badge>}
                 {canManage && (
                   <button
                     onClick={() => startEdit(m)}
-                    className="p-1.5 rounded-md text-text-muted hover:text-accent-blue hover:bg-accent-blue/10 transition-colors shrink-0"
+                    className="p-1.5 rounded-md text-text-secondary hover:text-accent-blue hover:bg-accent-blue-soft transition-colors shrink-0"
                     title="Editar membro"
                   >
                     <Edit className="h-4 w-4" />
@@ -763,7 +755,7 @@ function MembrosTab({
                     <Button
                       size="sm"
                       variant="secondary"
-                      className="text-red-400 hover:bg-red-500/10"
+                      className="text-accent-red-deep hover:bg-accent-red-soft"
                       onClick={() => removeMutation.mutate(m.id)}
                       loading={removeMutation.isPending}
                     >
@@ -773,7 +765,7 @@ function MembrosTab({
                 ) : (
                   <button
                     onClick={() => setConfirmRemoveId(m.id)}
-                    className="p-1.5 rounded-md text-text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors shrink-0"
+                    className="p-1.5 rounded-md text-text-secondary hover:text-accent-red hover:bg-accent-red-soft transition-colors shrink-0"
                     title="Remover membro"
                   >
                     <Trash2 className="h-4 w-4" />
@@ -940,7 +932,7 @@ function PersonsTab({
                     placeholder="Apelido *"
                     value={editNickname}
                     onChange={(e) => setEditNickname(e.target.value)}
-                    className="rounded-lg border border-border-default bg-bg-primary px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-border-focus focus:outline-none"
+                    className="rounded-lg border border-border-input bg-bg-primary px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-border-focus focus:outline-none"
                     autoFocus
                   />
                   <input
@@ -948,14 +940,14 @@ function PersonsTab({
                     placeholder="Nome completo"
                     value={editFullName}
                     onChange={(e) => setEditFullName(e.target.value)}
-                    className="rounded-lg border border-border-default bg-bg-primary px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-border-focus focus:outline-none"
+                    className="rounded-lg border border-border-input bg-bg-primary px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-border-focus focus:outline-none"
                   />
                   <input
                     type="text"
                     placeholder="(11) 99999-9999"
                     value={formatPhone(editWhatsapp)}
                     onChange={(e) => setEditWhatsapp(e.target.value)}
-                    className="rounded-lg border border-border-default bg-bg-primary px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-border-focus focus:outline-none"
+                    className="rounded-lg border border-border-input bg-bg-primary px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-border-focus focus:outline-none"
                   />
                 </div>
                 <div className="flex justify-end gap-2">
@@ -978,18 +970,18 @@ function PersonsTab({
                     {p.nickname || p.fullName}
                   </p>
                   {p.nickname && p.fullName && p.nickname !== p.fullName && (
-                    <p className="text-xs text-text-muted">{p.fullName}</p>
+                    <p className="text-xs text-text-secondary">{p.fullName}</p>
                   )}
                 </div>
                 {p.whatsapp && (
-                  <span className="text-xs text-text-muted hidden sm:block">
+                  <span className="text-xs text-text-secondary hidden sm:block">
                     {displayPhone(p.whatsapp)}
                   </span>
                 )}
                 {canManage && (
                   <button
                     onClick={() => startEdit(p)}
-                    className="p-1.5 rounded-md text-text-muted hover:text-accent-blue hover:bg-accent-blue/10 transition-colors"
+                    className="p-1.5 rounded-md text-text-secondary hover:text-accent-blue hover:bg-accent-blue-soft transition-colors"
                     title={`Editar ${label}`}
                   >
                     <Edit className="h-4 w-4" />
@@ -998,7 +990,7 @@ function PersonsTab({
                 {canManage && (
                   <button
                     onClick={() => deleteMutation.mutate(p.id)}
-                    className="p-1.5 rounded-md text-text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                    className="p-1.5 rounded-md text-text-secondary hover:text-accent-red hover:bg-accent-red-soft transition-colors"
                     title={`Remover ${label}`}
                   >
                     <Trash2 className="h-4 w-4" />
@@ -1073,10 +1065,10 @@ function PhotoAvatar({
       <button
         type="button"
         onClick={() => fileInputRef.current?.click()}
-        className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity"
+        className="absolute inset-0 flex items-center justify-center rounded-full bg-text-primary text-white opacity-0 group-hover:opacity-70 transition-opacity"
         title="Trocar foto"
       >
-        <Camera className="h-4 w-4 text-white" />
+        <Camera className="h-4 w-4" />
       </button>
       <input
         ref={fileInputRef}
@@ -1154,7 +1146,7 @@ function PersonFormInline({
             />
           ) : (
             <div className="h-16 w-16 rounded-full bg-bg-tertiary border-2 border-dashed border-border-default group-hover:border-accent-blue flex items-center justify-center transition-colors">
-              <Camera className="h-5 w-5 text-text-muted group-hover:text-accent-blue" />
+              <Camera className="h-5 w-5 text-text-secondary group-hover:text-accent-blue" />
             </div>
           )}
         </label>
@@ -1165,7 +1157,7 @@ function PersonFormInline({
             placeholder="Apelido *"
             value={nickname}
             onChange={(e) => setNickname(e.target.value)}
-            className="rounded-lg border border-border-default bg-bg-primary px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-border-focus focus:outline-none"
+            className="rounded-lg border border-border-input bg-bg-primary px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-border-focus focus:outline-none"
             autoFocus
           />
           <input
@@ -1173,14 +1165,14 @@ function PersonFormInline({
             placeholder="Nome completo"
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
-            className="rounded-lg border border-border-default bg-bg-primary px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-border-focus focus:outline-none"
+            className="rounded-lg border border-border-input bg-bg-primary px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-border-focus focus:outline-none"
           />
           <input
             type="text"
             placeholder="(11) 99999-9999"
             value={formatPhone(whatsapp)}
             onChange={(e) => setWhatsapp(e.target.value)}
-            className="rounded-lg border border-border-default bg-bg-primary px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-border-focus focus:outline-none"
+            className="rounded-lg border border-border-input bg-bg-primary px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-border-focus focus:outline-none"
           />
         </div>
       </div>
@@ -1287,17 +1279,17 @@ function BlindsTab({
                     {bs.description}
                   </p>
                 )}
-                <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-text-muted ml-7">
+                <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-text-secondary ml-7">
                   <span>{bs.levelCount ?? bs.levels?.length ?? 0} niveis</span>
-                  {bs.defaultBuyIn != null && <span>Buy-in: R$ {bs.defaultBuyIn.toFixed(2)}</span>}
-                  {bs.defaultStartingStack != null && <span>Stack: {bs.defaultStartingStack.toLocaleString('pt-BR')}</span>}
+                  {bs.defaultBuyIn != null && <span className="tabular-nums">Buy-in: R$ {bs.defaultBuyIn.toFixed(2)}</span>}
+                  {bs.defaultStartingStack != null && <span className="tabular-nums">Stack: {bs.defaultStartingStack.toLocaleString('pt-BR')}</span>}
                   {!bs.homeGameId && <span>(global)</span>}
                 </div>
               </div>
               {canManage && (
                 <button
                   onClick={() => deleteMutation.mutate(bs.id)}
-                  className="p-1.5 rounded-md text-text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors shrink-0"
+                  className="p-1.5 rounded-md text-text-secondary hover:text-accent-red hover:bg-accent-red-soft transition-colors shrink-0"
                   title="Remover estrutura"
                 >
                   <Trash2 className="h-4 w-4" />

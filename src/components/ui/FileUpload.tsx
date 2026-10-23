@@ -52,7 +52,7 @@ export function FileUpload({
         type="button"
         onClick={handleClick}
         className={cn(
-          'relative flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border-default',
+          'relative flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border-input',
           'bg-bg-input p-6 transition-colors hover:border-border-focus hover:bg-bg-tertiary/50',
           'focus:outline-none focus:ring-2 focus:ring-border-focus',
           displayUrl && 'p-2',
@@ -68,7 +68,7 @@ export function FileUpload({
             <button
               type="button"
               onClick={handleRemove}
-              className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-accent-red text-white hover:bg-red-600 transition-colors"
+              className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-accent-red text-white hover:bg-accent-red-hover transition-colors"
               aria-label="Remover imagem"
             >
               <X className="h-3.5 w-3.5" />
@@ -77,7 +77,7 @@ export function FileUpload({
         ) : (
           <>
             <Upload className="h-8 w-8 text-text-muted" />
-            <span className="text-sm text-text-muted">
+            <span className="text-sm text-text-secondary">
               Clique para selecionar uma imagem
             </span>
           </>

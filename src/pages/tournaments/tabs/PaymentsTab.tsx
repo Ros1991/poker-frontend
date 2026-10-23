@@ -73,7 +73,7 @@ export function PaymentsTab({ tournament, entries }: PaymentsTabProps) {
         <div className="flex min-w-0 items-center gap-3">
           <QrCode className="h-5 w-5 shrink-0 text-accent-blue" />
           <div className="min-w-0">
-            <p className="text-xs text-text-muted">Chave PIX do dia</p>
+            <p className="text-xs text-text-secondary">Chave PIX do dia</p>
             <p className="truncate text-sm font-semibold text-text-primary">
               {tournament.responsiblePixKey || 'Não definida'}
             </p>
@@ -96,38 +96,38 @@ export function PaymentsTab({ tournament, entries }: PaymentsTabProps) {
       {/* Summary cards */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-lg bg-bg-primary p-4">
-          <p className="text-xs text-text-muted flex items-center gap-1">
+          <p className="text-xs text-text-secondary flex items-center gap-1">
             <Smartphone className="h-3 w-3" />
             Total no PIX
           </p>
-          <p className="text-xl font-bold text-accent-blue">
+          <p className="text-xl font-bold text-accent-blue tabular-nums">
             {formatCurrency(totalPix)}
           </p>
         </div>
         <div className="rounded-lg bg-bg-primary p-4">
-          <p className="text-xs text-text-muted flex items-center gap-1">
+          <p className="text-xs text-text-secondary flex items-center gap-1">
             <Banknote className="h-3 w-3" />
             Total em Dinheiro
           </p>
-          <p className="text-xl font-bold text-accent-green">
+          <p className="text-xl font-bold text-accent-green-deep tabular-nums">
             {formatCurrency(totalCash)}
           </p>
         </div>
         <div className="rounded-lg bg-bg-primary p-4">
-          <p className="text-xs text-text-muted flex items-center gap-1">
+          <p className="text-xs text-text-secondary flex items-center gap-1">
             <Receipt className="h-3 w-3" />
             Pago para Custos
           </p>
-          <p className="text-xl font-bold text-accent-yellow">
+          <p className="text-xl font-bold text-accent-gold-deep tabular-nums">
             {formatCurrency(totalToCosts)}
           </p>
         </div>
         <div className="rounded-lg bg-bg-primary p-4">
-          <p className="text-xs text-text-muted flex items-center gap-1">
+          <p className="text-xs text-text-secondary flex items-center gap-1">
             <AlertCircle className="h-3 w-3" />
             Total Pendente
           </p>
-          <p className="text-xl font-bold text-accent-red">
+          <p className="text-xl font-bold text-accent-red-deep tabular-nums">
             {formatCurrency(totalPending)}
           </p>
         </div>
@@ -135,7 +135,7 @@ export function PaymentsTab({ tournament, entries }: PaymentsTabProps) {
 
       {/* Progress bar */}
       <div>
-        <div className="flex justify-between text-xs text-text-muted mb-1">
+        <div className="flex justify-between text-xs text-text-secondary tabular-nums mb-1">
           <span>Progresso de pagamentos</span>
           <span>{progressPct.toFixed(0)}%</span>
         </div>
@@ -154,7 +154,7 @@ export function PaymentsTab({ tournament, entries }: PaymentsTabProps) {
             .sort((a, b) => b.balance - a.balance)
             .map((entry) => {
               const statusColor =
-                PAYMENT_STATUS_COLORS[entry.paymentStatus as PaymentStatus] ?? ''
+                PAYMENT_STATUS_COLORS[entry.paymentStatus as PaymentStatus]
               const statusLabel =
                 PAYMENT_STATUS_LABELS[entry.paymentStatus as PaymentStatus] ??
                 entry.paymentStatus
@@ -164,20 +164,20 @@ export function PaymentsTab({ tournament, entries }: PaymentsTabProps) {
                   key={entry.id}
                   className={`flex flex-wrap items-center gap-3 rounded-lg border p-3 ${
                     entry.paymentStatus === 'Paid'
-                      ? 'border-green-500/20 bg-green-500/5'
+                      ? 'border-accent-green/30 bg-accent-green-soft'
                       : entry.paymentStatus === 'PartiallyPaid'
-                        ? 'border-yellow-500/20 bg-yellow-500/5'
-                        : 'border-red-500/20 bg-red-500/5'
+                        ? 'border-accent-yellow/40 bg-accent-yellow-soft'
+                        : 'border-accent-red/30 bg-accent-red-soft'
                   }`}
                 >
                   <div className="flex-1 min-w-[150px]">
                     <p className="text-sm font-medium text-text-primary">
                       {entry.person.nickname ?? entry.person.fullName}
                     </p>
-                    <Badge className={statusColor}>{statusLabel}</Badge>
+                    <Badge color={statusColor}>{statusLabel}</Badge>
                   </div>
 
-                  <div className="flex items-center gap-6 text-xs text-text-muted">
+                  <div className="flex items-center gap-6 text-xs text-text-secondary tabular-nums">
                     <div className="text-center">
                       <p>Devido</p>
                       <p className="font-semibold text-text-primary">
@@ -186,13 +186,13 @@ export function PaymentsTab({ tournament, entries }: PaymentsTabProps) {
                     </div>
                     <div className="text-center">
                       <p>Pago</p>
-                      <p className="font-semibold text-accent-green">
+                      <p className="font-semibold text-accent-green-deep">
                         {formatCurrency(entry.totalPaid)}
                       </p>
                     </div>
                     <div className="text-center">
                       <p>Pendente</p>
-                      <p className="font-semibold text-accent-red">
+                      <p className="font-semibold text-accent-red-deep">
                         {formatCurrency(entry.balance)}
                       </p>
                     </div>
@@ -230,8 +230,8 @@ export function PaymentsTab({ tournament, entries }: PaymentsTabProps) {
 
       {/* Modal de edição da chave PIX */}
       {showPixModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-sm rounded-xl border border-border-default bg-bg-secondary p-6 shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-text-primary/40 p-4">
+          <div className="w-full max-w-sm rounded-xl border border-border-default bg-bg-card p-6 shadow-lg">
             <h3 className="text-lg font-semibold text-text-primary mb-1">
               Chave PIX do dia
             </h3>
@@ -245,7 +245,7 @@ export function PaymentsTab({ tournament, entries }: PaymentsTabProps) {
                 value={pixKeyDraft}
                 onChange={(e) => setPixKeyDraft(e.target.value)}
                 placeholder="CPF, e-mail, +55 telefone ou chave aleatória"
-                className="w-full rounded-lg border border-border-default bg-bg-input px-3 py-2 text-text-primary focus:border-accent-blue focus:outline-none"
+                className="w-full rounded-lg border border-border-input bg-bg-input px-3 py-2 text-text-primary focus:border-accent-blue focus:outline-none"
               />
               <div className="mt-1 flex gap-2">
                 <Button

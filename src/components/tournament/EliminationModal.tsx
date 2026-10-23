@@ -79,21 +79,21 @@ export function EliminationModal({
       {showResult ? (
         <div className="flex flex-col items-center gap-4 py-4">
           <div
-            className={`rounded-full p-4 ${resultIsItm ? 'bg-accent-green/20' : 'bg-bg-tertiary'}`}
+            className={`rounded-full p-4 ${resultIsItm ? 'bg-accent-green-soft' : 'bg-bg-tertiary'}`}
           >
             <Trophy
-              className={`h-8 w-8 ${resultIsItm ? 'text-accent-green' : 'text-text-muted'}`}
+              className={`h-8 w-8 ${resultIsItm ? 'text-accent-green-deep' : 'text-text-muted'}`}
             />
           </div>
           <div className="text-center">
             <p className="font-semibold text-text-primary text-lg">
               {resultPosition ? `${resultPosition}º lugar` : 'Eliminado'}
             </p>
-            <p className="text-sm text-text-muted">
+            <p className="text-sm text-text-secondary">
               {entry.person.nickname ?? entry.person.fullName}
             </p>
             {resultIsItm && (
-              <p className="text-sm font-semibold text-accent-green mt-1">
+              <p className="text-sm font-semibold text-accent-green-deep mt-1">
                 ITM! (In The Money)
               </p>
             )}
@@ -104,13 +104,13 @@ export function EliminationModal({
         </div>
       ) : (
         <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-3 rounded-lg bg-yellow-500/10 border border-yellow-500/30 p-3">
-            <AlertTriangle className="h-5 w-5 text-yellow-400 flex-shrink-0" />
+          <div className="flex items-center gap-3 rounded-lg bg-accent-yellow-soft border border-accent-yellow/40 p-3">
+            <AlertTriangle className="h-5 w-5 text-accent-yellow flex-shrink-0" />
             <div>
               <p className="text-sm font-medium text-text-primary">
                 Confirmar eliminacao
               </p>
-              <p className="text-xs text-text-muted">
+              <p className="text-xs text-text-secondary">
                 {entry.person.nickname ?? entry.person.fullName} sera eliminado
                 na posicao {calculatedPosition}º.
               </p>
@@ -124,7 +124,7 @@ export function EliminationModal({
             <select
               value={eliminatedBy}
               onChange={(e) => setEliminatedBy(e.target.value)}
-              className="min-h-[44px] w-full rounded-lg border border-border-default bg-bg-input px-3 py-2.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-border-focus"
+              className="min-h-[44px] w-full rounded-lg border border-border-input bg-bg-input px-3 py-2.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-border-focus"
             >
               <option value="">Selecione...</option>
               {otherActive.map((e) => (

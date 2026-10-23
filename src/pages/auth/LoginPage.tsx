@@ -118,7 +118,7 @@ export function LoginPage() {
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
-                className="h-4 w-4 rounded border-border-default bg-bg-input text-accent-blue focus:ring-accent-blue"
+                className="h-4 w-4 rounded border-border-input bg-bg-input text-accent-blue focus:ring-accent-blue"
                 {...register('rememberMe')}
               />
               <span className="text-sm text-text-secondary">

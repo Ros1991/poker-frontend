@@ -5,7 +5,7 @@ import {
   LogLevel,
 } from '@microsoft/signalr'
 import type { HubConnection } from '@microsoft/signalr'
-import { getAccessToken } from '../api/client'
+import apiClient, { getAccessToken } from '../api/client'
 
 interface UseWebSocketOptions {
   tournamentId: string
@@ -74,6 +74,18 @@ export function useWebSocket({
     })
     connection.on('EliminationUpdate', (data: unknown) => {
       onEliminationUpdateRef.current?.(data)
+    })
+
+    // Dealer por QR desconectado pelo organizador (ou QR desativado): o servidor tira a
+    // conexão do grupo do torneio, avisa e a derruba logo em seguida. Para aqui, sem tentar
+    // reconectar, e confere a sessão do dealer: o 401 dispara o tratamento do terminal no
+    // client.ts (tela de acesso encerrado, com o motivo). Conexão de usuário não recebe isso.
+    connection.on('DealerRevoked', () => {
+      if (cancelled) return
+      void connection.stop()
+      apiClient.get(`/tournaments/${tournamentId}/dealer-access/session`).catch(() => {
+        // 401 esperado: quem age é o interceptor do client.ts
+      })
     })
 
     connection.onreconnected(async () => {

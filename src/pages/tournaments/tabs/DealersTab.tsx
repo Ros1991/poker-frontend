@@ -76,7 +76,7 @@ export function DealersTab({ tournament }: DealersTabProps) {
         <div className="text-center py-12">
           <UserCog className="mx-auto h-10 w-10 text-text-muted mb-3" />
           <p className="text-text-secondary">Nenhum dealer cadastrado neste torneio.</p>
-          <p className="text-sm text-text-muted mt-1">
+          <p className="text-sm text-text-secondary mt-1">
             Clique em &quot;Adicionar Dealer&quot; para registrar quem irá trabalhar.
           </p>
         </div>
@@ -95,12 +95,12 @@ export function DealersTab({ tournament }: DealersTabProps) {
                   {dealer.nickname ?? dealer.name}
                 </p>
                 {dealer.nickname && (
-                  <p className="text-xs text-text-muted truncate">{dealer.name}</p>
+                  <p className="text-xs text-text-secondary truncate">{dealer.name}</p>
                 )}
               </div>
               <button
                 onClick={() => removeMutation.mutate(dealer.id)}
-                className="p-2 rounded-lg text-text-muted hover:text-accent-red hover:bg-bg-tertiary transition-colors"
+                className="p-2 rounded-lg text-text-secondary hover:text-accent-red hover:bg-accent-red-soft transition-colors"
                 title="Remover dealer"
               >
                 <X className="h-4 w-4" />
@@ -118,7 +118,7 @@ export function DealersTab({ tournament }: DealersTabProps) {
       >
         <div className="flex flex-col gap-3">
           {availableDealers.length === 0 && (
-            <p className="text-sm text-text-muted text-center py-6">
+            <p className="text-sm text-text-secondary text-center py-6">
               Não há dealers disponíveis no home game.
             </p>
           )}
@@ -133,7 +133,7 @@ export function DealersTab({ tournament }: DealersTabProps) {
                   {d.nickname ?? d.fullName}
                 </p>
                 {d.nickname && (
-                  <p className="text-xs text-text-muted truncate">{d.fullName}</p>
+                  <p className="text-xs text-text-secondary truncate">{d.fullName}</p>
                 )}
               </div>
               <Button

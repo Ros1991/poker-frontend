@@ -255,7 +255,7 @@ export function BlindStructureFormPage() {
       <div className="flex items-center gap-3 mb-6">
         <button
           onClick={() => navigate(-1)}
-          className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-tertiary transition-colors"
+          className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors"
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
@@ -366,7 +366,7 @@ export function BlindStructureFormPage() {
                 type="checkbox"
                 checked={defaultAddonAllowed}
                 onChange={(e) => setDefaultAddonAllowed(e.target.checked)}
-                className="h-5 w-5 rounded border-border-default bg-bg-input text-accent-blue focus:ring-accent-blue"
+                className="h-5 w-5 rounded border-border-input bg-bg-input text-accent-blue focus:ring-accent-blue"
               />
               <span className="text-sm text-text-primary">Addon Permitido</span>
             </label>
@@ -376,7 +376,7 @@ export function BlindStructureFormPage() {
                   type="checkbox"
                   checked={defaultAddonDoubleAllowed}
                   onChange={(e) => setDefaultAddonDoubleAllowed(e.target.checked)}
-                  className="h-5 w-5 rounded border-border-default bg-bg-input text-accent-blue focus:ring-accent-blue"
+                  className="h-5 w-5 rounded border-border-input bg-bg-input text-accent-blue focus:ring-accent-blue"
                 />
                 <span className="text-sm text-text-primary">Addon Duplo Permitido</span>
               </label>
@@ -404,7 +404,7 @@ export function BlindStructureFormPage() {
                     e.target.value as 'PerPlayer' | 'Percent',
                   )
                 }
-                className="min-h-[44px] w-full rounded-lg border border-border-default bg-bg-input px-3 py-2.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-border-focus"
+                className="min-h-[44px] w-full rounded-lg border border-border-input bg-bg-input px-3 py-2.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-border-focus"
               >
                 <option value="PerPlayer">Valor fixo por jogador</option>
                 <option value="Percent">% do liquido</option>
@@ -432,9 +432,9 @@ export function BlindStructureFormPage() {
           </h2>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm tabular-nums">
               <thead>
-                <tr className="border-b border-border-default text-left text-text-muted">
+                <tr className="border-b border-border-default text-left text-text-secondary">
                   <th className="px-2 py-2 w-16">Nivel</th>
                   <th className="px-2 py-2">Small Blind</th>
                   <th className="px-2 py-2">Big Blind</th>
@@ -448,10 +448,10 @@ export function BlindStructureFormPage() {
                 {levels.map((level) => (
                   <tr
                     key={level.key}
-                    className={`border-b border-border-default ${level.isBreak ? 'bg-accent-blue/5' : ''}`}
+                    className={`border-b border-border-default ${level.isBreak ? 'bg-accent-blue-soft' : ''}`}
                   >
                     <td className="px-2 py-1.5">
-                      <span className="text-text-muted font-mono text-xs">
+                      <span className="text-text-secondary font-mono text-xs">
                         {level.levelNumber}
                       </span>
                     </td>
@@ -464,7 +464,7 @@ export function BlindStructureFormPage() {
                             updateLevel(level.key, 'breakDescription', e.target.value)
                           }
                           placeholder="Intervalo"
-                          className="w-full rounded border border-border-default bg-bg-input px-2 py-1 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-border-focus"
+                          className="w-full rounded border border-border-input bg-bg-input px-2 py-1 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-border-focus"
                         />
                       ) : (
                         <input
@@ -473,7 +473,7 @@ export function BlindStructureFormPage() {
                           onChange={(e) =>
                             updateLevel(level.key, 'smallBlind', Number(e.target.value))
                           }
-                          className="w-full rounded border border-border-default bg-bg-input px-2 py-1 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-border-focus"
+                          className="w-full rounded border border-border-input bg-bg-input px-2 py-1 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-border-focus"
                         />
                       )}
                     </td>
@@ -487,7 +487,7 @@ export function BlindStructureFormPage() {
                           onChange={(e) =>
                             updateLevel(level.key, 'bigBlind', Number(e.target.value))
                           }
-                          className="w-full rounded border border-border-default bg-bg-input px-2 py-1 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-border-focus"
+                          className="w-full rounded border border-border-input bg-bg-input px-2 py-1 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-border-focus"
                         />
                       )}
                     </td>
@@ -501,7 +501,7 @@ export function BlindStructureFormPage() {
                           onChange={(e) =>
                             updateLevel(level.key, 'ante', Number(e.target.value))
                           }
-                          className="w-full rounded border border-border-default bg-bg-input px-2 py-1 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-border-focus"
+                          className="w-full rounded border border-border-input bg-bg-input px-2 py-1 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-border-focus"
                         />
                       )}
                     </td>
@@ -512,7 +512,7 @@ export function BlindStructureFormPage() {
                         onChange={(e) =>
                           updateLevel(level.key, 'durationMinutes', Number(e.target.value))
                         }
-                        className="w-full rounded border border-border-default bg-bg-input px-2 py-1 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-border-focus"
+                        className="w-full rounded border border-border-input bg-bg-input px-2 py-1 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-border-focus"
                       />
                     </td>
                     <td className="px-2 py-1.5 text-center">
@@ -526,7 +526,7 @@ export function BlindStructureFormPage() {
                       <button
                         type="button"
                         onClick={() => removeLevel(level.key)}
-                        className="p-1 rounded text-text-muted hover:text-accent-red hover:bg-red-500/10 transition-colors"
+                        className="p-1 rounded text-text-secondary hover:text-accent-red hover:bg-accent-red-soft transition-colors"
                         title="Remover"
                       >
                         <Trash2 className="h-4 w-4" />

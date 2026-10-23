@@ -41,7 +41,7 @@ export function PlayerCard({
         'flex flex-col items-center gap-3 rounded-xl border border-border-default bg-bg-secondary p-5',
         'transition-all duration-200',
         onClick &&
-          'cursor-pointer hover:border-border-focus hover:bg-bg-tertiary/50 hover:shadow-lg hover:shadow-black/10',
+          'cursor-pointer hover:border-border-focus hover:bg-bg-tertiary/50 hover:shadow-md',
         className,
       )}
     >
@@ -52,13 +52,13 @@ export function PlayerCard({
           {displayName}
         </h3>
         {person.nickname && person.fullName && person.nickname !== person.fullName && (
-          <span className="text-sm text-text-muted">
+          <span className="text-sm text-text-secondary">
             {person.fullName}
           </span>
         )}
       </div>
 
-      <div className="flex flex-col items-center gap-1.5 text-xs text-text-muted">
+      <div className="flex flex-col items-center gap-1.5 text-xs text-text-secondary">
         {person.whatsapp && (
           <div className="flex items-center gap-1.5">
             <Phone className="h-3 w-3" />
@@ -79,21 +79,21 @@ export function PlayerCard({
             <p className="text-lg font-bold text-text-primary">
               {stats.totalTournaments ?? 0}
             </p>
-            <p className="text-xs text-text-muted">Torneios</p>
+            <p className="text-xs text-text-secondary">Torneios</p>
           </div>
           <div>
             <p className="text-lg font-bold text-text-primary">
               {stats.bestPosition != null ? `${stats.bestPosition}º` : '-'}
             </p>
-            <p className="text-xs text-text-muted">Melhor</p>
+            <p className="text-xs text-text-secondary">Melhor</p>
           </div>
           <div>
-            <p className="text-lg font-bold text-accent-green">
+            <p className="text-lg font-bold text-accent-green-deep tabular-nums">
               {stats.totalWon != null
                 ? `R$ ${stats.totalWon.toLocaleString('pt-BR')}`
                 : '-'}
             </p>
-            <p className="text-xs text-text-muted">Ganhos</p>
+            <p className="text-xs text-text-secondary">Ganhos</p>
           </div>
         </div>
       )}

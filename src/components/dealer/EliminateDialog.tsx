@@ -29,7 +29,7 @@ export function EliminateDialog({ entry, tablemates, loading, onConfirm, onClose
       className={cn(
         'min-h-[44px] truncate rounded-lg border px-2 text-sm font-medium transition-colors',
         killerId === id
-          ? 'border-accent-red bg-accent-red/15 text-text-primary'
+          ? 'border-accent-red bg-accent-red-soft text-text-primary'
           : 'border-border-default bg-bg-primary text-text-secondary',
       )}
     >
@@ -58,7 +58,7 @@ export function EliminateDialog({ entry, tablemates, loading, onConfirm, onClose
           <Skull className="h-5 w-5" />
           Eliminar {name}
         </Button>
-        <p className="-mt-1 text-center text-xs text-text-muted">
+        <p className="-mt-1 text-center text-xs text-text-secondary">
           {killer ? `Quem eliminou: ${playerName(killer)}` : 'Sem informar quem eliminou'}
         </p>
         <Button variant="ghost" className="w-full" disabled={loading} onClick={onClose}>

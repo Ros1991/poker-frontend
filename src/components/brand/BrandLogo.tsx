@@ -4,13 +4,13 @@ import { cn } from '../../utils/cn'
  * Único ponto do app que referencia as peças da marca em /brand (SPEC-20261023-1202).
  *
  * - `full`: logo completa (ilustração + wordmark + subtítulo)
- * - `mark`: só o escudo ilustrado (funciona sobre fundo escuro sem cartão)
+ * - `mark`: só o escudo ilustrado
  * - `wordmark`: só a tipografia "POKER DA GALERA"
  * - `lockup`: escudo + wordmark lado a lado
  *
- * Enquanto o app é escuro, `full` e `wordmark` (texto marinho/azul) são mostrados dentro de um
- * cartão claro, como o QR da TV. Passe `onLight` quando já estiver sobre fundo claro — na
- * SPEC-20261023-1204 (tema claro) isso vira o padrão.
+ * Com o tema claro (SPEC-20261023-1204) as peças vão direto sobre o fundo: o cartão branco que
+ * existia atrás de `full`/`wordmark` no app escuro deixou de ser necessário. A prop `onLight`
+ * continua aceita por compatibilidade, mas não tem efeito visual.
  *
  * Acessibilidade: o nome "Poker da Galera" é anunciado uma única vez por logo. No `lockup` só o
  * escudo leva o alt; a tipografia é decorativa. Passe `decorative` quando a página já tem o nome
@@ -23,7 +23,7 @@ interface BrandLogoProps {
   variant: BrandLogoVariant
   /** Controla a altura da imagem via `h-*` (no lockup, a altura do conjunto). */
   className?: string
-  /** true = está sobre fundo claro; dispensa o cartão branco atrás do texto. */
+  /** Mantida por compatibilidade (tema único claro): não muda nada. */
   onLight?: boolean
   /** true = só decoração (alt="" + aria-hidden); use quando o nome já está em texto na página. */
   decorative?: boolean
@@ -60,30 +60,16 @@ function Piece({ piece, className, decorative = false }: PieceProps) {
   )
 }
 
-export function BrandLogo({ variant, className, onLight = false, decorative = false }: BrandLogoProps) {
+export function BrandLogo({ variant, className, decorative = false }: BrandLogoProps) {
   if (variant === 'lockup') {
     return (
       <span className={cn('inline-flex shrink-0 items-center gap-2', className)}>
         <Piece piece="mark" className="h-full" decorative={decorative} />
         {/* A tipografia repete o nome que o escudo já anuncia: sempre decorativa. */}
-        {onLight ? (
-          <Piece piece="wordmark" className="h-[85%]" decorative />
-        ) : (
-          <span className="flex h-full items-center rounded-lg bg-white px-2">
-            <Piece piece="wordmark" className="h-[78%]" decorative />
-          </span>
-        )}
+        <Piece piece="wordmark" className="h-[85%]" decorative />
       </span>
     )
   }
 
-  if (variant === 'mark' || onLight) {
-    return <Piece piece={variant} className={className} decorative={decorative} />
-  }
-
-  return (
-    <span className="inline-flex shrink-0 rounded-2xl bg-white p-3">
-      <Piece piece={variant} className={className} decorative={decorative} />
-    </span>
-  )
+  return <Piece piece={variant} className={className} decorative={decorative} />
 }

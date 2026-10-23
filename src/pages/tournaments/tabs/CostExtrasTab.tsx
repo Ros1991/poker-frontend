@@ -153,7 +153,7 @@ export function CostExtrasTab({ tournament }: CostExtrasTabProps) {
           <h2 className="text-lg font-semibold text-text-primary">
             Custos Extras
           </h2>
-          <p className="text-sm text-text-muted">
+          <p className="text-sm text-text-secondary tabular-nums">
             Total: {formatCurrency(totalCosts)}
           </p>
         </div>
@@ -201,22 +201,22 @@ export function CostExtrasTab({ tournament }: CostExtrasTabProps) {
                       {isStaff && <Badge color="blue">Staff (auto)</Badge>}
                       {isRanking && <Badge color="purple">Ranking (auto)</Badge>}
                     </p>
-                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5 text-xs text-text-muted sm:flex-nowrap">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5 text-xs text-text-secondary sm:flex-nowrap">
                       {cost.beneficiary && <span>Para: {cost.beneficiary}</span>}
                       {isPaid && cost.paymentMethod && (
-                        <span className="text-accent-green">
+                        <span className="text-accent-green-deep">
                           Pago via {cost.paymentMethod}
                         </span>
                       )}
                       {isPartial && (
-                        <span className="text-yellow-400">
+                        <span className="text-accent-gold-deep tabular-nums">
                           Pago: {formatCurrency(paidAmount)} / Falta:{' '}
                           {formatCurrency(pending)}
                         </span>
                       )}
                     </div>
                   </div>
-                  <span className="text-sm font-semibold text-text-primary shrink-0">
+                  <span className="text-sm font-semibold text-text-primary tabular-nums shrink-0">
                     {formatCurrency(cost.amount)}
                   </span>
                 </div>
@@ -231,7 +231,7 @@ export function CostExtrasTab({ tournament }: CostExtrasTabProps) {
                       <button
                         type="button"
                         onClick={() => unpayMutation.mutate(cost.id)}
-                        className="p-2 sm:p-1 rounded text-text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                        className="p-2 sm:p-1 rounded text-text-secondary hover:text-accent-red hover:bg-accent-red-soft transition-colors"
                         title="Reverter pagamento"
                       >
                         <X className="h-3.5 w-3.5" />
@@ -244,7 +244,7 @@ export function CostExtrasTab({ tournament }: CostExtrasTabProps) {
                         type="button"
                         onClick={() => payMutation.mutate({ id: cost.id, method: 'Dinheiro' })}
                         disabled={payMutation.isPending}
-                        className="flex items-center gap-1 rounded-md px-2 py-2 sm:py-1 text-xs font-medium text-text-secondary hover:bg-accent-green/10 hover:text-accent-green transition-colors"
+                        className="flex items-center gap-1 rounded-md px-2 py-2 sm:py-1 text-xs font-medium text-text-secondary hover:bg-accent-green-soft hover:text-accent-green-deep transition-colors"
                         title="Pago em Dinheiro"
                       >
                         <Banknote className="h-3.5 w-3.5" />
@@ -254,7 +254,7 @@ export function CostExtrasTab({ tournament }: CostExtrasTabProps) {
                         type="button"
                         onClick={() => payMutation.mutate({ id: cost.id, method: 'Caixa' })}
                         disabled={payMutation.isPending}
-                        className="flex items-center gap-1 rounded-md px-2 py-2 sm:py-1 text-xs font-medium text-text-secondary hover:bg-accent-blue/10 hover:text-accent-blue transition-colors"
+                        className="flex items-center gap-1 rounded-md px-2 py-2 sm:py-1 text-xs font-medium text-text-secondary hover:bg-accent-blue-soft hover:text-accent-blue transition-colors"
                         title="Pago pelo Caixa (gestor financeiro)"
                       >
                         <Building2 className="h-3.5 w-3.5" />
@@ -267,7 +267,7 @@ export function CostExtrasTab({ tournament }: CostExtrasTabProps) {
                       <button
                         type="button"
                         onClick={() => openEdit(cost)}
-                        className="p-2 sm:p-1 rounded text-text-muted hover:text-accent-blue hover:bg-accent-blue/10 transition-colors"
+                        className="p-2 sm:p-1 rounded text-text-secondary hover:text-accent-blue hover:bg-accent-blue-soft transition-colors"
                         title="Editar custo"
                       >
                         <Pencil className="h-3.5 w-3.5" />
@@ -279,7 +279,7 @@ export function CostExtrasTab({ tournament }: CostExtrasTabProps) {
                       <button
                         type="button"
                         onClick={() => setDeleteConfirm(cost)}
-                        className="p-2 sm:p-1 rounded text-text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                        className="p-2 sm:p-1 rounded text-accent-red hover:text-accent-red-deep hover:bg-accent-red-soft transition-colors"
                         title={isRanking ? 'Excluir (valor volta pro prêmio)' : 'Excluir custo'}
                       >
                         <Trash2 className="h-3.5 w-3.5" />

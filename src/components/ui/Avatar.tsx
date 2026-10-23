@@ -24,22 +24,27 @@ function getInitials(name: string): string {
     .join('')
 }
 
+/**
+ * Paleta de iniciais derivada da logo (SPEC-20261023-1204). Cada fundo já traz o texto que passa
+ * AA em cima dele: dourado só com texto marinho; os demais são sólidos escuros com branco.
+ */
+const INITIALS_COLORS = [
+  'bg-accent-blue text-white', // royal
+  'bg-text-primary text-white', // marinho
+  'bg-accent-gold text-text-primary', // dourado
+  'bg-accent-green-deep text-white', // verde
+  'bg-accent-red-deep text-white', // vermelho
+  'bg-accent-teal text-white', // teal
+  'bg-accent-indigo text-white', // índigo
+  'bg-accent-orange-deep text-white', // laranja (bronze)
+] as const
+
 function getColorFromName(name: string): string {
-  const colors = [
-    'bg-blue-600',
-    'bg-green-600',
-    'bg-purple-600',
-    'bg-orange-600',
-    'bg-pink-600',
-    'bg-teal-600',
-    'bg-indigo-600',
-    'bg-red-600',
-  ]
   let hash = 0
   for (let i = 0; i < name.length; i++) {
     hash = name.charCodeAt(i) + ((hash << 5) - hash)
   }
-  return colors[Math.abs(hash) % colors.length] ?? 'bg-blue-600'
+  return INITIALS_COLORS[Math.abs(hash) % INITIALS_COLORS.length] ?? INITIALS_COLORS[0]
 }
 
 export function Avatar({ src, name, size = 'md', className }: AvatarProps) {
@@ -64,7 +69,7 @@ export function Avatar({ src, name, size = 'md', className }: AvatarProps) {
   return (
     <div
       className={cn(
-        'rounded-full flex items-center justify-center font-semibold text-white flex-shrink-0',
+        'rounded-full flex items-center justify-center font-semibold flex-shrink-0',
         sizeClasses[size],
         getColorFromName(name),
         className,

@@ -89,17 +89,65 @@ export interface TvSnapshot {
   generatedAt: string
 }
 
+// ---- QR do dealer (SPEC-20261023-1208: o QR não dá acesso sozinho) ----
+
+/** QR ativo do torneio (DealerAccessResponse). O código vai no QR; o dealer pede acesso e espera. */
 export interface DealerAccess {
   id: string
   code: string
   expiresAt: string
   createdAt: string
-  exchangeCount: number
+  /** Pedidos aguardando autorização (não vencidos) */
+  pendingCount: number
+  /** Dealers conectados: aprovados no prazo e com o QR não revogado */
+  approvedCount: number
 }
 
-export interface DealerExchange {
-  accessToken: string
-  expiresAt: string
+export type DealerRequestStatus = 'Pending' | 'Approved' | 'Rejected' | 'Revoked'
+
+/** Resposta do POST dealer-access/requests (aparelho do dealer, anônimo) */
+export interface DealerRequestCreated {
+  requestId: string
+  /** "Approved" quando o mesmo aparelho já tem pedido aprovado válido neste torneio (reabrir o terminal) */
+  status: 'Pending' | 'Approved'
+  tournamentName: string
+}
+
+/** Resposta do GET dealer-access/requests/{id}?deviceKey= (consulta a cada 3 s) */
+export interface DealerRequestPoll {
+  requestId: string
+  status: DealerRequestStatus
+  /** Nome normalizado */
+  name: string
   tournamentId: string
   tournamentName: string
+  /** Pedido venceu sem decisão (15 min) ou a aprovação já passou do prazo */
+  expired: boolean
+  /** Só quando Approved, no prazo, deviceKey confere, QR não revogado e torneio não encerrado */
+  accessToken: string | null
+  /** Só quando Approved (prazo do token) */
+  expiresAt: string | null
+}
+
+/** Pedido na lista do organizador (DealerRequestResponse): pendentes primeiro, depois os conectados */
+export interface DealerRequest {
+  id: string
+  name: string
+  status: DealerRequestStatus
+  requestedAt: string
+  decidedAt: string | null
+  /** Só quando Approved */
+  expiresAt: string | null
+  /** Último acesso do terminal (granularidade de 30 s) */
+  lastSeenAt: string | null
+  userAgent: string | null
+}
+
+/** GET tournaments/{id}/dealer-access/session (token do dealer) */
+export interface DealerSessionInfo {
+  requestId: string
+  tournamentId: string
+  tournamentName: string
+  dealerName: string
+  expiresAt: string
 }

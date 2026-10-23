@@ -1,5 +1,20 @@
 import type { TournamentStatus } from '../types/tournament.types'
 import type { EntryStatus, PaymentStatus } from '../types/entry.types'
+import type { BadgeColor } from '../components/ui/Badge'
+
+/**
+ * ÚNICA tabela de rótulo e cor por status (torneio, inscrição, pagamento), consumida pelo painel
+ * e pelo telão (SPEC-20261023-1204). Não duplique estes mapas nas páginas.
+ *
+ * CONTRATO: `*_STATUS_COLORS` devolve a CHAVE de cor do `Badge` (`BadgeColor`: 'green' | 'red' |
+ * 'gold' | 'yellow' | 'blue' | 'purple' | 'orange' | 'gray'), e não mais uma string de classes.
+ * Use sempre o Badge:
+ *
+ *   <Badge color={ENTRY_STATUS_COLORS[entry.status]}>{ENTRY_STATUS_LABELS[entry.status]}</Badge>
+ *
+ * Nunca `className={ENTRY_STATUS_COLORS[...]}`. Quem precisa de outra forma (borda da linha, ícone)
+ * deriva os tokens a partir da mesma chave, para a cor do status ser uma só em todo o sistema.
+ */
 
 export const TOURNAMENT_STATUS_LABELS: Record<TournamentStatus, string> = {
   Draft: 'Rascunho',
@@ -10,13 +25,13 @@ export const TOURNAMENT_STATUS_LABELS: Record<TournamentStatus, string> = {
   Cancelled: 'Cancelado',
 }
 
-export const TOURNAMENT_STATUS_COLORS: Record<TournamentStatus, string> = {
-  Draft: 'bg-gray-500/20 text-gray-300',
-  OpenForRegistration: 'bg-blue-500/20 text-blue-400',
-  InProgress: 'bg-blue-500/20 text-blue-400',
-  BreakSettlement: 'bg-yellow-500/20 text-yellow-400',
-  Finished: 'bg-purple-500/20 text-purple-400',
-  Cancelled: 'bg-red-500/20 text-red-400',
+export const TOURNAMENT_STATUS_COLORS: Record<TournamentStatus, BadgeColor> = {
+  Draft: 'gray',
+  OpenForRegistration: 'blue',
+  InProgress: 'blue',
+  BreakSettlement: 'yellow',
+  Finished: 'purple',
+  Cancelled: 'red',
 }
 
 export const ENTRY_STATUS_LABELS: Record<EntryStatus, string> = {
@@ -27,12 +42,12 @@ export const ENTRY_STATUS_LABELS: Record<EntryStatus, string> = {
   PaidOut: 'Pago',
 }
 
-export const ENTRY_STATUS_COLORS: Record<EntryStatus, string> = {
-  Registered: 'bg-blue-500/20 text-blue-400',
-  Active: 'bg-green-500/20 text-green-400',
-  Eliminated: 'bg-red-500/20 text-red-400',
-  Awarded: 'bg-yellow-500/20 text-yellow-400',
-  PaidOut: 'bg-purple-500/20 text-purple-400',
+export const ENTRY_STATUS_COLORS: Record<EntryStatus, BadgeColor> = {
+  Registered: 'blue',
+  Active: 'green',
+  Eliminated: 'red',
+  Awarded: 'gold',
+  PaidOut: 'purple',
 }
 
 export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
@@ -42,9 +57,9 @@ export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
   Overpaid: 'Pago a Mais',
 }
 
-export const PAYMENT_STATUS_COLORS: Record<PaymentStatus, string> = {
-  Pending: 'bg-red-500/20 text-red-400',
-  PartiallyPaid: 'bg-yellow-500/20 text-yellow-400',
-  Paid: 'bg-green-500/20 text-green-400',
-  Overpaid: 'bg-blue-500/20 text-blue-400',
+export const PAYMENT_STATUS_COLORS: Record<PaymentStatus, BadgeColor> = {
+  Pending: 'red',
+  PartiallyPaid: 'yellow',
+  Paid: 'green',
+  Overpaid: 'blue',
 }

@@ -143,20 +143,20 @@ export function PrizesTab({ tournament, entries }: PrizesTabProps) {
       {/* Summary cards */}
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="rounded-lg bg-bg-primary p-4">
-          <p className="text-xs text-text-muted">Premiação Bruta</p>
-          <p className="text-xl font-bold text-text-primary">
+          <p className="text-xs text-text-secondary">Premiação Bruta</p>
+          <p className="text-xl font-bold text-text-primary tabular-nums">
             {formatCurrency(calculation?.grossPrizePool ?? tournament.totalPrizePool)}
           </p>
         </div>
         <div className="rounded-lg bg-bg-primary p-4">
-          <p className="text-xs text-text-muted">Custos</p>
-          <p className="text-xl font-bold text-accent-red">
+          <p className="text-xs text-text-secondary">Custos</p>
+          <p className="text-xl font-bold text-accent-red-deep tabular-nums">
             {formatCurrency(calculation?.totalCosts ?? tournament.totalCosts)}
           </p>
         </div>
         <div className="rounded-lg bg-bg-primary p-4">
-          <p className="text-xs text-text-muted">Premiação Líquida</p>
-          <p className="text-xl font-bold text-accent-green">
+          <p className="text-xs text-text-secondary">Premiação Líquida</p>
+          <p className="text-xl font-bold text-accent-green-deep tabular-nums">
             {formatCurrency(calculation?.netPrizePool ?? tournament.netPrizePool)}
           </p>
         </div>
@@ -173,7 +173,7 @@ export function PrizesTab({ tournament, entries }: PrizesTabProps) {
             value={numWinners}
             onChange={(e) => setNumWinners(Math.max(1, parseInt(e.target.value) || 1))}
             min={1}
-            className="w-32 rounded-lg border border-border-default bg-bg-input px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-border-focus"
+            className="w-32 rounded-lg border border-border-input bg-bg-input px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-border-focus"
           />
         </div>
         <Button
@@ -192,17 +192,17 @@ export function PrizesTab({ tournament, entries }: PrizesTabProps) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-bg-tertiary">
-                  <th className="px-3 py-2 text-left text-xs font-medium text-text-muted">
+                  <th className="px-3 py-2 text-left text-xs font-medium text-text-secondary">
                     Posição
                   </th>
-                  <th className="px-3 py-2 text-right text-xs font-medium text-text-muted">
+                  <th className="px-3 py-2 text-right text-xs font-medium text-text-secondary">
                     Valor (R$)
                   </th>
-                  <th className="px-3 py-2 text-right text-xs font-medium text-text-muted">
+                  <th className="px-3 py-2 text-right text-xs font-medium text-text-secondary">
                     %
                   </th>
                   {tournament.prizeConfirmed && (
-                    <th className="px-3 py-2 text-left text-xs font-medium text-text-muted">
+                    <th className="px-3 py-2 text-left text-xs font-medium text-text-secondary">
                       Vencedor
                     </th>
                   )}
@@ -224,11 +224,11 @@ export function PrizesTab({ tournament, entries }: PrizesTabProps) {
                           <Medal
                             className={`h-4 w-4 ${
                               prize.position === 1
-                                ? 'text-yellow-400'
+                                ? 'text-accent-gold-deep'
                                 : prize.position === 2
-                                  ? 'text-gray-300'
+                                  ? 'text-text-secondary'
                                   : prize.position === 3
-                                    ? 'text-orange-400'
+                                    ? 'text-accent-orange-deep'
                                     : 'text-text-muted'
                             }`}
                           />
@@ -243,10 +243,10 @@ export function PrizesTab({ tournament, entries }: PrizesTabProps) {
                           onChange={(e) =>
                             updatePrize(index, parseFloat(e.target.value) || 0)
                           }
-                          className="w-32 rounded border border-border-default bg-bg-input px-2 py-1 text-right text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-border-focus"
+                          className="w-32 rounded border border-border-input bg-bg-input px-2 py-1 text-right text-sm text-text-primary tabular-nums focus:outline-none focus:ring-1 focus:ring-border-focus"
                         />
                       </td>
-                      <td className="px-3 py-2 text-right text-text-muted">
+                      <td className="px-3 py-2 text-right text-text-secondary tabular-nums">
                         {prize.percentage.toFixed(1)}%
                       </td>
                       {tournament.prizeConfirmed && (
@@ -256,7 +256,7 @@ export function PrizesTab({ tournament, entries }: PrizesTabProps) {
                               {winner.person.nickname ?? winner.person.fullName}
                             </span>
                           ) : (
-                            <span className="text-text-muted text-xs">
+                            <span className="text-text-secondary text-xs">
                               Aguardando
                             </span>
                           )}
@@ -266,7 +266,7 @@ export function PrizesTab({ tournament, entries }: PrizesTabProps) {
                         <button
                           type="button"
                           onClick={() => removePrize(index)}
-                          className="p-1 rounded text-text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                          className="p-1 rounded text-text-secondary hover:text-accent-red hover:bg-accent-red-soft transition-colors"
                           title="Remover"
                         >
                           <Minus className="h-4 w-4" />
@@ -291,9 +291,9 @@ export function PrizesTab({ tournament, entries }: PrizesTabProps) {
               Adicionar posicao
             </Button>
             <div className="text-text-secondary">
-              Total: <strong className="text-text-primary">{formatCurrency(totalAlloc)}</strong>
+              Total: <strong className="text-text-primary tabular-nums">{formatCurrency(totalAlloc)}</strong>
               {Math.abs(diff) > 0.01 && (
-                <span className={diff > 0 ? 'ml-3 text-yellow-400' : 'ml-3 text-red-400'}>
+                <span className={diff > 0 ? 'ml-3 text-accent-gold-deep tabular-nums' : 'ml-3 text-accent-red-deep tabular-nums'}>
                   {diff > 0
                     ? `Faltam ${formatCurrency(diff)}`
                     : `Excede ${formatCurrency(Math.abs(diff))}`}
@@ -305,7 +305,7 @@ export function PrizesTab({ tournament, entries }: PrizesTabProps) {
           {/* Confirmar = salvar (sempre disponivel, inclusive apos confirmar) */}
           <div className="flex items-center justify-between gap-3 mt-4">
             {tournament.prizeConfirmed ? (
-              <span className="flex items-center gap-2 text-sm text-accent-green">
+              <span className="flex items-center gap-2 text-sm text-accent-green-deep">
                 <Lock className="h-4 w-4" />
                 Premiação confirmada — pode editar e salvar de novo
               </span>
@@ -329,7 +329,7 @@ export function PrizesTab({ tournament, entries }: PrizesTabProps) {
         <div className="text-center py-8">
           <Trophy className="mx-auto h-10 w-10 text-text-muted mb-3" />
           <p className="text-text-secondary">Premiação ainda não calculada.</p>
-          <p className="text-sm text-text-muted mt-1">
+          <p className="text-sm text-text-secondary mt-1">
             Clique em &quot;Calcular Premiação&quot; para gerar a distribuição.
           </p>
         </div>

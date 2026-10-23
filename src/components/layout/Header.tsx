@@ -26,7 +26,7 @@ export function Header({ onMenuToggle }: HeaderProps) {
       <div className="flex items-center gap-3">
         <button
           onClick={onMenuToggle}
-          className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-tertiary transition-colors lg:hidden"
+          className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors lg:hidden"
           aria-label="Abrir menu"
         >
           <Menu className="h-5 w-5" />
@@ -42,14 +42,14 @@ export function Header({ onMenuToggle }: HeaderProps) {
               <span className="text-sm font-medium text-text-primary">
                 {user.name}
               </span>
-              <span className="text-xs text-text-muted">{user.role}</span>
+              <span className="text-xs text-text-secondary">{user.role}</span>
             </div>
             <Avatar src={user.photoUrl} name={user.name} size="sm" />
           </>
         )}
         <button
           onClick={() => void handleLogout()}
-          className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-text-muted hover:text-accent-red hover:bg-red-500/10 transition-colors"
+          className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-text-secondary hover:text-accent-red hover:bg-accent-red-soft transition-colors"
           aria-label="Sair"
           title="Sair"
         >

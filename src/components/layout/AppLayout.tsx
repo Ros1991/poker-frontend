@@ -15,7 +15,7 @@ export function AppLayout() {
       {sidebarOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div
-            className="absolute inset-0 bg-black/60"
+            className="absolute inset-0 bg-text-primary/40"
             onClick={() => setSidebarOpen(false)}
           />
           <Sidebar

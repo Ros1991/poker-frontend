@@ -72,7 +72,7 @@ export function ForgotPasswordPage() {
           <div className="flex flex-col items-center gap-4 rounded-xl border border-border-default bg-bg-secondary p-6 text-center">
             <MailCheck className="h-10 w-10 text-accent-green" />
             <p className="text-sm text-text-secondary">{NEUTRAL_MESSAGE}</p>
-            <p className="text-xs text-text-muted">
+            <p className="text-xs text-text-secondary">
               O link vale por 1 hora e só pode ser usado uma vez.
             </p>
             <Link
@@ -102,7 +102,7 @@ export function ForgotPasswordPage() {
             />
 
             {rateLimited && (
-              <p className="text-sm text-accent-red" role="alert">
+              <p className="text-sm text-accent-red-deep" role="alert">
                 Muitas tentativas. Aguarde um minuto e tente de novo.
               </p>
             )}

@@ -27,9 +27,9 @@ interface PlayerSheetProps {
 
 function Info({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="rounded-lg bg-bg-secondary p-2.5">
-      <p className="text-[11px] uppercase tracking-wide text-text-muted">{label}</p>
-      <p className="mt-0.5 text-sm font-semibold text-text-primary">{value}</p>
+    <div className="rounded-lg border border-border-default bg-bg-card p-2.5">
+      <p className="text-[11px] uppercase tracking-wide text-text-secondary">{label}</p>
+      <p className="mt-0.5 text-sm font-semibold tabular-nums text-text-primary">{value}</p>
     </div>
   )
 }
@@ -59,7 +59,7 @@ export function PlayerSheet({
         <div className="min-w-0">
           <p className="truncate text-xl font-bold text-text-primary">{playerName(entry)}</p>
           {entry.person.nickname && (
-            <p className="truncate text-sm text-text-muted">{entry.person.fullName}</p>
+            <p className="truncate text-sm text-text-secondary">{entry.person.fullName}</p>
           )}
         </div>
       </div>
@@ -111,7 +111,7 @@ export function PlayerSheet({
         </div>
       )}
 
-      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-muted">
+      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
         Histórico do jogador
       </h3>
       <HistoryList tournamentId={tournamentId} entryId={entry.id} onUndo={onUndo} />

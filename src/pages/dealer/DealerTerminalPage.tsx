@@ -70,8 +70,8 @@ function isBalanceMoveStillValid(move: BalanceMove, tables: Table[], entries: To
 }
 
 interface DealerTerminalPageProps {
-  /** Aberto pelo QR do dealer (sem login, só este torneio) */
-  dealerMode?: { tournamentName: string; onExit: () => void }
+  /** Aberto pelo QR do dealer (sem login, só este torneio); `dealerName` vai no selo "Dealer · Nome" */
+  dealerMode?: { tournamentName: string; dealerName?: string; onExit: () => void }
 }
 
 /**
@@ -335,7 +335,7 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
     <div className="flex min-h-screen flex-col bg-bg-primary">
       <TerminalHeader
         tournamentName={tournamentName}
-        dealerMode={dealerMode ? { onExit: dealerMode.onExit } : undefined}
+        dealerMode={dealerMode ? { onExit: dealerMode.onExit, dealerName: dealerMode.dealerName } : undefined}
         tableName={selectedTable ? tableLabel(selectedTable) : noTables ? 'Sem mesas' : null}
         onSelectTable={() => setTableSelectOpen(true)}
         formattedTime={formattedTime}
@@ -382,11 +382,11 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
           </div>
         ) : (
           <>
-            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-muted">
+            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
               Jogando nesta mesa ({tableEntries.length})
             </h2>
             {tableEntries.length === 0 ? (
-              <p className="py-8 text-center text-text-muted">Nenhum jogador nesta mesa.</p>
+              <p className="py-8 text-center text-text-secondary">Nenhum jogador nesta mesa.</p>
             ) : (
               <div className="flex flex-col gap-2">
                 {tableEntries.map((entry) => (
@@ -411,23 +411,24 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
             <button
               type="button"
               onClick={() => setShowEliminated((v) => !v)}
-              className="flex min-h-[44px] w-full items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-text-muted"
+              className="flex min-h-[44px] w-full items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-text-secondary"
             >
               {showEliminated ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
               Eliminados ({eliminatedEntries.length})
             </button>
             {showEliminated && (
               <div className="flex flex-col gap-1.5">
+                {/* Eliminados: fundo zebra e nome em text-secondary, sem opacidade (que derrubava o texto abaixo de AA) */}
                 {eliminatedEntries.map((entry) => (
                   <button
                     key={entry.id}
                     type="button"
                     onClick={() => setFichaEntryId(entry.id)}
-                    className="flex min-h-[48px] items-center gap-2 rounded-lg border border-border-default bg-bg-secondary p-2 text-left opacity-80"
+                    className="flex min-h-[48px] items-center gap-2 rounded-lg border border-border-default bg-bg-zebra p-2 text-left"
                   >
                     <Avatar src={entry.person.photoUrl} name={entry.person.fullName} size="sm" />
-                    <span className="min-w-0 flex-1 truncate text-sm text-text-primary">{playerName(entry)}</span>
-                    <span className="text-xs text-text-muted">{statusLabel(entry)}</span>
+                    <span className="min-w-0 flex-1 truncate text-sm text-text-secondary">{playerName(entry)}</span>
+                    <span className="text-xs text-text-secondary">{statusLabel(entry)}</span>
                     <ChevronRight className="h-4 w-4 text-text-muted" />
                   </button>
                 ))}

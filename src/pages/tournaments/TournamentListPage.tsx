@@ -84,7 +84,7 @@ export function TournamentListPage() {
           {homeGameId && (
             <Link
               to={homeGameDetailPath(homeGameId)}
-              className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-tertiary transition-colors"
+              className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors"
             >
               <ArrowLeft className="h-5 w-5" />
             </Link>
@@ -138,7 +138,7 @@ export function TournamentListPage() {
       )}
 
       {isError && (
-        <div className="rounded-xl border border-accent-red/30 bg-accent-red/5 p-6 text-center">
+        <div className="rounded-xl border border-accent-red/30 bg-accent-red-soft p-6 text-center">
           <p className="text-text-secondary">
             Erro ao carregar torneios. Tente novamente.
           </p>
@@ -149,7 +149,7 @@ export function TournamentListPage() {
         <div className="rounded-xl border border-border-default bg-bg-secondary p-12 text-center">
           <Trophy className="mx-auto h-12 w-12 text-text-muted mb-3" />
           <p className="text-text-secondary mb-1">Nenhum torneio encontrado.</p>
-          <p className="text-sm text-text-muted">
+          <p className="text-sm text-text-secondary">
             Crie seu primeiro torneio para comecar.
           </p>
         </div>
@@ -159,7 +159,7 @@ export function TournamentListPage() {
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((tournament) => {
             const statusColor =
-              TOURNAMENT_STATUS_COLORS[tournament.status] ?? ''
+              TOURNAMENT_STATUS_COLORS[tournament.status]
             const statusLabel =
               TOURNAMENT_STATUS_LABELS[tournament.status] ?? tournament.status
 
@@ -180,19 +180,19 @@ export function TournamentListPage() {
                     <h3 className="font-semibold text-text-primary truncate">
                       {tournament.name}
                     </h3>
-                    <p className="text-xs text-text-muted">
+                    <p className="text-xs text-text-secondary">
                       {tournament.homeGameName}
                     </p>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
-                    <Badge className={statusColor}>{statusLabel}</Badge>
+                    <Badge color={statusColor}>{statusLabel}</Badge>
                     <button
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation()
                         setDeleteConfirm({ id: tournament.id, name: tournament.name })
                       }}
-                      className="p-1 rounded text-text-muted hover:text-accent-red hover:bg-red-500/10 transition-colors"
+                      className="p-1 rounded text-accent-red hover:text-accent-red-deep hover:bg-accent-red-soft transition-colors"
                       title="Excluir torneio"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -200,7 +200,7 @@ export function TournamentListPage() {
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-text-muted">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-text-secondary">
                   <span className="flex items-center gap-1">
                     <Calendar className="h-3 w-3" />
                     {formatDate(tournament.date)}
@@ -211,7 +211,7 @@ export function TournamentListPage() {
                   </span>
                   {tournament.rankingName && (
                     <span
-                      className="flex min-w-0 items-center gap-1 text-yellow-500"
+                      className="flex min-w-0 items-center gap-1 text-accent-gold-deep"
                       title={`Ranking: ${tournament.rankingName}`}
                     >
                       <Trophy className="h-3 w-3 shrink-0" />
@@ -222,14 +222,14 @@ export function TournamentListPage() {
 
                 <div className="flex items-center justify-between border-t border-border-default pt-3">
                   <div>
-                    <p className="text-xs text-text-muted">Buy-in</p>
-                    <p className="text-sm font-semibold text-text-primary">
+                    <p className="text-xs text-text-secondary">Buy-in</p>
+                    <p className="text-sm font-semibold text-text-primary tabular-nums">
                       {formatCurrency(tournament.buyInAmount)}
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs text-text-muted">Premiação</p>
-                    <p className="text-sm font-semibold text-accent-green">
+                    <p className="text-xs text-text-secondary">Premiação</p>
+                    <p className="text-sm font-semibold text-accent-green-deep tabular-nums">
                       {formatCurrency(tournament.totalPrizePool)}
                     </p>
                   </div>

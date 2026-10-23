@@ -32,12 +32,12 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
             'transition-colors resize-y',
             error
               ? 'border-accent-red focus:ring-accent-red'
-              : 'border-border-default',
+              : 'border-border-input',
             className,
           )}
           {...props}
         />
-        {error && <p className="text-xs text-accent-red">{error}</p>}
+        {error && <p className="text-xs text-accent-red-deep">{error}</p>}
       </div>
     )
   },

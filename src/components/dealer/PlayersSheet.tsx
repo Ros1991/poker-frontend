@@ -52,7 +52,7 @@ export function PlayersSheet({ isOpen, onClose, entries, tables, onOpenPlayer, o
         <UserPlus className="h-4 w-4" /> Adicionar jogador
       </Button>
       {list.length === 0 ? (
-        <p className="py-8 text-center text-sm text-text-muted">Nenhum jogador encontrado.</p>
+        <p className="py-8 text-center text-sm text-text-secondary">Nenhum jogador encontrado.</p>
       ) : (
         <ul className="flex flex-col gap-1.5">
           {list.map((e) => {
@@ -63,14 +63,17 @@ export function PlayersSheet({ isOpen, onClose, entries, tables, onOpenPlayer, o
                   type="button"
                   onClick={() => onOpenPlayer(e)}
                   className={cn(
-                    'flex min-h-[56px] w-full items-center gap-2.5 rounded-lg border border-border-default bg-bg-secondary p-2 text-left',
-                    !active && 'opacity-70',
+                    // Inativo: fundo zebra e nome em text-secondary, sem opacidade (que derrubava o texto abaixo de AA)
+                    'flex min-h-[56px] w-full items-center gap-2.5 rounded-lg border border-border-default p-2 text-left',
+                    active ? 'bg-bg-secondary' : 'bg-bg-zebra',
                   )}
                 >
                   <Avatar src={e.person.photoUrl} name={e.person.fullName} size="sm" />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-semibold text-text-primary">{playerName(e)}</span>
-                    <span className="block truncate text-xs text-text-muted">
+                    <span className={cn('block truncate text-sm font-semibold', active ? 'text-text-primary' : 'text-text-secondary')}>
+                      {playerName(e)}
+                    </span>
+                    <span className="block truncate text-xs text-text-secondary">
                       {active ? seatLabel(e, tables) : statusLabel(e)}
                     </span>
                   </span>

@@ -76,7 +76,7 @@ export function PlayerDetailPage() {
       <div className="flex items-center justify-between">
         <button
           onClick={() => navigate(ROUTES.PLAYERS)}
-          className="flex h-10 w-10 items-center justify-center rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-tertiary transition-colors"
+          className="flex h-10 w-10 items-center justify-center rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors"
           aria-label="Voltar"
         >
           <ArrowLeft className="h-5 w-5" />
@@ -121,7 +121,7 @@ export function PlayerDetailPage() {
                 href={`https://wa.me/${person.whatsapp.replace(/\D/g, '')}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-2 hover:text-accent-green transition-colors"
+                className="flex items-center gap-2 hover:text-accent-green-deep transition-colors"
               >
                 <Phone className="h-4 w-4" />
                 {person.whatsapp}
@@ -141,7 +141,7 @@ export function PlayerDetailPage() {
           value={String(totalTournaments)}
         />
         <StatCard
-          icon={<Target className="h-5 w-5 text-yellow-400" />}
+          icon={<Target className="h-5 w-5 text-accent-gold-deep" />}
           label="Melhor Posição"
           value={bestPosition != null ? `${bestPosition}º` : '-'}
         />
@@ -168,7 +168,7 @@ export function PlayerDetailPage() {
         {!history || history.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-12 text-center">
             <Calendar className="h-10 w-10 text-text-muted" />
-            <p className="text-sm text-text-muted">
+            <p className="text-sm text-text-secondary">
               Nenhum torneio registrado ainda.
             </p>
           </div>
@@ -176,7 +176,7 @@ export function PlayerDetailPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border-default text-left text-text-muted">
+                <tr className="border-b border-border-default text-left text-text-secondary">
                   <th className="px-6 py-3 font-medium">Data</th>
                   <th className="px-6 py-3 font-medium">Torneio</th>
                   <th className="px-6 py-3 font-medium text-center">
@@ -202,7 +202,7 @@ export function PlayerDetailPage() {
                       <Badge
                         color={
                           entry.position === 1
-                            ? 'yellow'
+                            ? 'gold'
                             : entry.position === 2
                               ? 'gray'
                               : entry.position === 3
@@ -213,12 +213,12 @@ export function PlayerDetailPage() {
                         {entry.position}º
                       </Badge>
                     </td>
-                    <td className="px-6 py-3 text-right text-accent-green font-medium whitespace-nowrap">
+                    <td className="px-6 py-3 text-right text-accent-green-deep font-medium tabular-nums whitespace-nowrap">
                       {entry.prize > 0
                         ? `R$ ${entry.prize.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
                         : '-'}
                     </td>
-                    <td className="px-6 py-3 text-right text-text-secondary">
+                    <td className="px-6 py-3 text-right text-text-secondary tabular-nums">
                       {entry.points > 0 ? entry.points : '-'}
                     </td>
                   </tr>
@@ -245,8 +245,8 @@ function StatCard({
     <div className="flex flex-col gap-2 rounded-xl border border-border-default bg-bg-secondary p-4">
       {icon}
       <div>
-        <p className="text-xl font-bold text-text-primary">{value}</p>
-        <p className="text-xs text-text-muted">{label}</p>
+        <p className="text-xl font-bold text-text-primary tabular-nums">{value}</p>
+        <p className="text-xs text-text-secondary">{label}</p>
       </div>
     </div>
   )

@@ -92,7 +92,7 @@ export function PlayerListPage() {
               ? 'Nenhum jogador encontrado'
               : 'Nenhum jogador cadastrado'}
           </p>
-          <p className="text-sm text-text-muted">
+          <p className="text-sm text-text-secondary">
             {search
               ? 'Tente buscar com outros termos.'
               : 'Adicione o primeiro jogador para começar.'}

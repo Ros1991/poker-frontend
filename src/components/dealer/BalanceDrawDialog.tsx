@@ -38,7 +38,7 @@ export function BalanceDrawDialog({
           {name(move.fromTableId)}, lugar {move.fromSeat}
         </p>
         <p className="text-lg text-accent-blue">↓</p>
-        <p className="text-base font-semibold text-accent-green">
+        <p className="text-base font-semibold text-accent-green-deep">
           {name(move.toTableId)}, lugar {move.toSeat}
         </p>
       </div>

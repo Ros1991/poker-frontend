@@ -74,7 +74,7 @@ export function MovePlayerDialog({ tournamentId, entry, tables, entries, onClose
                     className={cn(
                       'flex min-h-[48px] items-center justify-between rounded-lg border px-3 text-left',
                       t.id === entry.tableId
-                        ? 'border-accent-blue bg-accent-blue/10'
+                        ? 'border-accent-blue bg-accent-blue-soft'
                         : 'border-border-default bg-bg-primary',
                     )}
                   >
@@ -82,7 +82,7 @@ export function MovePlayerDialog({ tournamentId, entry, tables, entries, onClose
                       {tableLabel(t)}
                       {t.id === entry.tableId && <span className="ml-2 text-xs text-accent-blue">(atual)</span>}
                     </span>
-                    <span className="text-sm text-text-muted">
+                    <span className="text-sm tabular-nums text-text-secondary">
                       {count}/{t.maxSeats}
                     </span>
                   </button>
@@ -114,17 +114,17 @@ export function MovePlayerDialog({ tournamentId, entry, tables, entries, onClose
                       'flex min-h-[56px] flex-col items-center justify-center rounded-lg border px-1 text-center',
                       'disabled:cursor-not-allowed',
                       isCurrent
-                        ? 'border-accent-blue bg-accent-blue/10'
+                        ? 'border-accent-blue bg-accent-blue-soft'
                         : occupant
                           ? 'border-border-default bg-bg-tertiary'
-                          : 'border-accent-green/50 bg-accent-green/10',
+                          : 'border-accent-green/50 bg-accent-green-soft',
                     )}
                   >
-                    <span className="text-xs font-bold text-text-muted">Lugar {seat}</span>
+                    <span className="text-xs font-bold tabular-nums text-text-secondary">Lugar {seat}</span>
                     <span
                       className={cn(
                         'w-full truncate text-sm',
-                        occupant ? 'text-text-primary' : 'font-semibold text-accent-green',
+                        occupant ? 'text-text-primary' : 'font-semibold text-accent-green-deep',
                       )}
                     >
                       {isCurrent ? 'aqui' : occupant ? playerName(occupant) : 'livre'}
@@ -133,7 +133,7 @@ export function MovePlayerDialog({ tournamentId, entry, tables, entries, onClose
                 )
               })}
             </div>
-            <p className="mt-2 text-xs text-text-muted">Lugar livre: muda na hora. Lugar ocupado: troca os dois.</p>
+            <p className="mt-2 text-xs text-text-secondary">Lugar livre: muda na hora. Lugar ocupado: troca os dois.</p>
           </>
         )}
 

@@ -1,11 +1,13 @@
+import { useState } from 'react'
 import { ChevronDown, Pause, Play, SkipBack, SkipForward } from 'lucide-react'
 import { Button } from '../ui/Button'
+import { getDealerSession } from '../../utils/deviceSessions'
 import type { TimerState } from '../../types/blind.types'
 
 interface TerminalHeaderProps {
   tournamentName: string
-  /** Aberto pelo QR do dealer: selo "Dealer" + botão "Sair" */
-  dealerMode?: { onExit: () => void }
+  /** Aberto pelo QR do dealer: selo "Dealer · Nome" + botão "Sair" */
+  dealerMode?: { onExit: () => void; dealerName?: string }
   tableName: string | null
   onSelectTable: () => void
   formattedTime: string
@@ -36,14 +38,18 @@ export function TerminalHeader({
   onOpenMore,
 }: TerminalHeaderProps) {
   const running = timerState.isRunning
+  // Nome informado ao pedir acesso (SPEC-20261023-1208). O DealerTerminalRoute repassa o nome da sessão
+  // pela prop; sem ele, lê da sessão do dealer deste aparelho (fixa durante o terminal aberto).
+  const [sessionName] = useState(() => (dealerMode ? getDealerSession()?.dealerName : undefined))
+  const dealerName = dealerMode?.dealerName ?? sessionName
 
   return (
     <header className="sticky top-0 z-30 border-b border-border-default bg-bg-secondary/95 px-3 pb-2 pt-1.5 backdrop-blur-sm">
       <div className="flex items-center gap-1">
-        <p className="min-w-0 flex-1 truncate text-xs text-text-muted">
+        <p className="min-w-0 flex-1 truncate text-xs text-text-secondary">
           {dealerMode && (
-            <span className="mr-1.5 rounded bg-accent-blue/15 px-1.5 py-0.5 font-semibold text-accent-blue">
-              Dealer
+            <span className="mr-1.5 rounded bg-accent-blue-soft px-1.5 py-0.5 font-semibold text-accent-blue">
+              {dealerName ? `Dealer · ${dealerName}` : 'Dealer'}
             </span>
           )}
           {tournamentName}
@@ -59,7 +65,7 @@ export function TerminalHeader({
           <button
             type="button"
             onClick={dealerMode.onExit}
-            className="flex min-h-[40px] items-center rounded-lg px-2 text-xs font-medium text-text-muted hover:bg-bg-tertiary hover:text-text-primary"
+            className="flex min-h-[40px] items-center rounded-lg px-2 text-xs font-medium text-text-secondary hover:bg-bg-tertiary hover:text-text-primary"
             title="Encerrar o acesso de dealer neste celular"
           >
             Sair
@@ -77,14 +83,15 @@ export function TerminalHeader({
           <ChevronDown className="h-4 w-4 text-accent-blue" />
         </button>
         <div className="text-right">
+          {/* Relógio rodando em marinho; pausado no único dourado que vale como texto */}
           <p
             className={`font-mono tabular-nums text-3xl font-bold leading-none ${
-              running ? 'text-accent-green' : 'text-accent-yellow'
+              running ? 'text-text-primary' : 'text-accent-gold-deep'
             }`}
           >
             {formattedTime}
           </p>
-          <p className="mt-1 text-xs text-text-secondary">
+          <p className="mt-1 text-xs tabular-nums text-text-secondary">
             {timerState.isBreak
               ? 'Intervalo'
               : `Nível ${timerState.currentLevel} · ${timerState.smallBlind}/${timerState.bigBlind}`}
