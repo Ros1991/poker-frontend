@@ -24,9 +24,23 @@ export interface RegisterResponse {
   message: string
 }
 
+/**
+ * D16.10: o link só confirma com a senha escolhida no cadastro que o gerou; com os dois certos a resposta é a
+ * mesma sessão do login (`LoginResponse`).
+ */
 export interface ConfirmEmailRequest {
   token: string
+  password: string
 }
+
+/** `GET auth/confirm-email/{token}/info`: e-mail MASCARADO da conta e se o link ainda vale (não consome o link). */
+export interface ConfirmEmailInfo {
+  valid: boolean
+  email: string | null
+}
+
+/** Mensagem do 400 de `POST auth/confirm-email` quando o link vale, mas a senha não é a do cadastro. */
+export const WRONG_CONFIRM_PASSWORD_MESSAGE = 'Senha incorreta.'
 
 export interface ResendConfirmationRequest {
   email: string

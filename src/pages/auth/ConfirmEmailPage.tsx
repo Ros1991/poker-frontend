@@ -1,47 +1,46 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod/v4'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { AlertCircle, CheckCircle2, Clock, MailCheck } from 'lucide-react'
+import { AlertCircle, Clock, MailCheck } from 'lucide-react'
+import { toast } from 'sonner'
 import { BrandLogo } from '../../components/brand/BrandLogo'
 import { LoadingSpinner } from '../../components/common/LoadingSpinner'
 import { Input } from '../../components/ui/Input'
+import { PasswordInput } from '../../components/ui/PasswordInput'
 import { Button } from '../../components/ui/Button'
 import { ROUTES } from '../../constants/routes'
 import * as authApi from '../../api/auth.api'
+import { useAuth } from '../../hooks/useAuth'
+import { WRONG_CONFIRM_PASSWORD_MESSAGE } from '../../types/auth.types'
 import { errorMessage, errorStatus } from '../../utils/httpErrors'
-
-/** Mesma chave do LoginPage/RegisterPage: o cadastro guarda o e-mail aqui. */
-const REMEMBERED_EMAIL_KEY = 'poker_remembered_email'
-const LAST_EMAIL_KEY = 'poker_last_email'
+import {
+  LAST_EMAIL_KEY,
+  readStoredEmail,
+  lastEmailMatching,
+  type ForgotPasswordState,
+} from '../../utils/authEmailStorage'
 
 const INVALID_LINK_MESSAGE =
   'Link inválido ou expirado. Peça um novo e-mail de confirmação.'
 
 const RATE_LIMIT_MESSAGE = 'Muitas tentativas seguidas. Espere um minuto.'
 
-type Phase =
-  | { kind: 'loading' }
-  | { kind: 'confirmed' }
-  /** 4xx: link inválido, expirado, já usado ou revogado (mensagem do backend) */
-  | { kind: 'invalid'; message: string }
-  /** 429: o token não foi gasto; dá para tentar de novo daqui a pouco */
-  | { kind: 'rateLimited' }
-  /** Rede, timeout ou 5xx: o token também não foi gasto */
-  | { kind: 'failed' }
-
-function readRememberedEmail(): string {
+function forgetLastEmail() {
   try {
-    return localStorage.getItem(REMEMBERED_EMAIL_KEY) ?? localStorage.getItem(LAST_EMAIL_KEY) ?? ''
+    localStorage.removeItem(LAST_EMAIL_KEY)
   } catch {
-    return ''
+    // navegador sem armazenamento: nada a limpar
   }
 }
 
 /**
- * Link do e-mail de confirmação (/confirmar-email/:token, público). Confirma ao abrir e manda
- * para o login (D16.8: confirmar não loga). A `key` recria a tela se o token da URL mudar.
+ * Link do e-mail de confirmação (/confirmar-email/:token, público). D16.10: mostra o e-mail (mascarado) da conta
+ * do link e pede a senha escolhida no cadastro; token + senha certos confirmam e já entram no painel. Não
+ * depende de nada guardado no navegador — dá para abrir o link em outro aparelho. Quem esqueceu a senha usa
+ * "Esqueci minha senha", que também confirma o e-mail (D16.5). A `key` recria a tela se o token da URL mudar.
  */
 export function ConfirmEmailPage() {
   const { token } = useParams<{ token: string }>()
@@ -49,48 +48,23 @@ export function ConfirmEmailPage() {
 }
 
 function ConfirmEmail({ token }: { token: string }) {
-  const navigate = useNavigate()
-  const [attempt, setAttempt] = useState(0)
-  const [phase, setPhase] = useState<Phase>(() =>
-    token ? { kind: 'loading' } : { kind: 'invalid', message: INVALID_LINK_MESSAGE },
-  )
+  // GET .../info não consome o link: pode repetir (StrictMode, "Tentar de novo") à vontade
+  const info = useQuery({
+    queryKey: ['confirm-email-info', token],
+    queryFn: () => authApi.getConfirmEmailInfo(token),
+    enabled: !!token,
+    retry: false,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+  })
+  const [invalidMessage, setInvalidMessage] = useState<string | null>(null)
 
-  // O token é de uso único: no StrictMode o efeito roda duas vezes e a segunda chamada daria
-  // 400 ("já usado"), mostrando um erro falso. A ref guarda a requisição de cada tentativa e as
-  // execuções repetidas do efeito só se inscrevem na mesma promessa.
-  const requestRef = useRef<{ attempt: number; promise: Promise<void> } | null>(null)
-
-  useEffect(() => {
-    if (!token) return
-    if (requestRef.current?.attempt !== attempt) {
-      requestRef.current = { attempt, promise: authApi.confirmEmail(token) }
-    }
-    let active = true
-    requestRef.current.promise.then(
-      () => {
-        if (active) setPhase({ kind: 'confirmed' })
-      },
-      (err: unknown) => {
-        if (!active) return
-        const status = errorStatus(err)
-        if (status === 429) {
-          setPhase({ kind: 'rateLimited' })
-        } else if (status !== undefined && status >= 400 && status < 500) {
-          setPhase({ kind: 'invalid', message: errorMessage(err) ?? INVALID_LINK_MESSAGE })
-        } else {
-          setPhase({ kind: 'failed' })
-        }
-      },
-    )
-    return () => {
-      active = false
-    }
-  }, [token, attempt])
-
-  function retry() {
-    setPhase({ kind: 'loading' })
-    setAttempt((a) => a + 1)
-  }
+  const infoStatus = errorStatus(info.error)
+  const invalid =
+    !token ||
+    invalidMessage !== null ||
+    (info.data !== undefined && !info.data.valid) ||
+    (infoStatus !== undefined && infoStatus >= 400 && infoStatus < 500 && infoStatus !== 429)
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-bg-primary p-4">
@@ -102,47 +76,7 @@ function ConfirmEmail({ token }: { token: string }) {
         </div>
 
         <div className="flex flex-col gap-4 rounded-xl border border-border-default bg-bg-secondary p-6">
-          {phase.kind === 'loading' && (
-            <div role="status" className="py-4">
-              <LoadingSpinner text="Confirmando seu e-mail…" />
-            </div>
-          )}
-
-          {phase.kind === 'confirmed' && (
-            <div className="flex flex-col items-center gap-4 text-center">
-              <CheckCircle2 className="h-10 w-10 text-accent-green" aria-hidden="true" />
-              <div role="status" className="flex flex-col gap-2">
-                <h2 className="text-lg font-semibold text-text-primary">E-mail confirmado!</h2>
-                <p className="text-sm text-text-secondary">
-                  Sua conta está liberada. Já dá para entrar.
-                </p>
-              </div>
-              <Button
-                type="button"
-                className="w-full"
-                onClick={() => navigate(ROUTES.LOGIN, { replace: true })}
-              >
-                Entrar
-              </Button>
-            </div>
-          )}
-
-          {(phase.kind === 'rateLimited' || phase.kind === 'failed') && (
-            <div className="flex flex-col items-center gap-4 text-center">
-              <Clock className="h-10 w-10 text-text-muted" aria-hidden="true" />
-              <p className="text-sm text-text-primary" role="alert">
-                {phase.kind === 'rateLimited'
-                  ? RATE_LIMIT_MESSAGE
-                  : 'Não deu para confirmar agora. Confira a conexão e tente de novo.'}
-              </p>
-              <Button type="button" variant="secondary" className="w-full" onClick={retry}>
-                Tentar de novo
-              </Button>
-              <BackToLogin />
-            </div>
-          )}
-
-          {phase.kind === 'invalid' && (
+          {invalid ? (
             <>
               <div
                 className="flex items-start gap-2 rounded-lg border border-accent-red/40 bg-accent-red-soft p-3"
@@ -152,17 +86,157 @@ function ConfirmEmail({ token }: { token: string }) {
                   className="mt-0.5 h-4 w-4 shrink-0 text-accent-red"
                   aria-hidden="true"
                 />
-                <p className="text-sm text-accent-red-deep">{phase.message}</p>
+                <p className="text-sm text-accent-red-deep">{invalidMessage ?? INVALID_LINK_MESSAGE}</p>
               </div>
               <ResendConfirmationForm />
               <div className="flex justify-center">
                 <BackToLogin />
               </div>
             </>
+          ) : info.isPending ? (
+            <div role="status" className="py-4">
+              <LoadingSpinner text="Abrindo o link de confirmação…" />
+            </div>
+          ) : info.isError ? (
+            <div className="flex flex-col items-center gap-4 text-center">
+              <Clock className="h-10 w-10 text-text-muted" aria-hidden="true" />
+              <p className="text-sm text-text-primary" role="alert">
+                {infoStatus === 429
+                  ? RATE_LIMIT_MESSAGE
+                  : 'Não deu para abrir o link agora. Confira a conexão e tente de novo.'}
+              </p>
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full"
+                onClick={() => void info.refetch()}
+              >
+                Tentar de novo
+              </Button>
+              <BackToLogin />
+            </div>
+          ) : (
+            <ConfirmWithPasswordForm
+              token={token}
+              maskedEmail={info.data.email ?? ''}
+              onInvalid={(message) => setInvalidMessage(message)}
+            />
           )}
         </div>
       </div>
     </div>
+  )
+}
+
+const passwordSchema = z.object({
+  password: z.string().min(1, 'Digite a senha do cadastro'),
+})
+
+type PasswordFormData = z.infer<typeof passwordSchema>
+
+/** Senha do cadastro → confirma e entra (D16.10). Senha errada não gasta o link. */
+function ConfirmWithPasswordForm({
+  token,
+  maskedEmail,
+  onInvalid,
+}: {
+  token: string
+  maskedEmail: string
+  onInvalid: (message: string) => void
+}) {
+  const navigate = useNavigate()
+  const { confirmEmail } = useAuth()
+  const [isLoading, setIsLoading] = useState(false)
+  const [formError, setFormError] = useState<string | null>(null)
+  // "Esqueci minha senha" (também confirma, D16.5) abre com o e-mail do cadastro feito neste navegador SÓ se ele bater
+  // com o da conta do link; senão vazio — nunca o "Lembrar", que é de outra conta (o link de redefinição iria para ela)
+  const [forgotState] = useState<ForgotPasswordState>(() => ({ email: lastEmailMatching(maskedEmail) }))
+
+  const {
+    register,
+    handleSubmit,
+    setError,
+    formState: { errors },
+  } = useForm<PasswordFormData>({
+    resolver: zodResolver(passwordSchema),
+    defaultValues: { password: '' },
+  })
+
+  async function onSubmit(data: PasswordFormData) {
+    setIsLoading(true)
+    setFormError(null)
+    try {
+      await confirmEmail(token, data.password)
+      forgetLastEmail()
+      toast.success('E-mail confirmado! Bem-vindo ao Poker da Galera.')
+      navigate(ROUTES.HOME, { replace: true })
+    } catch (err) {
+      const status = errorStatus(err)
+      const message = errorMessage(err)
+      if (status === 400 && message === WRONG_CONFIRM_PASSWORD_MESSAGE) {
+        setError('password', { message: WRONG_CONFIRM_PASSWORD_MESSAGE }, { shouldFocus: true })
+      } else if (status === 429) {
+        // Limite por IP (sem corpo) ou senha errada demais (too_many_attempts: diz quanto esperar)
+        setFormError(message ?? RATE_LIMIT_MESSAGE)
+      } else if (status !== undefined && status >= 400 && status < 500) {
+        onInvalid(message ?? INVALID_LINK_MESSAGE)
+      } else {
+        setFormError('Não deu para confirmar agora. Confira a conexão e tente de novo.')
+      }
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  return (
+    <form
+      onSubmit={(e) => void handleSubmit(onSubmit)(e)}
+      className="flex flex-col gap-4"
+      noValidate
+    >
+      <div className="flex flex-col items-center gap-2 text-center">
+        <MailCheck className="h-10 w-10 text-accent-green" aria-hidden="true" />
+        <h2 className="text-lg font-semibold text-text-primary">Confirme seu e-mail</h2>
+        <p className="break-all text-sm font-semibold text-text-primary" data-confirm-email>
+          {maskedEmail}
+        </p>
+        <p className="text-sm text-text-secondary">
+          Digite a senha que você escolheu no cadastro para confirmar a conta e entrar.
+        </p>
+      </div>
+
+      <PasswordInput
+        label="Senha do cadastro"
+        placeholder="Sua senha"
+        error={errors.password?.message}
+        autoComplete="current-password"
+        {...register('password')}
+      />
+
+      {formError && (
+        <p className="text-sm text-accent-red-deep" role="alert">
+          {formError}
+        </p>
+      )}
+
+      <Button type="submit" loading={isLoading} className="w-full">
+        Confirmar e entrar
+      </Button>
+
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Link
+          to={ROUTES.FORGOT_PASSWORD}
+          state={forgotState}
+          className="inline-flex min-h-[44px] items-center text-sm font-medium text-accent-blue hover:underline"
+        >
+          Esqueci minha senha
+        </Link>
+        <BackToLogin />
+      </div>
+      <p className="text-xs text-text-secondary">
+        Esqueceu a senha? Redefinir pelo e-mail também confirma a conta.
+      </p>
+    </form>
   )
 }
 
@@ -183,7 +257,11 @@ const resendSchema = z.object({
 
 type ResendFormData = z.infer<typeof resendSchema>
 
-/** Pede um link novo. A resposta do backend é sempre neutra (não revela se o e-mail existe). */
+/**
+ * Pede um link novo. A resposta do backend é sempre neutra (não revela se o e-mail existe). O campo abre com o e-mail
+ * do último cadastro neste navegador antes do "Lembrar e-mail e senha" (num aparelho emprestado, o "Lembrar" é de
+ * outra conta).
+ */
 function ResendConfirmationForm() {
   const [isLoading, setIsLoading] = useState(false)
   const [sentMessage, setSentMessage] = useState<string | null>(null)
@@ -195,7 +273,7 @@ function ResendConfirmationForm() {
     formState: { errors },
   } = useForm<ResendFormData>({
     resolver: zodResolver(resendSchema),
-    defaultValues: { email: readRememberedEmail() },
+    defaultValues: { email: readStoredEmail() },
   })
 
   async function onSubmit(data: ResendFormData) {

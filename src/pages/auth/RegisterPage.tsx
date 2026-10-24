@@ -16,6 +16,7 @@ import { errorMessage, errorStatus } from '../../utils/httpErrors'
 import { GoogleSignInSection } from '../../components/auth/GoogleSignInSection'
 import { LinkGoogleForm } from '../../components/auth/LinkGoogleForm'
 import { useGoogleSignIn } from '../../components/auth/useGoogleSignIn'
+import type { ForgotPasswordState } from '../../utils/authEmailStorage'
 
 const registerSchema = z
   .object({
@@ -69,6 +70,8 @@ export function RegisterPage() {
     text: string
     /** 400 (ex.: e-mail já em uso): oferece o "Esqueci minha senha" */
     offerReset: boolean
+    /** E-mail digitado no cadastro que deu o erro: o "Esqueci minha senha" já abre com ele */
+    email?: string
   } | null>(null)
   const [sentTo, setSentTo] = useState<string | null>(null)
 
@@ -98,12 +101,14 @@ export function RegisterPage() {
     } catch (err) {
       const status = errorStatus(err)
       if (status === 429) {
-        setServerError({ text: RATE_LIMIT_MESSAGE, offerReset: false })
+        // Limite por minuto (sem corpo) ou teto de cadastros do dia nesta conexão (too_many_registrations)
+        setServerError({ text: errorMessage(err) ?? RATE_LIMIT_MESSAGE, offerReset: false })
       } else if (status === 400) {
         // Ex.: "E-mail já está em uso." (conta já confirmada com este e-mail)
         setServerError({
           text: errorMessage(err) ?? 'Não deu para criar a conta. Verifique os dados.',
           offerReset: true,
+          email,
         })
       } else {
         toast.error('Não deu para criar a conta. Tente de novo em instantes.')
@@ -212,6 +217,7 @@ export function RegisterPage() {
                   {serverError.offerReset && (
                     <Link
                       to={ROUTES.FORGOT_PASSWORD}
+                      state={serverError.email ? ({ email: serverError.email } satisfies ForgotPasswordState) : undefined}
                       className="text-sm font-medium text-accent-blue hover:underline"
                     >
                       Esqueci minha senha
@@ -289,6 +295,9 @@ function CheckEmailCard({ email }: { email: string }) {
       <p className="text-sm text-text-secondary">
         Enviamos um link para confirmar sua conta. Ele vale por 48 horas. Confira
         também a caixa de spam.
+      </p>
+      <p className="text-sm text-text-secondary">
+        Ao abrir o link, digite a senha que você acabou de criar: a conta é confirmada e você já entra.
       </p>
 
       {feedback && (

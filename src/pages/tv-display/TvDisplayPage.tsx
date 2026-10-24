@@ -17,6 +17,7 @@ import { resolveMediaUrl } from '../../utils/mediaUrl'
 import { TOURNAMENT_STATUS_COLORS, TOURNAMENT_STATUS_LABELS } from '../../constants/statuses'
 import type { TimerState } from '../../types/blind.types'
 import type { TvEntry } from '../../types/display.types'
+import type { PlanFeature } from '../../types/plan.types'
 import type { TournamentStatus } from '../../types/tournament.types'
 
 function formatCurrency(value: number): string {
@@ -168,12 +169,22 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
   const tables = snapshot?.tables
   const blindLevels = snapshot?.blindLevels
 
-  // Plano do dono (SPEC-20261023-1205, D4/D6/D13). Mesa: só relógio, jogadores e eliminados — sem
-  // coluna "Deve", premiação, card PIX e visão de mesas (o backend já manda esses dados vazios),
-  // com o selo + QR do site no canto inferior. Clube: selo discreto. Liga: logo do clube, sem selo.
+  // Plano do dono (SPEC-20261023-1205, D4/D6/D13). Cada bloco segue os RECURSOS do torneio (planFeatures do
+  // snapshot; com Plans__Enforce=false o backend manda todos): Payments → coluna "Deve" e card PIX; Prizes →
+  // premiação; Tables → visão de mesas. No Mesa nenhum vem (o backend também manda esses dados vazios).
+  // O nome do plano e o showBadge decidem só o selo: Mesa = selo + QR do site no canto inferior (no lugar da
+  // premiação), Clube = selo discreto, Liga = logo do clube, sem selo.
   const isMesa = tournament?.plan === 'Mesa'
-  const tablesViewAllowed = !isMesa
+  // Snapshot sem a lista (backend anterior): o nome do plano decide, como antes
+  const planFeatures = tournament?.planFeatures ?? (isMesa ? [] : null)
+  const hasFeature = (feature: PlanFeature) => planFeatures === null || planFeatures.includes(feature)
+  const showMoney = hasFeature('Payments')
+  const showPrizes = hasFeature('Prizes')
+  const tablesViewAllowed = hasFeature('Tables')
   const badgeVariant = tournament?.showBadge ? (isMesa ? 'qr' : 'discreta') : null
+  // O QR do Mesa ocupa o lugar da premiação; se a premiação aparecer (chave de emergência), o selo vai discreto
+  const qrBadgeInAside = badgeVariant === 'qr' && !showPrizes
+  const footerBadge = badgeVariant === 'discreta' || (badgeVariant === 'qr' && showPrizes)
   const clubLogoSrc =
     tournament && !tournament.showBadge ? resolveMediaUrl(tournament.clubLogoUrl) : null
   const currentView = tablesViewAllowed ? view : 'clock'
@@ -224,7 +235,7 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
           void document.exitFullscreen()
         }
       }
-      // Sem controle de mesas no plano (Mesa) a tecla M não faz nada
+      // Sem o recurso Tables (Mesa com enforcement) a tecla M não faz nada
       if (tablesViewAllowed && (e.key === 'm' || e.key === 'M')) {
         setView((v) => (v === 'clock' ? 'tables' : 'clock'))
       }
@@ -531,13 +542,13 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
             </p>
             <div
               className={`mb-1 grid gap-1 px-2 text-sm uppercase tracking-wider text-text-secondary ${
-                isMesa ? 'grid-cols-[minmax(0,1fr)_3rem_3rem]' : 'grid-cols-[minmax(0,1fr)_3rem_3rem_8rem]'
+                !showMoney ? 'grid-cols-[minmax(0,1fr)_3rem_3rem]' : 'grid-cols-[minmax(0,1fr)_3rem_3rem_8rem]'
               }`}
             >
               <span>Jogador</span>
               <span className="text-center">Reb</span>
               <span className="text-center">Add</span>
-              {!isMesa && <span className="text-right">Deve</span>}
+              {showMoney && <span className="text-right">Deve</span>}
             </div>
             <AutoScrollList className="min-h-0 flex-1">
               <div className="flex flex-col gap-1">
@@ -558,7 +569,7 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
                     <div
                       key={e.id}
                       className={`grid items-center gap-1 rounded-lg px-2 py-2 text-xl ${
-                        isMesa
+                        !showMoney
                           ? finished
                             ? 'grid-cols-[minmax(0,1fr)]'
                             : 'grid-cols-[minmax(0,1fr)_3rem_3rem]'
@@ -597,7 +608,7 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
                           </span>
                         </>
                       )}
-                      {!isMesa && <span className="text-right">{renderBalance(e)}</span>}
+                      {showMoney && <span className="text-right">{renderBalance(e)}</span>}
                     </div>
                   )
                 })}
@@ -702,7 +713,7 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
                   )}
 
                   {/* PIX do dia: QR (copia e cola estático) + chave */}
-                  {!isMesa && tournament?.responsiblePixKey && (
+                  {showMoney && tournament?.responsiblePixKey && (
                     <div className="mt-4 flex items-center gap-5 rounded-xl border border-border-default bg-bg-card px-6 py-4">
                       <div className="shrink-0 rounded-lg bg-white p-2">
                         <QRCodeSVG
@@ -771,14 +782,14 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
             </div>
 
             {/* Mesa: selo "Feito com Poker da Galera" + QR do site no canto inferior (no lugar da premiação) */}
-            {isMesa && badgeVariant === 'qr' && (
+            {qrBadgeInAside && (
               <div className="mt-auto flex justify-end">
                 <PoweredByBadge variant="qr" qrSize={104} />
               </div>
             )}
 
             {/* Premiação por posição — o mais abaixo possível */}
-            {!isMesa && (
+            {showPrizes && (
             <div className="mt-auto flex min-h-0 flex-col rounded-xl border border-border-default bg-bg-card p-4">
               <div className="mb-2 flex items-center justify-between">
                 <div className="flex items-center gap-2 text-text-secondary">
@@ -820,7 +831,7 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
         )}
 
         {/* Clube: selo discreto no rodapé (nas duas visões) */}
-        {badgeVariant === 'discreta' && (
+        {footerBadge && (
           <footer className="flex justify-end px-6 pb-2">
             <PoweredByBadge variant="discreta" className="text-sm" />
           </footer>

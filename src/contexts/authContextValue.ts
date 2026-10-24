@@ -14,6 +14,8 @@ export interface AuthContextValue {
   login: (data: LoginRequest) => Promise<void>
   /** Entrar com o Google (ID token do botão oficial + nonce emitido pela API) */
   loginWithExternal: (provider: ExternalProviderName, data: ExternalLoginRequest) => Promise<void>
+  /** Link do e-mail de confirmação + senha do cadastro (D16.10): confirma e já entra */
+  confirmEmail: (token: string, password: string) => Promise<void>
   logout: () => Promise<void>
 }
 

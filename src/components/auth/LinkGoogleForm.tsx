@@ -7,6 +7,7 @@ import { Button } from '../ui/Button'
 import { useAuth } from '../../hooks/useAuth'
 import { ROUTES } from '../../constants/routes'
 import { errorMessage, errorStatus } from '../../utils/httpErrors'
+import type { ForgotPasswordState } from '../../utils/authEmailStorage'
 
 interface LinkGoogleFormProps {
   /** E-mail da conta (o mesmo da conta Google) */
@@ -91,7 +92,11 @@ export function LinkGoogleForm({ email, ticket, returnTo, onCancel }: LinkGoogle
 
       <p className="text-center text-sm text-text-secondary">
         Não lembra ou não tem senha?{' '}
-        <Link to={ROUTES.FORGOT_PASSWORD} className="font-medium text-accent-blue hover:underline">
+        <Link
+          to={ROUTES.FORGOT_PASSWORD}
+          state={{ email } satisfies ForgotPasswordState}
+          className="font-medium text-accent-blue hover:underline"
+        >
           Esqueci minha senha
         </Link>
       </p>

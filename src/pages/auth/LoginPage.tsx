@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
 import type { Location } from 'react-router-dom'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { z } from 'zod/v4'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { CheckCircle2, MailWarning } from 'lucide-react'
@@ -18,6 +18,7 @@ import { errorCode, errorMessage, errorStatus } from '../../utils/httpErrors'
 import { GoogleSignInSection } from '../../components/auth/GoogleSignInSection'
 import { LinkGoogleForm } from '../../components/auth/LinkGoogleForm'
 import { useGoogleSignIn } from '../../components/auth/useGoogleSignIn'
+import type { ForgotPasswordState } from '../../utils/authEmailStorage'
 
 const loginSchema = z.object({
   email: z.email('E-mail inválido'),
@@ -52,6 +53,34 @@ function decode(value: string | null): string {
   }
 }
 
+function readStorage(key: string): string | null {
+  try {
+    return localStorage.getItem(key)
+  } catch {
+    return null
+  }
+}
+
+const sameEmail = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase()
+
+/**
+ * Valores iniciais do formulário. O e-mail do último cadastro/confirmação neste navegador (poker_last_email) é mais
+ * novo que o "Lembrar e-mail e senha": se for de OUTRA conta (ex.: o celular do organizador usado para cadastrar um
+ * amigo), o login abre com ele, sem senha e com "Lembrar" desmarcado — nunca com a senha de outra conta pronta para
+ * entrar. Sem cadastro novo (ou com o mesmo e-mail), vale o "Lembrar" de sempre.
+ */
+function readLoginDefaults(): LoginFormData {
+  const rememberedEmail = readStorage(REMEMBERED_EMAIL_KEY)
+  const lastEmail = readStorage(LAST_EMAIL_KEY)
+  if (lastEmail && (!rememberedEmail || !sameEmail(lastEmail, rememberedEmail)))
+    return { email: lastEmail, password: '', rememberMe: false }
+  return {
+    email: rememberedEmail ?? '',
+    password: rememberedEmail ? decode(readStorage(REMEMBERED_PASSWORD_KEY)) : '',
+    rememberMe: !!rememberedEmail,
+  }
+}
+
 /** Login com a senha certa, mas o e-mail ainda não foi confirmado (403 email_not_confirmed). */
 interface NotConfirmedState {
   /** E-mail digitado na tentativa que deu 403: é para ele que o link é reenviado */
@@ -77,22 +106,20 @@ export function LoginPage() {
   // Login com Google (SPEC-20261023-1210): mesmo retorno do login por senha
   const google = useGoogleSignIn(returnTo)
 
-  const rememberedEmail = localStorage.getItem(REMEMBERED_EMAIL_KEY)
-  const lastEmail = localStorage.getItem(LAST_EMAIL_KEY)
-  const rememberedPassword = decode(localStorage.getItem(REMEMBERED_PASSWORD_KEY))
+  const [defaults] = useState(readLoginDefaults)
 
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors },
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
-    defaultValues: {
-      email: rememberedEmail ?? lastEmail ?? '',
-      password: rememberedPassword,
-      rememberMe: !!rememberedEmail,
-    },
+    defaultValues: defaults,
   })
+  // "Esqueci minha senha" leva o e-mail que está no campo (não o do "Lembrar", que pode ser de outra conta)
+  const typedEmail = useWatch({ control, name: 'email' })
+  const forgotState: ForgotPasswordState | undefined = typedEmail?.trim() ? { email: typedEmail.trim() } : undefined
 
   // Contagem regressiva do "Reenviar e-mail de confirmação"
   useEffect(() => {
@@ -115,6 +142,12 @@ export function LoginPage() {
         localStorage.removeItem(REMEMBERED_PASSWORD_KEY)
       }
       await login(data)
+      // Entrou: o e-mail do último cadastro já cumpriu o papel (senão voltaria a passar na frente do "Lembrar")
+      try {
+        localStorage.removeItem(LAST_EMAIL_KEY)
+      } catch {
+        // navegador sem armazenamento: nada a limpar
+      }
       navigate(returnTo, { replace: true })
     } catch (err) {
       if (errorStatus(err) === 403 && errorCode(err) === EMAIL_NOT_CONFIRMED_CODE) {
@@ -215,6 +248,7 @@ export function LoginPage() {
                 </label>
                 <Link
                   to={ROUTES.FORGOT_PASSWORD}
+                  state={forgotState}
                   className="text-sm text-accent-blue hover:underline"
                 >
                   Esqueci minha senha

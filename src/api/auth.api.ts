@@ -11,6 +11,7 @@ import type {
   ForgotPasswordRequest,
   ResetPasswordRequest,
   ConfirmEmailRequest,
+  ConfirmEmailInfo,
   ResendConfirmationRequest,
   ExternalProviderName,
   ExternalProvidersResponse,
@@ -33,10 +34,23 @@ export async function register(data: RegisterRequest): Promise<RegisterResponse>
   return response.data
 }
 
-/** Anônimo: 204 confirma o e-mail; 400 com message quando o link não vale mais; 429 no rate limit. */
-export async function confirmEmail(token: string): Promise<void> {
-  const body: ConfirmEmailRequest = { token }
-  await apiClient.post('/auth/confirm-email', body)
+/**
+ * Anônimo (D16.10): token do link + a senha do cadastro. 200 = confirmou e já devolve a sessão (mesma resposta do
+ * login); 400 "Senha incorreta." (o link continua valendo) ou "Link inválido ou expirado…"; 429 no rate limit ou
+ * com senha errada demais (`too_many_attempts`).
+ */
+export async function confirmEmail(token: string, password: string): Promise<LoginResponse> {
+  const body: ConfirmEmailRequest = { token, password }
+  const response = await apiClient.post<LoginResponse>('/auth/confirm-email', body)
+  return response.data
+}
+
+/** Anônimo: e-mail mascarado da conta do link e se ele ainda vale (não consome o link). */
+export async function getConfirmEmailInfo(token: string): Promise<ConfirmEmailInfo> {
+  const response = await apiClient.get<ConfirmEmailInfo>(
+    `/auth/confirm-email/${encodeURIComponent(token)}/info`,
+  )
+  return response.data
 }
 
 /**

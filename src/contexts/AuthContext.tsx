@@ -109,6 +109,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
     [],
   )
 
+  // Confirmação de e-mail com a senha do cadastro (SPEC-20261023-1209, D16.10): mesma sessão do login
+  const confirmEmail = useCallback(async (token: string, password: string) => {
+    const response = await authApi.confirmEmail(token, password)
+    setTokens(response.accessToken, response.refreshToken)
+    setUser(response.user)
+  }, [])
+
   const logout = useCallback(async () => {
     try {
       await authApi.logout()
@@ -126,9 +133,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
       isReconnecting,
       login,
       loginWithExternal,
+      confirmEmail,
       logout,
     }),
-    [user, isAuthenticated, isLoading, isReconnecting, login, loginWithExternal, logout],
+    [user, isAuthenticated, isLoading, isReconnecting, login, loginWithExternal, confirmEmail, logout],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

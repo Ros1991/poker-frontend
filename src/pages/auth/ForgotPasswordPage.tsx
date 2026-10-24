@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod/v4'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -11,6 +11,7 @@ import { Input } from '../../components/ui/Input'
 import { Button } from '../../components/ui/Button'
 import { ROUTES } from '../../constants/routes'
 import * as authApi from '../../api/auth.api'
+import { readStoredEmail, type ForgotPasswordState } from '../../utils/authEmailStorage'
 
 const forgotSchema = z.object({
   email: z.email('E-mail inválido'),
@@ -18,13 +19,23 @@ const forgotSchema = z.object({
 
 type ForgotFormData = z.infer<typeof forgotSchema>
 
-const REMEMBERED_EMAIL_KEY = 'poker_remembered_email'
-
 const NEUTRAL_MESSAGE =
   'Se o e-mail estiver cadastrado, enviamos um link para redefinir a senha. Confira também a caixa de spam.'
 
+/**
+ * E-mail inicial do formulário: o que a tela de origem passou no estado da navegação (o digitado no login, o da conta
+ * da confirmação…) e, sem ele, o do último cadastro neste navegador ANTES do "Lembrar e-mail e senha" — num aparelho
+ * emprestado o "Lembrar" é de outra conta, e o link iria para a caixa dela.
+ */
+function initialEmail(state: unknown): string {
+  const fromState = (state as ForgotPasswordState | null)?.email
+  return typeof fromState === 'string' ? fromState.trim() : readStoredEmail()
+}
+
 /** "Esqueci minha senha": pede o link por e-mail. A resposta é sempre neutra. */
 export function ForgotPasswordPage() {
+  const location = useLocation()
+  const [defaultEmail] = useState(() => initialEmail(location.state))
   const [isLoading, setIsLoading] = useState(false)
   const [sent, setSent] = useState(false)
   const [rateLimited, setRateLimited] = useState(false)
@@ -36,7 +47,7 @@ export function ForgotPasswordPage() {
   } = useForm<ForgotFormData>({
     resolver: zodResolver(forgotSchema),
     defaultValues: {
-      email: localStorage.getItem(REMEMBERED_EMAIL_KEY) ?? '',
+      email: defaultEmail,
     },
   })
 

@@ -1,6 +1,6 @@
 // TV pareada por QR e terminal do dealer por QR (espelham os DTOs do backend)
 
-import type { PlanName } from './plan.types'
+import type { PlanFeature, PlanName } from './plan.types'
 
 export interface DisplaySessionStatus {
   status: 'Pending' | 'Paired'
@@ -55,6 +55,12 @@ export interface TvTournamentInfo {
   showBadge?: boolean
   /** Só na Liga: logo do clube (HomeGame.LogoUrl) no lugar do selo */
   clubLogoUrl?: string | null
+  /**
+   * Recursos do torneio (os mesmos de `TournamentResponse.planFeatures`; com Plans__Enforce=false, todos). O telão
+   * decide cada bloco por aqui (Payments: "Deve" e PIX; Prizes: premiação; Tables: mesas) — `plan`/`showBadge`
+   * ficam só para o selo.
+   */
+  planFeatures?: PlanFeature[]
 }
 
 export interface TvBlindLevel {
