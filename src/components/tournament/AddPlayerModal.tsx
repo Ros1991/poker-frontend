@@ -51,8 +51,9 @@ export function AddPlayerModal({
     isFetching,
     refetch,
   } = useQuery({
-    queryKey: ['persons', homeGameId, 'Jogador'],
-    queryFn: () => personsApi.getByHomeGame(homeGameId, 'Jogador'),
+    // Todas as pessoas do home game: quem foi cadastrado como Dealer também joga (SPEC-20261023-1216, DL3)
+    queryKey: ['persons', homeGameId],
+    queryFn: () => personsApi.getByHomeGame(homeGameId),
     enabled: isOpen && !!homeGameId,
   })
 
@@ -132,7 +133,7 @@ export function AddPlayerModal({
       }),
     onSuccess: (created) => {
       queryClient.invalidateQueries({
-        queryKey: ['persons', homeGameId, 'Jogador'],
+        queryKey: ['persons', homeGameId],
       })
       toast.success('Jogador cadastrado!')
       // Ja deixa o recem-criado selecionado para entrar no lote
@@ -179,12 +180,52 @@ export function AddPlayerModal({
 
   const selectedCount = selectedIds.size
 
+  const footer = (
+    <div className="flex flex-col gap-3">
+      {allowPayment && (
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={payNow}
+            onChange={(e) => setPayNow(e.target.checked)}
+            className="h-5 w-5 rounded border-border-input bg-bg-input text-accent-blue focus:ring-accent-blue"
+          />
+          <span className="text-sm text-text-primary">
+            Buy-in pago na entrada (todos os selecionados)
+          </span>
+        </label>
+      )}
+      <div className="flex gap-3 justify-end">
+        <Button
+          variant="ghost"
+          onClick={handleClose}
+          disabled={bulkMutation.isPending}
+        >
+          Cancelar
+        </Button>
+        <Button
+          onClick={() => bulkMutation.mutate()}
+          loading={bulkMutation.isPending}
+          disabled={selectedCount === 0}
+        >
+          <UserPlus className="h-4 w-4" />
+          {selectedCount === 0
+            ? 'Adicionar'
+            : selectedCount === 1
+              ? 'Adicionar 1 jogador'
+              : `Adicionar ${selectedCount} jogadores`}
+        </Button>
+      </div>
+    </div>
+  )
+
   return (
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
       title="Adicionar Jogadores"
       size="md"
+      footer={footer}
     >
       <div className="flex flex-col gap-4">
         {/* Search + botão de novo */}
@@ -350,7 +391,7 @@ export function AddPlayerModal({
         )}
 
         {!isLoading && !isError && filteredPersons.length > 0 && (
-          <div className="max-h-80 overflow-y-auto flex flex-col gap-1 -mx-1 px-1">
+          <div className="max-h-[40dvh] overflow-y-auto overscroll-contain flex flex-col gap-1 -mx-1 px-1">
             {filteredPersons.map((person: Person) => {
               const selected = selectedIds.has(person.id)
               return (
@@ -399,44 +440,6 @@ export function AddPlayerModal({
             })}
           </div>
         )}
-
-        {/* Rodapé fixo de ação */}
-        <div className="flex flex-col gap-3 border-t border-border-default pt-3">
-          {allowPayment && (
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={payNow}
-                onChange={(e) => setPayNow(e.target.checked)}
-                className="h-5 w-5 rounded border-border-input bg-bg-input text-accent-blue focus:ring-accent-blue"
-              />
-              <span className="text-sm text-text-primary">
-                Buy-in pago na entrada (todos os selecionados)
-              </span>
-            </label>
-          )}
-          <div className="flex gap-3 justify-end">
-            <Button
-              variant="ghost"
-              onClick={handleClose}
-              disabled={bulkMutation.isPending}
-            >
-              Cancelar
-            </Button>
-            <Button
-              onClick={() => bulkMutation.mutate()}
-              loading={bulkMutation.isPending}
-              disabled={selectedCount === 0}
-            >
-              <UserPlus className="h-4 w-4" />
-              {selectedCount === 0
-                ? 'Adicionar'
-                : selectedCount === 1
-                  ? 'Adicionar 1 jogador'
-                  : `Adicionar ${selectedCount} jogadores`}
-            </Button>
-          </div>
-        </div>
       </div>
     </Modal>
   )

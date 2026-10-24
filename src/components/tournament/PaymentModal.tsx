@@ -245,7 +245,32 @@ export function PaymentModal({
   const pending = entry.totalDue - entry.totalPaid
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title="Registrar Pagamento" size="md">
+    <Modal
+      isOpen={isOpen}
+      onClose={handleClose}
+      title="Registrar Pagamento"
+      size="md"
+      footer={
+        showSuccess ? undefined : (
+          <div className="flex gap-3 justify-end">
+            <Button
+              variant="ghost"
+              onClick={handleClose}
+              disabled={paymentMutation.isPending || settleMutation.isPending}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="success"
+              onClick={handleConfirm}
+              loading={paymentMutation.isPending || settleMutation.isPending}
+            >
+              {method === 'Abater' ? 'Confirmar Abatimento' : 'Confirmar Pagamento'}
+            </Button>
+          </div>
+        )
+      }
+    >
       {showSuccess ? (
         <div className="flex flex-col items-center gap-4 py-4">
           <div className="rounded-full bg-accent-green-soft p-4">
@@ -371,7 +396,7 @@ export function PaymentModal({
                 <label className="text-sm font-medium text-text-secondary">
                   {method === 'Abater' ? 'Abater de qual custo' : 'Destino PIX'}
                 </label>
-                <div className="max-h-48 overflow-y-auto flex flex-col gap-1">
+                <div className="max-h-[30dvh] overflow-y-auto overscroll-contain flex flex-col gap-1">
                   {destinations.map((suggestion, idx) => (
                     <button
                       key={idx}
@@ -431,7 +456,7 @@ export function PaymentModal({
                 Nenhum pagamento registrado ainda.
               </p>
             ) : (
-              <div className="flex flex-col gap-1.5 max-h-40 overflow-y-auto">
+              <div className="flex flex-col gap-1.5 max-h-[30dvh] overflow-y-auto overscroll-contain">
                 {existingPayments.map((p) => (
                   <div
                     key={p.id}
@@ -473,23 +498,6 @@ export function PaymentModal({
               saldo a receber, como staff ou ranking).
             </p>
           )}
-
-          <div className="flex gap-3 justify-end pt-2">
-            <Button
-              variant="ghost"
-              onClick={handleClose}
-              disabled={paymentMutation.isPending || settleMutation.isPending}
-            >
-              Cancelar
-            </Button>
-            <Button
-              variant="success"
-              onClick={handleConfirm}
-              loading={paymentMutation.isPending || settleMutation.isPending}
-            >
-              {method === 'Abater' ? 'Confirmar Abatimento' : 'Confirmar Pagamento'}
-            </Button>
-          </div>
         </div>
       )}
     </Modal>

@@ -47,7 +47,6 @@ export function TableSelectDialog({
                 {tableLabel(t)}
                 {t.isFinalTable && <span className="ml-2 text-xs text-accent-gold-deep">Mesa final</span>}
               </span>
-              {t.dealerName && <span className="block text-xs text-text-secondary">Dealer: {t.dealerName}</span>}
             </span>
             <span className="text-sm tabular-nums text-text-secondary">{seated.get(t.id)?.length ?? 0} jogadores</span>
           </button>

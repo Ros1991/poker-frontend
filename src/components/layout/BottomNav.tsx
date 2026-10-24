@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import { Home, Plus } from 'lucide-react'
 import { cn } from '../../utils/cn'
-import { useHomeGame } from '../../contexts/HomeGameContext'
+import { useHomeGame } from '../../hooks/useHomeGame'
 import { ROUTES, homeGameDetailPath } from '../../constants/routes'
 
 interface BottomNavProps {

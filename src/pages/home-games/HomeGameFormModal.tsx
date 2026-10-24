@@ -145,8 +145,23 @@ export function HomeGameFormModal({
       onClose={onClose}
       title={isEditing ? 'Editar Home Game' : 'Novo Home Game'}
       size="lg"
+      footer={
+        <div className="flex justify-end gap-3">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={onClose}
+            disabled={isSubmitting}
+          >
+            Cancelar
+          </Button>
+          <Button type="submit" form="home-game-form" loading={isSubmitting}>
+            {isEditing ? 'Salvar' : 'Criar Home Game'}
+          </Button>
+        </div>
+      }
     >
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <form id="home-game-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <Input
           label="Nome *"
           placeholder="Ex: Poker dos Amigos"
@@ -221,20 +236,6 @@ export function HomeGameFormModal({
               {...register('defaultAddon')}
             />
           </div>
-        </div>
-
-        <div className="flex justify-end gap-3 border-t border-border-default pt-4">
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={onClose}
-            disabled={isSubmitting}
-          >
-            Cancelar
-          </Button>
-          <Button type="submit" loading={isSubmitting}>
-            {isEditing ? 'Salvar' : 'Criar Home Game'}
-          </Button>
         </div>
       </form>
     </Modal>

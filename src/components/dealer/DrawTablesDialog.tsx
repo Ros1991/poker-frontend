@@ -74,7 +74,30 @@ export function DrawTablesDialog({
 
   return (
     <>
-      <Modal isOpen onClose={onClose} title={hasTables ? 'Sortear de novo' : 'Sortear mesas'} size="sm">
+      <Modal
+        isOpen
+        onClose={onClose}
+        title={hasTables ? 'Sortear de novo' : 'Sortear mesas'}
+        size="sm"
+        footer={
+          <div className="flex flex-col gap-2">
+            <Button
+              size="lg"
+              variant={hasTables ? 'danger' : 'primary'}
+              className="w-full"
+              disabled={activePlayers === 0 || invalid}
+              loading={drawMutation.isPending && !confirmRedraw}
+              onClick={() => (hasTables ? setConfirmRedraw(true) : drawMutation.mutate())}
+            >
+              <Shuffle className="h-5 w-5" />
+              {hasTables ? 'Sortear de novo' : 'Sortear mesas'}
+            </Button>
+            <Button variant="ghost" className="w-full" onClick={onClose} disabled={drawMutation.isPending}>
+              Cancelar
+            </Button>
+          </div>
+        }
+      >
         <div className="flex flex-col gap-3">
           <p className="text-sm text-text-secondary">
             {activePlayers} {activePlayers === 1 ? 'jogador ativo' : 'jogadores ativos'}.
@@ -129,20 +152,6 @@ export function DrawTablesDialog({
               {REDRAW_WARNING}
             </p>
           )}
-          <Button
-            size="lg"
-            variant={hasTables ? 'danger' : 'primary'}
-            className="w-full"
-            disabled={activePlayers === 0 || invalid}
-            loading={drawMutation.isPending && !confirmRedraw}
-            onClick={() => (hasTables ? setConfirmRedraw(true) : drawMutation.mutate())}
-          >
-            <Shuffle className="h-5 w-5" />
-            {hasTables ? 'Sortear de novo' : 'Sortear mesas'}
-          </Button>
-          <Button variant="ghost" className="w-full" onClick={onClose} disabled={drawMutation.isPending}>
-            Cancelar
-          </Button>
         </div>
       </Modal>
 

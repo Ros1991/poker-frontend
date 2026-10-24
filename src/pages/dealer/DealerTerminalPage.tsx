@@ -408,7 +408,7 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
             {playingEntries.length === 0 ? (
               <p className="py-8 text-center text-text-secondary">Ninguém jogando agora.</p>
             ) : (
-              <div className="flex flex-col gap-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
                 {playingEntries.map((entry) => (
                   <PlayerCard
                     key={entry.id}
@@ -446,7 +446,7 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
             {tableEntries.length === 0 ? (
               <p className="py-8 text-center text-text-secondary">Nenhum jogador nesta mesa.</p>
             ) : (
-              <div className="flex flex-col gap-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
                 {tableEntries.map((entry) => (
                   <PlayerCard
                     key={entry.id}

@@ -57,7 +57,17 @@ export function MovePlayerDialog({ tournamentId, entry, tables, entries, onClose
 
   return (
     <>
-      <Modal isOpen onClose={onClose} title={`Mover ${name}`} size="sm">
+      <Modal
+        isOpen
+        onClose={onClose}
+        title={`Mover ${name}`}
+        size="sm"
+        footer={
+          <Button variant="ghost" className="w-full" onClick={onClose} disabled={moveMutation.isPending}>
+            Cancelar
+          </Button>
+        }
+      >
         <p className="mb-3 text-sm text-text-secondary">Hoje: {seatLabel(entry, tables)}</p>
 
         {!table ? (
@@ -136,10 +146,6 @@ export function MovePlayerDialog({ tournamentId, entry, tables, entries, onClose
             <p className="mt-2 text-xs text-text-secondary">Lugar livre: muda na hora. Lugar ocupado: troca os dois.</p>
           </>
         )}
-
-        <Button variant="ghost" className="mt-3 w-full" onClick={onClose} disabled={moveMutation.isPending}>
-          Cancelar
-        </Button>
       </Modal>
 
       <ConfirmDialog

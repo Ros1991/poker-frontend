@@ -1,14 +1,20 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useId } from 'react'
 import type { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import { cn } from '../../utils/cn'
+import { lockBodyScroll } from '../../utils/scrollLock'
+import { useVisualViewport } from '../../hooks/useVisualViewport'
+import { useFocusedFieldIntoView } from '../../hooks/useFocusedFieldIntoView'
 
 interface ModalProps {
   isOpen: boolean
+  /** Chamado só pelo X do cabeçalho (o fundo escurecido e o ESC não fecham a modal) */
   onClose: () => void
   title: string
   children: ReactNode
+  /** Rodapé fixo (botões de ação): fica visível enquanto o corpo rola */
+  footer?: ReactNode
   className?: string
   size?: 'sm' | 'md' | 'lg' | 'xl'
 }
@@ -20,70 +26,73 @@ const sizeClasses = {
   xl: 'max-w-xl',
 }
 
-export function Modal({
-  isOpen,
-  onClose,
-  title,
-  children,
-  className,
-  size = 'md',
-}: ModalProps) {
-  const overlayRef = useRef<HTMLDivElement>(null)
+/**
+ * Modal centralizada (SPEC-20261023-1216): fecha só pelo X, pelo Cancelar de quem usa ou ao
+ * concluir a ação — toque fora e ESC não fazem nada, para não perder o que foi digitado.
+ * Altura limitada à área visível (inclusive com o teclado virtual aberto), cabeçalho e rodapé
+ * fixos e só o corpo rola. Trava a rolagem do fundo com contador (modal sobre modal).
+ */
+export function Modal(props: ModalProps) {
+  if (!props.isOpen) return null
+  return <OpenModal {...props} />
+}
 
-  useEffect(() => {
-    if (!isOpen) return
+function OpenModal({ onClose, title, children, footer, className, size = 'md' }: ModalProps) {
+  const titleId = useId()
+  const viewport = useVisualViewport()
+  const handleFocus = useFocusedFieldIntoView()
 
-    function handleEscape(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
-        onClose()
-      }
-    }
-
-    document.addEventListener('keydown', handleEscape)
-    document.body.style.overflow = 'hidden'
-
-    return () => {
-      document.removeEventListener('keydown', handleEscape)
-      document.body.style.overflow = ''
-    }
-  }, [isOpen, onClose])
-
-  if (!isOpen) return null
-
-  function handleOverlayClick(e: React.MouseEvent) {
-    if (e.target === overlayRef.current) {
-      onClose()
-    }
-  }
+  useEffect(() => lockBodyScroll(), [])
 
   return createPortal(
     <div
-      ref={overlayRef}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-text-primary/40 p-4 backdrop-blur-sm"
-      onClick={handleOverlayClick}
+      className="fixed inset-x-0 top-0 z-50 flex h-dvh items-center justify-center bg-text-primary/40 p-3 backdrop-blur-sm sm:p-4"
+      style={
+        viewport
+          ? { height: viewport.height, transform: `translateY(${viewport.offsetTop}px)` }
+          : undefined
+      }
     >
       <div
         className={cn(
-          'w-full rounded-xl bg-bg-card border border-border-default shadow-lg',
+          'flex max-h-full w-full flex-col rounded-xl border border-border-default bg-bg-card shadow-lg',
           'animate-in fade-in zoom-in-95 duration-200',
           sizeClasses[size],
           className,
         )}
         role="dialog"
         aria-modal="true"
-        aria-label={title}
+        aria-labelledby={titleId}
       >
-        <div className="flex items-center justify-between border-b border-border-default px-6 py-4">
-          <h2 className="text-lg font-semibold text-text-primary">{title}</h2>
+        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border-default px-4 py-3 sm:px-6 sm:py-4">
+          <h2 id={titleId} className="min-w-0 truncate text-lg font-semibold text-text-primary">
+            {title}
+          </h2>
           <button
+            type="button"
             onClick={onClose}
-            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors"
+            className="flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-lg text-text-secondary transition-colors hover:bg-bg-tertiary hover:text-text-primary"
             aria-label="Fechar"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
-        <div className="px-6 py-4">{children}</div>
+        <div
+          data-modal-body
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6"
+          onFocus={handleFocus}
+        >
+          {children}
+        </div>
+        {footer && (
+          <div
+            data-modal-footer
+            className="shrink-0 border-t border-border-default px-4 pt-3 sm:px-6"
+            style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
+          >
+            {footer}
+          </div>
+        )}
       </div>
     </div>,
     document.body,

@@ -46,7 +46,7 @@ export function DisplayPairingScreen({ code, connectionError }: DisplayPairingSc
               Entrar
             </Link>
             <p className="text-center text-sm text-text-secondary">
-              Organizador, jogador ou dealer com conta: entre para ver seus torneios.
+              Organizador ou jogador com conta: entre para ver seus torneios.
             </p>
           </section>
 

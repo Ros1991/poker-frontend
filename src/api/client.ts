@@ -141,9 +141,10 @@ function isDealerRequest(url: string | undefined) {
   return !!dealerScope && !!url && url.startsWith(`/tournaments/${dealerScope.tournamentId}`)
 }
 
-// Endpoints de autenticação não disparam renovação (401 no login é senha errada)
+// Endpoints de autenticação não disparam renovação (401 no login é senha errada). Inclui o login
+// social (SPEC-20261023-1210): auth/external/providers, auth/external/nonce e auth/external/{provider}
 function isAuthEndpoint(url: string | undefined) {
-  return !!url && /\/auth\/(login|register|refresh)$/.test(url)
+  return !!url && /\/auth\/(login|register|refresh|external\/[\w-]+)$/.test(url)
 }
 
 async function withRefreshLock<T>(fn: () => Promise<T>): Promise<T> {

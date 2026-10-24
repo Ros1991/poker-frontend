@@ -18,7 +18,17 @@ export function AddonDialog({ entry, tournament, loading, onConfirm, onClose }: 
   if (!entry) return null
   const amount = tournament?.addonAmount ?? 0
   return (
-    <Modal isOpen onClose={onClose} title={`Add-on para ${playerName(entry)}`} size="sm">
+    <Modal
+      isOpen
+      onClose={onClose}
+      title={`Add-on para ${playerName(entry)}`}
+      size="sm"
+      footer={
+        <Button variant="ghost" className="w-full" disabled={loading} onClick={onClose}>
+          Cancelar
+        </Button>
+      }
+    >
       <div className="flex flex-col gap-2">
         <Button size="lg" variant="gold" className="w-full tabular-nums" loading={loading} onClick={() => onConfirm(false)}>
           <PlusCircle className="h-5 w-5" />
@@ -36,9 +46,6 @@ export function AddonDialog({ entry, tournament, loading, onConfirm, onClose }: 
             Add-on duplo — {formatCurrency(amount * 2)}
           </Button>
         )}
-        <Button variant="ghost" className="mt-1 w-full" disabled={loading} onClick={onClose}>
-          Cancelar
-        </Button>
       </div>
     </Modal>
   )

@@ -13,7 +13,7 @@ import { Input } from '../../components/ui/Input'
 import { Textarea } from '../../components/ui/Textarea'
 import { Button } from '../../components/ui/Button'
 import { ROUTES, homeGameDetailPath } from '../../constants/routes'
-import { useHomeGame } from '../../contexts/HomeGameContext'
+import { useHomeGame } from '../../hooks/useHomeGame'
 import { AccessDeniedState } from '../../components/common/AccessDeniedState'
 import { isForbiddenError } from '../../utils/httpErrors'
 

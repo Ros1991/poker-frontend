@@ -21,6 +21,8 @@ import { Badge } from '../../../components/ui/Badge'
 import { Avatar } from '../../../components/ui/Avatar'
 import { SearchInput } from '../../../components/ui/SearchInput'
 import { ConfirmDialog } from '../../../components/ui/ConfirmDialog'
+import { Modal } from '../../../components/ui/Modal'
+import { Input } from '../../../components/ui/Input'
 import { AddPlayerModal } from '../../../components/tournament/AddPlayerModal'
 import { PaymentModal } from '../../../components/tournament/PaymentModal'
 import { EliminationModal } from '../../../components/tournament/EliminationModal'
@@ -557,73 +559,80 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
         loading={removeMutation.isPending}
       />
 
-      {/* Bônus de Pontualidade Modal */}
-      {showBonusModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-text-primary/40 p-4">
-          <div className="w-full max-w-sm rounded-xl border border-border-default bg-bg-card p-6 shadow-lg">
-            <h3 className="text-lg font-semibold text-text-primary mb-1">
-              Bônus de Pontualidade
-            </h3>
-            <p className="text-sm text-text-secondary mb-4">
-              Fichas extras pra quem chegou no horário. Entram no total de
-              fichas exibido no telão.
-            </p>
-            <div className="flex flex-col gap-3">
-              <label className="text-sm text-text-secondary">
-                Jogadores que receberam
-                <input
-                  type="number"
-                  min={0}
-                  value={bonusCount}
-                  onChange={(e) => setBonusCount(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-border-input bg-bg-input px-3 py-2 text-text-primary focus:border-accent-blue focus:outline-none"
-                />
-              </label>
-              <label className="text-sm text-text-secondary">
-                Fichas de bônus (por jogador)
-                <input
-                  type="number"
-                  min={0}
-                  step={500}
-                  value={bonusChips}
-                  onChange={(e) => setBonusChips(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-border-input bg-bg-input px-3 py-2 text-text-primary focus:border-accent-blue focus:outline-none"
-                />
-              </label>
-              <div className="mt-1 flex gap-2">
-                <Button
-                  onClick={() =>
-                    bonusMutation.mutate({
-                      count: Number(bonusCount) || 0,
-                      chips: Number(bonusChips) || 0,
-                    })
-                  }
-                  loading={bonusMutation.isPending}
-                  className="flex-1"
-                >
-                  Salvar
-                </Button>
-                <Button
-                  variant="ghost"
-                  onClick={() => setShowBonusModal(false)}
-                  disabled={bonusMutation.isPending}
-                >
-                  Cancelar
-                </Button>
-              </div>
-            </div>
+      {/* Bônus de Pontualidade (Modal do kit: fecha só no X/Cancelar — SPEC-20261023-1216) */}
+      <Modal
+        isOpen={showBonusModal}
+        onClose={() => setShowBonusModal(false)}
+        title="Bônus de Pontualidade"
+        size="sm"
+        footer={
+          <div className="flex justify-end gap-3">
+            <Button
+              variant="ghost"
+              onClick={() => setShowBonusModal(false)}
+              disabled={bonusMutation.isPending}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={() =>
+                bonusMutation.mutate({
+                  count: Number(bonusCount) || 0,
+                  chips: Number(bonusChips) || 0,
+                })
+              }
+              loading={bonusMutation.isPending}
+            >
+              Salvar
+            </Button>
           </div>
+        }
+      >
+        <p className="mb-4 text-sm text-text-secondary">
+          Fichas extras pra quem chegou no horário. Entram no total de
+          fichas exibido no telão.
+        </p>
+        <div className="flex flex-col gap-3">
+          <Input
+            id="bonus-count"
+            label="Jogadores que receberam"
+            type="number"
+            min={0}
+            value={bonusCount}
+            onChange={(e) => setBonusCount(e.target.value)}
+          />
+          <Input
+            id="bonus-chips"
+            label="Fichas de bônus (por jogador)"
+            type="number"
+            min={0}
+            step={500}
+            value={bonusChips}
+            onChange={(e) => setBonusChips(e.target.value)}
+          />
         </div>
-      )}
+      </Modal>
 
-      {/* Addon Modal */}
-      {addonConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-text-primary/40 p-4">
-          <div className="w-full max-w-sm rounded-xl border border-border-default bg-bg-card p-6 shadow-lg">
-            <h3 className="text-lg font-semibold text-text-primary mb-2">
-              Confirmar Add-on
-            </h3>
-            <p className="text-sm text-text-secondary mb-4">
+      {/* Confirmar Add-on (Modal do kit) */}
+      <Modal
+        isOpen={!!addonConfirm}
+        onClose={() => setAddonConfirm(null)}
+        title="Confirmar Add-on"
+        size="sm"
+        footer={
+          <Button
+            variant="ghost"
+            onClick={() => setAddonConfirm(null)}
+            disabled={addonMutation.isPending}
+            className="w-full"
+          >
+            Cancelar
+          </Button>
+        }
+      >
+        {addonConfirm && (
+          <>
+            <p className="mb-4 text-sm text-text-secondary">
               {addonConfirm.person.nickname ?? addonConfirm.person.fullName}
             </p>
             <div className="flex flex-col gap-2">
@@ -650,18 +659,10 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
                   Addon Duplo &mdash; {formatCurrency(tournament.addonAmount * 2)}
                 </Button>
               )}
-              <Button
-                variant="ghost"
-                onClick={() => setAddonConfirm(null)}
-                disabled={addonMutation.isPending}
-                className="w-full mt-1"
-              >
-                Cancelar
-              </Button>
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </Modal>
     </div>
   )
 }

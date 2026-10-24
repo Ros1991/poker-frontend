@@ -25,20 +25,27 @@ export function ConfirmDialog({
   loading = false,
 }: ConfirmDialogProps) {
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={title} size="sm">
-      <p className="text-sm text-text-secondary mb-6">{message}</p>
-      <div className="flex gap-3 justify-end">
-        <Button variant="ghost" onClick={onClose} disabled={loading}>
-          {cancelLabel}
-        </Button>
-        <Button
-          variant={variant === 'danger' ? 'danger' : 'primary'}
-          onClick={onConfirm}
-          loading={loading}
-        >
-          {confirmLabel}
-        </Button>
-      </div>
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={title}
+      size="sm"
+      footer={
+        <div className="flex justify-end gap-3">
+          <Button variant="ghost" onClick={onClose} disabled={loading}>
+            {cancelLabel}
+          </Button>
+          <Button
+            variant={variant === 'danger' ? 'danger' : 'primary'}
+            onClick={onConfirm}
+            loading={loading}
+          >
+            {confirmLabel}
+          </Button>
+        </div>
+      }
+    >
+      <p className="text-sm text-text-secondary">{message}</p>
     </Modal>
   )
 }

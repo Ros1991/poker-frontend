@@ -15,6 +15,9 @@ import { ROUTES } from '../../constants/routes'
 import * as authApi from '../../api/auth.api'
 import { EMAIL_NOT_CONFIRMED_CODE } from '../../types/auth.types'
 import { errorCode, errorMessage, errorStatus } from '../../utils/httpErrors'
+import { GoogleSignInSection } from '../../components/auth/GoogleSignInSection'
+import { LinkGoogleForm } from '../../components/auth/LinkGoogleForm'
+import { useGoogleSignIn } from '../../components/auth/useGoogleSignIn'
 
 const loginSchema = z.object({
   email: z.email('E-mail inválido'),
@@ -71,6 +74,8 @@ export function LoginPage() {
   // Volta para onde a pessoa estava (ex.: o QR da TV abriu /parear/CODIGO)
   const from = (location.state as { from?: Location } | null)?.from
   const returnTo = from ? `${from.pathname}${from.search}` : ROUTES.HOME
+  // Login com Google (SPEC-20261023-1210): mesmo retorno do login por senha
+  const google = useGoogleSignIn(returnTo)
 
   const rememberedEmail = localStorage.getItem(REMEMBERED_EMAIL_KEY)
   const lastEmail = localStorage.getItem(LAST_EMAIL_KEY)
@@ -119,6 +124,11 @@ export function LoginPage() {
             errorMessage(err) ??
             'Confirme seu e-mail antes de entrar. Enviamos um link para o e-mail da conta.',
         })
+      } else if (errorStatus(err) === 429) {
+        // Senha errada demais (POST auth/login): o backend diz quanto esperar
+        toast.error(
+          errorMessage(err) ?? 'Muitas tentativas com senha errada. Espere alguns minutos e tente de novo.',
+        )
       } else {
         toast.error('E-mail ou senha incorretos.')
       }
@@ -154,112 +164,132 @@ export function LoginPage() {
           <h1 className="sr-only">Poker da Galera</h1>
         </div>
 
-        <form
-          onSubmit={(e) => void handleSubmit(onSubmit)(e)}
-          className="flex flex-col gap-4 rounded-xl border border-border-default bg-bg-secondary p-6"
-        >
-          <Input
-            label="E-mail"
-            type="email"
-            placeholder="seu@email.com"
-            error={errors.email?.message}
-            autoComplete="email"
-            {...register('email')}
+        {google.linkRequired ? (
+          <LinkGoogleForm
+            email={google.linkRequired.email}
+            ticket={google.linkRequired.ticket}
+            returnTo={returnTo}
+            onCancel={google.cancelLink}
           />
+        ) : (
+          <div className="flex flex-col gap-4 rounded-xl border border-border-default bg-bg-secondary p-6">
+            <GoogleSignInSection
+              context="signin"
+              dividerText="ou entre com seu e-mail"
+              onCredential={google.handleCredential}
+              busy={google.busy}
+              error={google.error}
+            />
 
-          <PasswordInput
-            label="Senha"
-            placeholder="Sua senha"
-            error={errors.password?.message}
-            autoComplete="current-password"
-            {...register('password')}
-          />
-
-          <div className="flex items-center justify-between gap-3">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                className="h-4 w-4 rounded border-border-input bg-bg-input text-accent-blue focus:ring-accent-blue"
-                {...register('rememberMe')}
+            <form
+              onSubmit={(e) => void handleSubmit(onSubmit)(e)}
+              className="flex flex-col gap-4"
+            >
+              <Input
+                label="E-mail"
+                type="email"
+                placeholder="seu@email.com"
+                error={errors.email?.message}
+                autoComplete="email"
+                {...register('email')}
               />
-              <span className="text-sm text-text-secondary">
-                Lembrar e-mail e senha
-              </span>
-            </label>
-            <Link
-              to={ROUTES.FORGOT_PASSWORD}
-              className="text-sm text-accent-blue hover:underline"
-            >
-              Esqueci minha senha
-            </Link>
-          </div>
 
-          {notConfirmed && (
-            <div className="flex flex-col gap-3 rounded-lg border border-accent-yellow/40 bg-accent-yellow-soft p-3">
-              <p className="flex items-start gap-2 text-sm text-text-primary" role="alert">
-                <MailWarning
-                  className="mt-0.5 h-4 w-4 shrink-0 text-accent-yellow"
-                  aria-hidden="true"
-                />
-                <span className="min-w-0 break-words">{notConfirmed.message}</span>
-              </p>
+              <PasswordInput
+                label="Senha"
+                placeholder="Sua senha"
+                error={errors.password?.message}
+                autoComplete="current-password"
+                {...register('password')}
+              />
 
-              {resendStatus === 'sent' && (
-                <p
-                  className="flex items-start gap-2 text-sm font-medium text-text-primary"
-                  role="status"
-                >
-                  <CheckCircle2
-                    className="mt-0.5 h-4 w-4 shrink-0 text-accent-green"
-                    aria-hidden="true"
+              <div className="flex items-center justify-between gap-3">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-border-input bg-bg-input text-accent-blue focus:ring-accent-blue"
+                    {...register('rememberMe')}
                   />
-                  Se o e-mail estiver cadastrado, reenviamos o link.
-                </p>
-              )}
-              {resendStatus === 'rateLimited' && (
-                <p className="text-sm text-accent-red-deep" role="alert">
-                  Muitas tentativas seguidas. Espere um minuto.
-                </p>
-              )}
-              {resendStatus === 'error' && (
-                <p className="text-sm text-accent-red-deep" role="alert">
-                  Não deu para reenviar agora. Tente de novo em instantes.
-                </p>
+                  <span className="text-sm text-text-secondary">
+                    Lembrar e-mail e senha
+                  </span>
+                </label>
+                <Link
+                  to={ROUTES.FORGOT_PASSWORD}
+                  className="text-sm text-accent-blue hover:underline"
+                >
+                  Esqueci minha senha
+                </Link>
+              </div>
+
+              {notConfirmed && (
+                <div className="flex flex-col gap-3 rounded-lg border border-accent-yellow/40 bg-accent-yellow-soft p-3">
+                  <p className="flex items-start gap-2 text-sm text-text-primary" role="alert">
+                    <MailWarning
+                      className="mt-0.5 h-4 w-4 shrink-0 text-accent-yellow"
+                      aria-hidden="true"
+                    />
+                    <span className="min-w-0 break-words">{notConfirmed.message}</span>
+                  </p>
+
+                  {resendStatus === 'sent' && (
+                    <p
+                      className="flex items-start gap-2 text-sm font-medium text-text-primary"
+                      role="status"
+                    >
+                      <CheckCircle2
+                        className="mt-0.5 h-4 w-4 shrink-0 text-accent-green"
+                        aria-hidden="true"
+                      />
+                      Se o e-mail estiver cadastrado, reenviamos o link.
+                    </p>
+                  )}
+                  {resendStatus === 'rateLimited' && (
+                    <p className="text-sm text-accent-red-deep" role="alert">
+                      Muitas tentativas seguidas. Espere um minuto.
+                    </p>
+                  )}
+                  {resendStatus === 'error' && (
+                    <p className="text-sm text-accent-red-deep" role="alert">
+                      Não deu para reenviar agora. Tente de novo em instantes.
+                    </p>
+                  )}
+
+                  {/* px-2: o rótulo cabe numa linha no celular de 375 px (o botão herda 16 px) */}
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="w-full px-2"
+                    loading={resendStatus === 'sending'}
+                    disabled={resendStatus === 'sending' || resendWaiting}
+                    onClick={() => void handleResendConfirmation()}
+                  >
+                    Reenviar e-mail de confirmação
+                  </Button>
+                  {resendWaiting && (
+                    <p className="text-center text-xs text-text-primary tabular-nums">
+                      Dá para reenviar de novo em {Math.floor(resendSecondsLeft / 60)}:{String(resendSecondsLeft % 60).padStart(2, '0')}.
+                    </p>
+                  )}
+                </div>
               )}
 
-              {/* px-2: o rótulo cabe numa linha no celular de 375 px (o botão herda 16 px) */}
-              <Button
-                type="button"
-                variant="secondary"
-                className="w-full px-2"
-                loading={resendStatus === 'sending'}
-                disabled={resendStatus === 'sending' || resendWaiting}
-                onClick={() => void handleResendConfirmation()}
-              >
-                Reenviar e-mail de confirmação
+              <Button type="submit" loading={isLoading} className="mt-2">
+                Entrar
               </Button>
-              {resendWaiting && (
-                <p className="text-center text-xs text-text-primary tabular-nums">
-                  Dá para reenviar de novo em {Math.floor(resendSecondsLeft / 60)}:{String(resendSecondsLeft % 60).padStart(2, '0')}.
-                </p>
-              )}
-            </div>
-          )}
 
-          <Button type="submit" loading={isLoading} className="mt-2">
-            Entrar
-          </Button>
-
-          <p className="text-center text-sm text-text-secondary">
-            Não tem uma conta?{' '}
-            <Link
-              to={ROUTES.REGISTER}
-              className="font-medium text-accent-blue hover:underline"
-            >
-              Criar conta
-            </Link>
-          </p>
-        </form>
+              <p className="text-center text-sm text-text-secondary">
+                Não tem uma conta?{' '}
+                <Link
+                  to={ROUTES.REGISTER}
+                  state={from ? { from } : undefined}
+                  className="font-medium text-accent-blue hover:underline"
+                >
+                  Criar conta
+                </Link>
+              </p>
+            </form>
+          </div>
+        )}
       </div>
     </div>
   )

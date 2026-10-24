@@ -38,32 +38,36 @@ export function EliminateDialog({ entry, tablemates, loading, onConfirm, onClose
   )
 
   return (
-    <Modal isOpen onClose={onClose} title={`Eliminar ${name}`} size="sm">
-      <div className="flex flex-col gap-3">
-        <div>
-          <p className="mb-2 text-sm font-medium text-text-secondary">Quem eliminou? (opcional)</p>
-          <div className="grid max-h-[40vh] grid-cols-2 gap-1.5 overflow-y-auto">
-            {option(null, 'Pular')}
-            {tablemates.map((e) => option(e.id, playerName(e)))}
-          </div>
+    <Modal
+      isOpen
+      onClose={onClose}
+      title={`Eliminar ${name}`}
+      size="sm"
+      footer={
+        <div className="flex flex-col gap-2">
+          <p className="text-center text-xs text-text-secondary">
+            {killer ? `Quem eliminou: ${playerName(killer)}` : 'Sem informar quem eliminou'}
+          </p>
+          <Button
+            size="lg"
+            variant="danger"
+            className="w-full"
+            loading={loading}
+            onClick={() => onConfirm(killerId ?? undefined)}
+          >
+            <Skull className="h-5 w-5" />
+            Eliminar {name}
+          </Button>
+          <Button variant="ghost" className="w-full" disabled={loading} onClick={onClose}>
+            Cancelar
+          </Button>
         </div>
-
-        <Button
-          size="lg"
-          variant="danger"
-          className="w-full"
-          loading={loading}
-          onClick={() => onConfirm(killerId ?? undefined)}
-        >
-          <Skull className="h-5 w-5" />
-          Eliminar {name}
-        </Button>
-        <p className="-mt-1 text-center text-xs text-text-secondary">
-          {killer ? `Quem eliminou: ${playerName(killer)}` : 'Sem informar quem eliminou'}
-        </p>
-        <Button variant="ghost" className="w-full" disabled={loading} onClick={onClose}>
-          Cancelar
-        </Button>
+      }
+    >
+      <p className="mb-2 text-sm font-medium text-text-secondary">Quem eliminou? (opcional)</p>
+      <div className="grid grid-cols-2 gap-1.5">
+        {option(null, 'Pular')}
+        {tablemates.map((e) => option(e.id, playerName(e)))}
       </div>
     </Modal>
   )

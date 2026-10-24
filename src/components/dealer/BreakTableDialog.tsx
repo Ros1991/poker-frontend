@@ -56,7 +56,17 @@ export function BreakTableDialog({
 
   if (result) {
     return (
-      <Modal isOpen onClose={onClose} title={`${result.brokenTableName} quebrada`} size="sm">
+      <Modal
+        isOpen
+        onClose={onClose}
+        title={`${result.brokenTableName} quebrada`}
+        size="sm"
+        footer={
+          <Button size="lg" className="w-full" onClick={onClose}>
+            Pronto
+          </Button>
+        }
+      >
         {result.finalTable && (
           <p className="mb-3 flex items-center gap-2 rounded-lg bg-accent-gold-soft p-3 text-base font-bold text-accent-gold-deep">
             <Trophy className="h-5 w-5" /> Agora é mesa final!
@@ -74,16 +84,34 @@ export function BreakTableDialog({
             ))}
           </ul>
         )}
-        <Button size="lg" className="mt-4 w-full" onClick={onClose}>
-          Pronto
-        </Button>
       </Modal>
     )
   }
 
   return (
     <>
-      <Modal isOpen onClose={onClose} title="Quebrar mesa" size="sm">
+      <Modal
+        isOpen
+        onClose={onClose}
+        title="Quebrar mesa"
+        size="sm"
+        footer={
+          <div className="flex flex-col gap-1">
+            <Button
+              size="lg"
+              className="w-full"
+              disabled={!selected || !fits(selected)}
+              onClick={() => setConfirming(true)}
+            >
+              <Scissors className="h-5 w-5" />
+              {selected ? `Quebrar ${tableLabel(selected)}` : 'Escolha a mesa'}
+            </Button>
+            <Button variant="ghost" className="w-full" onClick={onClose}>
+              Cancelar
+            </Button>
+          </div>
+        }
+      >
         <p className="mb-2 text-sm text-text-secondary">
           Qual mesa quebrar? Os jogadores dela serão sorteados nos lugares livres das outras.
         </p>
@@ -116,18 +144,6 @@ export function BreakTableDialog({
             )
           })}
         </div>
-        <Button
-          size="lg"
-          className="mt-3 w-full"
-          disabled={!selected || !fits(selected)}
-          onClick={() => setConfirming(true)}
-        >
-          <Scissors className="h-5 w-5" />
-          {selected ? `Quebrar ${tableLabel(selected)}` : 'Escolha a mesa'}
-        </Button>
-        <Button variant="ghost" className="mt-1 w-full" onClick={onClose}>
-          Cancelar
-        </Button>
       </Modal>
 
       <ConfirmDialog

@@ -63,7 +63,7 @@ export function FileUpload({
             <img
               src={displayUrl}
               alt="Preview"
-              className="h-32 w-32 rounded-lg object-cover"
+              className="h-32 w-32 rounded-full object-cover"
             />
             <button
               type="button"

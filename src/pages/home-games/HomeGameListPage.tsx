@@ -8,7 +8,7 @@ import { Badge } from '../../components/ui/Badge'
 import { SearchInput } from '../../components/ui/SearchInput'
 import { homeGameDetailPath } from '../../constants/routes'
 import { HomeGameFormModal } from './HomeGameFormModal'
-import { useHomeGame } from '../../contexts/HomeGameContext'
+import { useHomeGame } from '../../hooks/useHomeGame'
 
 export function HomeGameListPage() {
   const navigate = useNavigate()

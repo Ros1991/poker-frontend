@@ -466,14 +466,6 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
                           <h3 className="text-3xl font-bold text-text-primary">
                             {table.tableName ?? `Mesa ${table.tableNumber}`}
                           </h3>
-                          {table.dealerName && (
-                            <span className="truncate text-base text-text-secondary">
-                              Dealer:{' '}
-                              <span className="font-semibold text-text-primary">
-                                {table.dealerName}
-                              </span>
-                            </span>
-                          )}
                         </div>
                         <div className="flex flex-col gap-1.5">
                           {Array.from({ length: table.maxSeats }, (_, i) => i + 1).map(

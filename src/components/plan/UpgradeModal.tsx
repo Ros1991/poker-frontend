@@ -28,7 +28,7 @@ import { supportWhatsAppUrl } from '../../constants/contact'
 import { useAuth } from '../../hooks/useAuth'
 import { usePlan, MY_PLAN_QUERY_KEY } from '../../hooks/usePlan'
 import { usePlanCatalog } from '../../hooks/usePlanCatalog'
-import { useHomeGame } from '../../contexts/HomeGameContext'
+import { useHomeGame } from '../../hooks/useHomeGame'
 import type { PlanFeature, PlanLimitDetail, PlanName } from '../../types/plan.types'
 import type { Tournament } from '../../types/tournament.types'
 import type { HomeGame } from '../../types/homeGame.types'
@@ -196,7 +196,36 @@ export function UpgradeModal() {
           : Lock
 
   return (
-    <Modal isOpen onClose={close} title={title} size="md">
+    <Modal
+      isOpen
+      onClose={close}
+      title={title}
+      size="md"
+      footer={
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          {whatsappUrl ? (
+            <>
+              <Button variant="ghost" onClick={goToPlans}>
+                Ver planos
+              </Button>
+              <Button
+                variant="gold"
+                onClick={() => {
+                  window.open(whatsappUrl, '_blank', 'noopener,noreferrer')
+                }}
+              >
+                <MessageCircle className="h-4 w-4" aria-hidden />
+                Falar com o suporte
+              </Button>
+            </>
+          ) : (
+            <Button variant="gold" onClick={goToPlans}>
+              Ver planos
+            </Button>
+          )}
+        </div>
+      }
+    >
       <div className="space-y-5">
         <div className="flex items-start gap-4">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-accent-gold-soft">
@@ -275,29 +304,6 @@ export function UpgradeModal() {
           Fase de testes: o plano é ativado pelo suporte, sem cobrança automática. Seus dados ficam
           guardados em qualquer plano.
         </p>
-
-        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          {whatsappUrl ? (
-            <>
-              <Button variant="ghost" onClick={goToPlans}>
-                Ver planos
-              </Button>
-              <Button
-                variant="gold"
-                onClick={() => {
-                  window.open(whatsappUrl, '_blank', 'noopener,noreferrer')
-                }}
-              >
-                <MessageCircle className="h-4 w-4" aria-hidden />
-                Falar com o suporte
-              </Button>
-            </>
-          ) : (
-            <Button variant="gold" onClick={goToPlans}>
-              Ver planos
-            </Button>
-          )}
-        </div>
       </div>
     </Modal>
   )

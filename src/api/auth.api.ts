@@ -1,4 +1,6 @@
+import axios from 'axios'
 import apiClient from './client'
+import { LINK_REQUIRES_PASSWORD_CODE } from '../types/auth.types'
 import type {
   LoginRequest,
   LoginResponse,
@@ -10,6 +12,11 @@ import type {
   ResetPasswordRequest,
   ConfirmEmailRequest,
   ResendConfirmationRequest,
+  ExternalProviderName,
+  ExternalProvidersResponse,
+  ExternalNonceResponse,
+  ExternalLoginRequest,
+  ExternalLinkRequired,
 } from '../types/auth.types'
 
 export async function login(data: LoginRequest): Promise<LoginResponse> {
@@ -67,6 +74,50 @@ export async function forgotPassword(data: ForgotPasswordRequest): Promise<void>
 /** Anônimo: 204 em sucesso; 400 com message quando o link não vale mais. */
 export async function resetPassword(data: ResetPasswordRequest): Promise<void> {
   await apiClient.post('/auth/reset-password', data)
+}
+
+// ---- Login com Google (SPEC-20261023-1210) ----
+
+/** Anônimo: provedores ligados no servidor e o Client ID público de cada um. */
+export async function getExternalProviders(): Promise<ExternalProvidersResponse> {
+  const response = await apiClient.get<ExternalProvidersResponse>('/auth/external/providers')
+  return response.data
+}
+
+/** Anônimo: nonce de uso único (10 min) que vai no botão do Google antes do clique. */
+export async function getExternalNonce(): Promise<ExternalNonceResponse> {
+  const response = await apiClient.post<ExternalNonceResponse>('/auth/external/nonce')
+  return response.data
+}
+
+/**
+ * Entrar com o provedor. 200 = a mesma sessão do login por senha. 400 neutro (token/nonce inválido ou
+ * sem e-mail verificado), 403 `account_disabled`, 409 `link_requires_password` (ver
+ * `linkRequiredFromError`), 429 no limite por IP.
+ */
+export async function externalLogin(
+  provider: ExternalProviderName,
+  data: ExternalLoginRequest,
+): Promise<LoginResponse> {
+  const response = await apiClient.post<LoginResponse>(`/auth/external/${provider}`, data)
+  return response.data
+}
+
+/** Corpo do 409 `link_requires_password` do login social, ou null quando o erro é outro. */
+export function linkRequiredFromError(error: unknown): ExternalLinkRequired | null {
+  if (!axios.isAxiosError(error) || error.response?.status !== 409) return null
+  const data: unknown = error.response.data
+  if (!data || typeof data !== 'object') return null
+  const { code, ticket, email, message } = data as Record<string, unknown>
+  if (code !== LINK_REQUIRES_PASSWORD_CODE || typeof ticket !== 'string' || !ticket) return null
+  return {
+    ticket,
+    email: typeof email === 'string' ? email : '',
+    message:
+      typeof message === 'string' && message.trim()
+        ? message
+        : 'Já existe uma conta com este e-mail. Entre com sua senha para conectar o Google.',
+  }
 }
 
 export async function getMe(): Promise<AuthUser> {

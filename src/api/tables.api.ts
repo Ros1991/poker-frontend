@@ -50,16 +50,6 @@ export async function draw(
   return response.data
 }
 
-export async function setDealer(
-  tournamentId: string,
-  tableId: string,
-  dealerPersonId: string | null,
-): Promise<void> {
-  await apiClient.put(
-    `/tournaments/${tournamentId}/tables/${tableId}/dealer`,
-    { dealerPersonId },
-  )
-}
 
 export async function movePlayer(
   tournamentId: string,

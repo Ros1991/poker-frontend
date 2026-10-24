@@ -1,7 +1,8 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { QRCodeSVG } from 'qrcode.react'
-import { Copy, MessageCircle, RefreshCw } from 'lucide-react'
+import { Copy, ExternalLink, MessageCircle, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import * as dealerAccessApi from '../../api/dealerAccess.api'
 import { Modal } from '../ui/Modal'
@@ -9,7 +10,7 @@ import { Button } from '../ui/Button'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { LoadingSpinner } from '../common/LoadingSpinner'
 import { apiErrorMessage, formatTime } from '../dealer/terminalFormat'
-import { dealerAccessPath } from '../../constants/routes'
+import { dealerAccessPath, dealerTerminalPath } from '../../constants/routes'
 import type { DealerRequest } from '../../types/display.types'
 
 interface DealerQrModalProps {
@@ -34,6 +35,9 @@ function isAccessError(err: unknown): boolean {
 }
 
 /**
+ * Botão "Terminal do dealer" do painel (SPEC-20261023-1216, DL4): abre este QR para o dealer
+ * escanear; "Abrir o terminal aqui" (link secundário) abre o terminal neste aparelho.
+ *
  * QR do dealer (SPEC-20261023-1208): o dealer lê, informa o nome e espera; o organizador
  * autoriza ou recusa aqui (ou no banner do painel), vê quem está conectado e desconecta
  * um a um. Vale até o torneio terminar (no máximo 24h). Gerar outro QR invalida o código
@@ -142,6 +146,17 @@ export function DealerQrModal({ isOpen, onClose, tournamentId, tournamentName }:
     `Terminal do dealer — ${tournamentName}: ${link}`,
   )}`
 
+  const openHere = (
+    <Link
+      to={dealerTerminalPath(tournamentId)}
+      target="_blank"
+      className="inline-flex min-h-[44px] items-center gap-1.5 text-sm font-medium text-accent-blue hover:underline"
+    >
+      <ExternalLink className="h-4 w-4" />
+      Abrir o terminal aqui
+    </Link>
+  )
+
   const lists = (pending.length > 0 || connected.length > 0) && (
     <div className="flex w-full flex-col gap-4 border-t border-border-default pt-4">
       {pending.length > 0 && (
@@ -226,8 +241,8 @@ export function DealerQrModal({ isOpen, onClose, tournamentId, tournamentName }:
 
   return (
     <>
-      <Modal isOpen={isOpen} onClose={onClose} title="QR do dealer" size="md">
-        <div className="-mx-6 max-h-[70vh] overflow-y-auto px-6">
+      <Modal isOpen={isOpen} onClose={onClose} title="Terminal do dealer" size="md">
+        <div>
           {isLoading ? (
             <div className="flex justify-center py-10">
               <LoadingSpinner />
@@ -258,6 +273,7 @@ export function DealerQrModal({ isOpen, onClose, tournamentId, tournamentName }:
                   WhatsApp
                 </Button>
               </div>
+              {openHere}
 
               {lists || (
                 <p className="w-full border-t border-border-default pt-3 text-center text-xs text-text-secondary">
@@ -289,6 +305,7 @@ export function DealerQrModal({ isOpen, onClose, tournamentId, tournamentName }:
               <Button onClick={() => createMutation.mutate()} loading={createMutation.isPending}>
                 Gerar QR do dealer
               </Button>
+              {openHere}
               {lists}
             </div>
           )}

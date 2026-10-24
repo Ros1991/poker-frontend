@@ -13,7 +13,6 @@ import {
   Calendar,
   UserPlus,
   Gamepad2,
-  Shield,
   Trash2,
   Camera,
   Timer,
@@ -43,7 +42,7 @@ import { HomeGameFormModal } from './HomeGameFormModal'
 import { AddMemberModal } from './AddMemberModal'
 import { AccessDeniedState } from '../../components/common/AccessDeniedState'
 import { isForbiddenError } from '../../utils/httpErrors'
-import { useHomeGame } from '../../contexts/HomeGameContext'
+import { useHomeGame } from '../../hooks/useHomeGame'
 import { useAuth } from '../../hooks/useAuth'
 import { hasFeature, MY_PLAN_QUERY_KEY } from '../../hooks/usePlan'
 import { NewTournamentButton } from '../../components/tournament/NewTournamentButton'
@@ -53,7 +52,7 @@ import type { TournamentStatus } from '../../types/tournament.types'
 import type { Person } from '../../types/person.types'
 import type { HomeGameMember } from '../../types/homeGame.types'
 
-type Tab = 'torneios' | 'rankings' | 'blinds' | 'membros' | 'jogadores' | 'dealers'
+type Tab = 'torneios' | 'rankings' | 'blinds' | 'membros' | 'jogadores'
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat('pt-BR', {
@@ -77,7 +76,9 @@ export function HomeGameDetailPage() {
   const { selectHomeGame, selectedHomeGame } = useHomeGame()
   const { user } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
-  const validTabs: Tab[] = ['torneios', 'rankings', 'jogadores', 'dealers', 'membros', 'blinds']
+  // O dealer entra pelo QR (SPEC-20261023-1216): sem aba de dealers; um link antigo com a aba
+  // removida cai em Torneios
+  const validTabs: Tab[] = ['torneios', 'rankings', 'jogadores', 'membros', 'blinds']
   const tabParam = searchParams.get('tab') as Tab | null
   const activeTab: Tab = tabParam && validTabs.includes(tabParam) ? tabParam : 'torneios'
   const setActiveTab = (tab: Tab) => setSearchParams({ tab }, { replace: true })
@@ -138,18 +139,12 @@ export function HomeGameDetailPage() {
     homeGame?.ownerId === user?.id ||
     (members ?? []).some((m) => m.userId === user?.id && m.isAdmin)
 
-  // Jogadores (Persons type=Jogador)
+  // Jogadores: todas as pessoas do home game — quem foi cadastrado como Dealer aparece aqui com o
+  // selo "Dealer" e também joga (SPEC-20261023-1216, DL3)
   const { data: jogadoresData, isLoading: jogadoresLoading } = useQuery({
-    queryKey: ['persons', id, 'Jogador'],
-    queryFn: () => personsApi.getByHomeGame(id!, 'Jogador'),
+    queryKey: ['persons', id],
+    queryFn: () => personsApi.getByHomeGame(id!),
     enabled: !!id && activeTab === 'jogadores',
-  })
-
-  // Dealers (Persons type=Dealer)
-  const { data: dealersData, isLoading: dealersLoading } = useQuery({
-    queryKey: ['persons', id, 'Dealer'],
-    queryFn: () => personsApi.getByHomeGame(id!, 'Dealer'),
-    enabled: !!id && activeTab === 'dealers',
   })
 
   // Blind Structures
@@ -168,7 +163,6 @@ export function HomeGameDetailPage() {
     { key: 'rankings', label: 'Rankings', icon: Crown },
     { key: 'blinds', label: 'Estruturas', icon: Timer },
     { key: 'jogadores', label: 'Jogadores', icon: Gamepad2 },
-    { key: 'dealers', label: 'Dealers', icon: Shield },
     { key: 'membros', label: 'Membros', icon: Users },
   ]
 
@@ -320,18 +314,8 @@ export function HomeGameDetailPage() {
       {activeTab === 'jogadores' && (
         <PersonsTab
           homeGameId={id!}
-          type="Jogador"
           persons={jogadoresData ?? []}
           isLoading={jogadoresLoading}
-          canManage={canManage}
-        />
-      )}
-      {activeTab === 'dealers' && (
-        <PersonsTab
-          homeGameId={id!}
-          type="Dealer"
-          persons={dealersData ?? []}
-          isLoading={dealersLoading}
           canManage={canManage}
         />
       )}
@@ -731,7 +715,7 @@ function MembrosTab({
                     <span className="text-sm text-text-primary">Administrador</span>
                   </label>
                   <div className="space-y-1">
-                    <label className="text-xs text-text-secondary">Vincular a jogador/dealer</label>
+                    <label className="text-xs text-text-secondary">Vincular a jogador</label>
                     <select
                       value={editPersonId ?? ''}
                       onChange={(e) => setEditPersonId(e.target.value || null)}
@@ -740,7 +724,7 @@ function MembrosTab({
                       <option value="">Nenhum</option>
                       {availablePersons.map((p) => (
                         <option key={p.id} value={p.id}>
-                          {p.nickname || p.fullName} ({p.type})
+                          {p.nickname || p.fullName}
                         </option>
                       ))}
                     </select>
@@ -820,17 +804,15 @@ function MembrosTab({
   )
 }
 
-// ------- Persons Tab (Jogadores / Dealers) -------
+// ------- Persons Tab (Jogadores) -------
 
 function PersonsTab({
   homeGameId,
-  type,
   persons,
   isLoading,
   canManage,
 }: {
   homeGameId: string
-  type: 'Jogador' | 'Dealer'
   persons: Person[]
   isLoading: boolean
   canManage: boolean
@@ -843,30 +825,28 @@ function PersonsTab({
   const [editWhatsapp, setEditWhatsapp] = useState('')
   const [editEmail] = useState('')
 
-  const label = type === 'Jogador' ? 'jogador' : 'dealer'
-  const labelPlural = type === 'Jogador' ? 'jogadores' : 'dealers'
-  const IconType = type === 'Jogador' ? Gamepad2 : Shield
-
+  // Pessoas novas nascem sempre como Jogador; as antigas cadastradas como Dealer aparecem com o
+  // selo "Dealer" (o tipo continua no banco) e o organizador remove quem não joga.
   const createMutation = useMutation({
     mutationFn: async (data: { fullName: string; nickname?: string; email?: string; whatsapp?: string; photoFile?: File }) => {
       const { photoFile, ...personData } = data
-      const created = await personsApi.create({ ...personData, homeGameId, type })
+      const created = await personsApi.create({ ...personData, homeGameId, type: 'Jogador' })
       if (photoFile) {
         try {
           await personsApi.uploadPhoto(created.id, photoFile)
         } catch {
-          toast.error(`${type} criado, mas erro ao enviar foto.`)
+          toast.error('Jogador criado, mas erro ao enviar foto.')
         }
       }
       return created
     },
     onSuccess: () => {
-      toast.success(`${type} criado com sucesso!`)
+      toast.success('Jogador criado com sucesso!')
       setIsFormOpen(false)
-      queryClient.invalidateQueries({ queryKey: ['persons', homeGameId, type] })
+      queryClient.invalidateQueries({ queryKey: ['persons', homeGameId] })
     },
     onError: () => {
-      toast.error(`Erro ao criar ${label}.`)
+      toast.error('Erro ao criar jogador.')
     },
   })
 
@@ -874,23 +854,23 @@ function PersonsTab({
     mutationFn: ({ id, data }: { id: string; data: { nickname?: string; fullName?: string; whatsapp?: string; email?: string } }) =>
       personsApi.update(id, data),
     onSuccess: () => {
-      toast.success(`${type} atualizado!`)
+      toast.success('Jogador atualizado!')
       setEditingId(null)
-      queryClient.invalidateQueries({ queryKey: ['persons', homeGameId, type] })
+      queryClient.invalidateQueries({ queryKey: ['persons', homeGameId] })
     },
     onError: () => {
-      toast.error(`Erro ao atualizar ${label}.`)
+      toast.error('Erro ao atualizar jogador.')
     },
   })
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => personsApi.remove(id),
     onSuccess: () => {
-      toast.success(`${type} removido com sucesso!`)
-      queryClient.invalidateQueries({ queryKey: ['persons', homeGameId, type] })
+      toast.success('Jogador removido com sucesso!')
+      queryClient.invalidateQueries({ queryKey: ['persons', homeGameId] })
     },
     onError: () => {
-      toast.error(`Erro ao remover ${label}.`)
+      toast.error('Erro ao remover jogador.')
     },
   })
 
@@ -929,7 +909,7 @@ function PersonsTab({
         <div className="flex justify-end">
           <Button size="sm" onClick={() => setIsFormOpen(true)}>
             <Plus className="h-4 w-4" />
-            Novo {type}
+            Novo Jogador
           </Button>
         </div>
       )}
@@ -937,7 +917,6 @@ function PersonsTab({
       {/* Inline form - above the list */}
       {isFormOpen && (
         <PersonFormInline
-          type={type}
           onSubmit={(data) => createMutation.mutate(data)}
           onCancel={() => setIsFormOpen(false)}
           isLoading={createMutation.isPending}
@@ -952,9 +931,9 @@ function PersonsTab({
 
       {!isLoading && persons.length === 0 && (
         <EmptyState
-          icon={IconType}
-          title={`Nenhum ${label} cadastrado`}
-          description={`Cadastre ${labelPlural} para este home game.`}
+          icon={Gamepad2}
+          title="Nenhum jogador cadastrado"
+          description="Cadastre jogadores para este home game."
         />
       )}
 
@@ -1004,10 +983,13 @@ function PersonsTab({
                 key={p.id}
                 className="flex items-center gap-3 rounded-lg border border-border-default bg-bg-secondary p-3"
               >
-                <PhotoAvatar personId={p.id} photoUrl={p.photoUrl} name={p.nickname || p.fullName} canManage={canManage} onUploaded={() => queryClient.invalidateQueries({ queryKey: ['persons', homeGameId, type] })} />
+                <PhotoAvatar personId={p.id} photoUrl={p.photoUrl} name={p.nickname || p.fullName} canManage={canManage} onUploaded={() => queryClient.invalidateQueries({ queryKey: ['persons', homeGameId] })} />
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-text-primary truncate">
-                    {p.nickname || p.fullName}
+                  <p className="flex min-w-0 items-center gap-2">
+                    <span className="font-medium text-text-primary truncate">
+                      {p.nickname || p.fullName}
+                    </span>
+                    {p.type === 'Dealer' && <Badge color="gray">Dealer</Badge>}
                   </p>
                   {p.nickname && p.fullName && p.nickname !== p.fullName && (
                     <p className="text-xs text-text-secondary">{p.fullName}</p>
@@ -1022,7 +1004,7 @@ function PersonsTab({
                   <button
                     onClick={() => startEdit(p)}
                     className="p-1.5 rounded-md text-text-secondary hover:text-accent-blue hover:bg-accent-blue-soft transition-colors"
-                    title={`Editar ${label}`}
+                    title="Editar jogador"
                   >
                     <Edit className="h-4 w-4" />
                   </button>
@@ -1031,7 +1013,7 @@ function PersonsTab({
                   <button
                     onClick={() => deleteMutation.mutate(p.id)}
                     className="p-1.5 rounded-md text-text-secondary hover:text-accent-red hover:bg-accent-red-soft transition-colors"
-                    title={`Remover ${label}`}
+                    title="Remover jogador"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -1124,12 +1106,10 @@ function PhotoAvatar({
 // ------- Person Form Inline -------
 
 function PersonFormInline({
-  type,
   onSubmit,
   onCancel,
   isLoading,
 }: {
-  type: 'Jogador' | 'Dealer'
   onSubmit: (data: { fullName: string; nickname?: string; email?: string; whatsapp?: string; photoFile?: File }) => void
   onCancel: () => void
   isLoading: boolean
@@ -1172,7 +1152,7 @@ function PersonFormInline({
       className="rounded-lg border border-accent-blue/30 bg-bg-secondary p-4 space-y-3"
     >
       <h4 className="text-sm font-semibold text-text-primary">
-        Novo {type}
+        Novo Jogador
       </h4>
       <div className="flex items-start gap-4">
         {/* Foto */}

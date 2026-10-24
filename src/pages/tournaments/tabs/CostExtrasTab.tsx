@@ -303,8 +303,32 @@ export function CostExtrasTab({ tournament }: CostExtrasTabProps) {
         }}
         title={editingCost ? 'Editar Custo Extra' : 'Adicionar Custo Extra'}
         size="sm"
+        footer={
+          <div className="flex gap-3 justify-end">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                setShowForm(false)
+                setEditingCost(null)
+                reset()
+              }}
+              disabled={createMutation.isPending || editMutation.isPending}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              form="cost-extra-form"
+              loading={createMutation.isPending || editMutation.isPending}
+            >
+              {editingCost ? 'Salvar' : 'Adicionar'}
+            </Button>
+          </div>
+        }
       >
         <form
+          id="cost-extra-form"
           onSubmit={handleSubmit((data) => {
             if (editingCost) editMutation.mutate({ id: editingCost.id, data })
             else createMutation.mutate(data)
@@ -324,26 +348,6 @@ export function CostExtrasTab({ tournament }: CostExtrasTabProps) {
             {...register('amount')}
             error={errors.amount?.message}
           />
-          <div className="flex gap-3 justify-end">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => {
-                setShowForm(false)
-                setEditingCost(null)
-                reset()
-              }}
-              disabled={createMutation.isPending || editMutation.isPending}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              loading={createMutation.isPending || editMutation.isPending}
-            >
-              {editingCost ? 'Salvar' : 'Adicionar'}
-            </Button>
-          </div>
         </form>
       </Modal>
 

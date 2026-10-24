@@ -4,7 +4,6 @@ import { toast } from 'sonner'
 import { LayoutGrid, Shuffle, Plus, Users } from 'lucide-react'
 import * as tablesApi from '../../../api/tables.api'
 import type { Table } from '../../../api/tables.api'
-import * as tournamentDealersApi from '../../../api/tournamentDealers.api'
 import * as entriesApi from '../../../api/entries.api'
 import { Button } from '../../../components/ui/Button'
 import { Modal } from '../../../components/ui/Modal'
@@ -27,8 +26,6 @@ export function TablesTab({ tournament }: TablesTabProps) {
   )
   const [newTableNumber, setNewTableNumber] = useState('')
   const [newTableSeats, setNewTableSeats] = useState('9')
-  // Dealers selecionados para cada mesa (index = mesa - 1)
-  const [drawDealers, setDrawDealers] = useState<(string | null)[]>([])
   const [confirmUnseat, setConfirmUnseat] = useState(false)
   const [movePlayerEntry, setMovePlayerEntry] = useState<{
     entryId: string
@@ -53,10 +50,6 @@ export function TablesTab({ tournament }: TablesTabProps) {
     queryFn: () => tablesApi.getAll(tournament.id),
   })
 
-  const { data: dealers = [] } = useQuery({
-    queryKey: ['tournamentDealers', tournament.id],
-    queryFn: () => tournamentDealersApi.getAll(tournament.id),
-  })
 
   const { data: entries = [] } = useQuery({
     queryKey: ['entries', tournament.id],
@@ -123,70 +116,17 @@ export function TablesTab({ tournament }: TablesTabProps) {
     onError: () => toast.error('Erro ao remover jogador da mesa.'),
   })
 
-  const setDealerMutation = useMutation({
-    mutationFn: (vars: { tableId: string; dealerPersonId: string | null }) =>
-      tablesApi.setDealer(tournament.id, vars.tableId, vars.dealerPersonId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tables', tournament.id] })
-      toast.success('Dealer atualizado!')
-    },
-    onError: () => toast.error('Erro ao atualizar dealer.'),
-  })
-
+  // O dealer entra pelo QR (SPEC-20261023-1216, DL1): o sorteio não escolhe mais dealer por mesa
   const drawMutation = useMutation({
-    mutationFn: async () => {
-      const drawnTables = await tablesApi.draw(tournament.id, {
+    mutationFn: () =>
+      tablesApi.draw(tournament.id, {
         tableCount: tableCount ? parseInt(tableCount) : calculatedTableCount,
         maxSeatsPerTable: seatsNum,
-      })
-
-      const sorted = Array.isArray(drawnTables)
-        ? [...drawnTables].sort((a, b) => a.tableNumber - b.tableNumber)
-        : []
-
-      // Sortear dealers automaticamente para mesas sem dealer escolhido
-      const availableDealers = [...dealers]
-      const finalDealers: (string | null)[] = sorted.map((_, idx) => {
-        const chosen = drawDealers[idx]
-        if (chosen) {
-          // Remove o dealer escolhido da lista de disponiveis
-          const i = availableDealers.findIndex((d) => d.personId === chosen)
-          if (i >= 0) availableDealers.splice(i, 1)
-          return chosen
-        }
-        return null
-      })
-
-      // Para mesas sem dealer escolhido, sortear dos restantes
-      finalDealers.forEach((d, idx) => {
-        if (d === null && availableDealers.length > 0) {
-          const randomIdx = Math.floor(Math.random() * availableDealers.length)
-          const picked = availableDealers.splice(randomIdx, 1)[0]
-          finalDealers[idx] = picked.personId
-        }
-      })
-
-      // Atribuir dealers as mesas
-      await Promise.all(
-        sorted.map(async (table, idx) => {
-          const dealerId = finalDealers[idx]
-          if (dealerId) {
-            try {
-              await tablesApi.setDealer(tournament.id, table.id, dealerId)
-            } catch {
-              // ignora erro individual de dealer
-            }
-          }
-        }),
-      )
-
-      return drawnTables
-    },
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tables', tournament.id] })
       toast.success('Mesas sorteadas com sucesso!')
       setShowDrawModal(false)
-      setDrawDealers([])
     },
     onError: (err: unknown) => {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
@@ -283,26 +223,6 @@ export function TablesTab({ tournament }: TablesTabProps) {
                 </span>
               </div>
 
-              <div className="mb-3">
-                <label className="text-xs text-text-secondary">Dealer</label>
-                <select
-                  className="w-full mt-1 rounded-md border border-border-input bg-bg-secondary p-2 text-sm text-text-primary"
-                  value={table.dealerPersonId ?? ''}
-                  onChange={(e) =>
-                    setDealerMutation.mutate({
-                      tableId: table.id,
-                      dealerPersonId: e.target.value || null,
-                    })
-                  }
-                >
-                  <option value="">Sem dealer</option>
-                  {dealers.map((d) => (
-                    <option key={d.id} value={d.personId}>
-                      {d.nickname ?? d.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
 
               <div className="grid grid-cols-3 gap-2">
                 {Array.from({ length: table.maxSeats }, (_, i) => i + 1).map((seatNum) => {
@@ -352,7 +272,7 @@ export function TablesTab({ tournament }: TablesTabProps) {
                       }`}
                     >
                       <p className="text-text-secondary text-[10px]">
-                        Posicao {seatNum}
+                        Posição {seatNum}
                       </p>
                       <p className="font-medium text-text-primary truncate">
                         {player?.name ?? '-'}
@@ -372,6 +292,24 @@ export function TablesTab({ tournament }: TablesTabProps) {
         onClose={() => setShowDrawModal(false)}
         title="Sortear Mesas"
         size="sm"
+        footer={
+          <div className="flex gap-3 justify-end">
+            <Button
+              variant="ghost"
+              onClick={() => setShowDrawModal(false)}
+              disabled={drawMutation.isPending}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => drawMutation.mutate()}
+              loading={drawMutation.isPending}
+            >
+              <Shuffle className="h-4 w-4" />
+              Sortear
+            </Button>
+          </div>
+        }
       >
         <div className="flex flex-col gap-4">
           {tables && tables.length > 0 && (
@@ -402,70 +340,13 @@ export function TablesTab({ tournament }: TablesTabProps) {
             max={12}
           />
           <Input
-            label={`Numero de mesas (vazio = ${calculatedTableCount})`}
+            label={`Número de mesas (vazio = ${calculatedTableCount})`}
             type="number"
             value={tableCount}
             onChange={(e) => setTableCount(e.target.value)}
             min={1}
             placeholder={String(calculatedTableCount)}
           />
-
-          {/* Selecionar dealers para cada mesa (opcional) */}
-          <div>
-            <label className="text-sm font-medium text-text-secondary mb-2 block">
-              Dealers das mesas (opcional)
-            </label>
-            <div className="flex flex-col gap-2 max-h-48 overflow-y-auto">
-              {Array.from(
-                { length: tableCount ? parseInt(tableCount) : calculatedTableCount },
-                (_, idx) => (
-                  <div key={idx} className="flex items-center gap-2">
-                    <span className="text-xs text-text-secondary w-14 shrink-0">
-                      Mesa {idx + 1}
-                    </span>
-                    <select
-                      value={drawDealers[idx] ?? ''}
-                      onChange={(e) => {
-                        const newDealers = [...drawDealers]
-                        newDealers[idx] = e.target.value || null
-                        setDrawDealers(newDealers)
-                      }}
-                      className="flex-1 rounded-md border border-border-input bg-bg-secondary px-2 py-1.5 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-border-focus"
-                    >
-                      <option value="">Sem dealer</option>
-                      {dealers.map((d) => (
-                        <option key={d.id} value={d.personId}>
-                          {d.nickname ?? d.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                ),
-              )}
-            </div>
-            {dealers.length === 0 && (
-              <p className="text-xs text-text-secondary mt-1">
-                Nenhum dealer cadastrado neste torneio.
-              </p>
-            )}
-          </div>
-
-          <div className="flex gap-3 justify-end">
-            <Button
-              variant="ghost"
-              onClick={() => setShowDrawModal(false)}
-              disabled={drawMutation.isPending}
-            >
-              Cancelar
-            </Button>
-            <Button
-              onClick={() => drawMutation.mutate()}
-              loading={drawMutation.isPending}
-            >
-              <Shuffle className="h-4 w-4" />
-              Sortear
-            </Button>
-          </div>
         </div>
       </Modal>
 
@@ -475,23 +356,7 @@ export function TablesTab({ tournament }: TablesTabProps) {
         onClose={() => setShowCreateModal(false)}
         title="Criar Mesa"
         size="sm"
-      >
-        <div className="flex flex-col gap-4">
-          <Input
-            label="Numero da mesa"
-            type="number"
-            value={newTableNumber}
-            onChange={(e) => setNewTableNumber(e.target.value)}
-            min={1}
-          />
-          <Input
-            label="Assentos"
-            type="number"
-            value={newTableSeats}
-            onChange={(e) => setNewTableSeats(e.target.value)}
-            min={2}
-            max={10}
-          />
+        footer={
           <div className="flex gap-3 justify-end">
             <Button
               variant="ghost"
@@ -507,6 +372,24 @@ export function TablesTab({ tournament }: TablesTabProps) {
               Criar
             </Button>
           </div>
+        }
+      >
+        <div className="flex flex-col gap-4">
+          <Input
+            label="Número da mesa"
+            type="number"
+            value={newTableNumber}
+            onChange={(e) => setNewTableNumber(e.target.value)}
+            min={1}
+          />
+          <Input
+            label="Assentos"
+            type="number"
+            value={newTableSeats}
+            onChange={(e) => setNewTableSeats(e.target.value)}
+            min={2}
+            max={10}
+          />
         </div>
       </Modal>
 
@@ -520,6 +403,41 @@ export function TablesTab({ tournament }: TablesTabProps) {
         }}
         title="Mover Jogador"
         size="sm"
+        footer={
+          // Só Cancelar · Mover: cabe numa linha em 320 px (rodapé fixo baixo, sobra corpo com o teclado aberto).
+          // "Remover da mesa" (destrutiva) fica no corpo, longe do Cancelar.
+          movePlayerEntry && (
+            <div className="flex justify-end gap-3">
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setMovePlayerEntry(null)
+                  setMoveToTableId('')
+                  setMoveToSeat('')
+                }}
+                disabled={moveMutation.isPending}
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={() => {
+                  if (!moveToTableId || !moveToSeat) {
+                    toast.error('Selecione a mesa e a posição.')
+                    return
+                  }
+                  moveMutation.mutate({
+                    entryId: movePlayerEntry.entryId,
+                    toTableId: moveToTableId,
+                    toSeat: parseInt(moveToSeat),
+                  })
+                }}
+                loading={moveMutation.isPending}
+              >
+                Mover
+              </Button>
+            </div>
+          )
+        }
       >
         {movePlayerEntry && (
           <div className="flex flex-col gap-4">
@@ -531,7 +449,7 @@ export function TablesTab({ tournament }: TablesTabProps) {
               <p>
                 Atualmente em:{' '}
                 <strong className="text-text-primary">
-                  Mesa {movePlayerEntry.currentTableNumber}, Posicao {movePlayerEntry.currentSeat}
+                  Mesa {movePlayerEntry.currentTableNumber}, Posição {movePlayerEntry.currentSeat}
                 </strong>
               </p>
             </div>
@@ -558,7 +476,7 @@ export function TablesTab({ tournament }: TablesTabProps) {
 
             <div>
               <label className="text-sm font-medium text-text-secondary block mb-1">
-                Posicao de destino
+                Posição de destino
               </label>
               <select
                 value={moveToSeat}
@@ -579,7 +497,7 @@ export function TablesTab({ tournament }: TablesTabProps) {
                     )
                     return (
                       <option key={seatNum} value={seatNum}>
-                        Posicao {seatNum}
+                        Posição {seatNum}
                         {occupied ? ` (trocar com ${occupied.name})` : ''}
                       </option>
                     )
@@ -588,41 +506,19 @@ export function TablesTab({ tournament }: TablesTabProps) {
               </select>
             </div>
 
-            <div className="flex gap-3 justify-end">
+            <div className="border-t border-border-default pt-3">
               <Button
-                variant="danger"
+                variant="ghost"
+                className="w-full text-accent-red-deep hover:bg-accent-red-soft hover:text-accent-red-deep"
                 onClick={() => setConfirmUnseat(true)}
                 loading={unseatMutation.isPending}
+                disabled={moveMutation.isPending || unseatMutation.isPending}
               >
                 Remover da mesa
               </Button>
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  setMovePlayerEntry(null)
-                  setMoveToTableId('')
-                  setMoveToSeat('')
-                }}
-                disabled={moveMutation.isPending}
-              >
-                Cancelar
-              </Button>
-              <Button
-                onClick={() => {
-                  if (!moveToTableId || !moveToSeat) {
-                    toast.error('Selecione mesa e posicao.')
-                    return
-                  }
-                  moveMutation.mutate({
-                    entryId: movePlayerEntry.entryId,
-                    toTableId: moveToTableId,
-                    toSeat: parseInt(moveToSeat),
-                  })
-                }}
-                loading={moveMutation.isPending}
-              >
-                Mover
-              </Button>
+              <p className="mt-1 text-center text-xs text-text-secondary">
+                O jogador continua no torneio, só fica sem lugar.
+              </p>
             </div>
           </div>
         )}
@@ -634,6 +530,13 @@ export function TablesTab({ tournament }: TablesTabProps) {
         onClose={() => setAssignSeat(null)}
         title="Atribuir Jogador ao Assento"
         size="sm"
+        footer={
+          <div className="flex justify-end">
+            <Button variant="ghost" onClick={() => setAssignSeat(null)}>
+              Cancelar
+            </Button>
+          </div>
+        }
       >
         {assignSeat && (() => {
           // Jogadores ativos SEM mesa
@@ -644,7 +547,7 @@ export function TablesTab({ tournament }: TablesTabProps) {
           return (
             <div className="flex flex-col gap-4">
               <div className="rounded-lg bg-bg-tertiary p-3 text-sm text-text-secondary">
-                Mesa {assignSeat.tableNumber}, Posicao {assignSeat.seatNumber}
+                Mesa {assignSeat.tableNumber}, Posição {assignSeat.seatNumber}
               </div>
 
               {playersWithoutTable.length === 0 ? (
@@ -652,7 +555,7 @@ export function TablesTab({ tournament }: TablesTabProps) {
                   Nenhum jogador ativo sem mesa.
                 </p>
               ) : (
-                <div className="flex flex-col gap-1 max-h-64 overflow-y-auto">
+                <div className="flex flex-col gap-1">
                   {playersWithoutTable.map((entry) => (
                     <button
                       key={entry.id}
@@ -676,12 +579,6 @@ export function TablesTab({ tournament }: TablesTabProps) {
                   ))}
                 </div>
               )}
-
-              <div className="flex justify-end">
-                <Button variant="ghost" onClick={() => setAssignSeat(null)}>
-                  Cancelar
-                </Button>
-              </div>
             </div>
           )
         })()}

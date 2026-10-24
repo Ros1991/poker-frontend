@@ -1,5 +1,4 @@
 import {
-  createContext,
   useCallback,
   useEffect,
   useMemo,
@@ -7,21 +6,17 @@ import {
 } from 'react'
 import type { ReactNode } from 'react'
 import axios from 'axios'
-import type { AuthUser, LoginRequest } from '../types/auth.types'
+import type {
+  AuthUser,
+  ExternalLoginRequest,
+  ExternalProviderName,
+  LoginRequest,
+} from '../types/auth.types'
 import * as authApi from '../api/auth.api'
 import { setTokens, clearTokens, hasStoredSession, SESSION_ENDED_EVENT } from '../api/client'
-
-export interface AuthContextValue {
-  user: AuthUser | null
-  isAuthenticated: boolean
-  isLoading: boolean
-  /** Sessão guardada, mas o servidor não responde (redeploy, wifi): tentando de novo */
-  isReconnecting: boolean
-  login: (data: LoginRequest) => Promise<void>
-  logout: () => Promise<void>
-}
-
-export const AuthContext = createContext<AuthContextValue | null>(null)
+// O contexto mora em authContextValue.ts: este arquivo só exporta o componente (react-refresh)
+import { AuthContext } from './authContextValue'
+import type { AuthContextValue } from './authContextValue'
 
 interface AuthProviderProps {
   children: ReactNode
@@ -104,6 +99,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setUser(response.user)
   }, [])
 
+  // Login com Google (SPEC-20261023-1210): mesma sessão por aparelho do login por senha
+  const loginWithExternal = useCallback(
+    async (provider: ExternalProviderName, data: ExternalLoginRequest) => {
+      const response = await authApi.externalLogin(provider, data)
+      setTokens(response.accessToken, response.refreshToken)
+      setUser(response.user)
+    },
+    [],
+  )
+
   const logout = useCallback(async () => {
     try {
       await authApi.logout()
@@ -120,9 +125,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
       isLoading,
       isReconnecting,
       login,
+      loginWithExternal,
       logout,
     }),
-    [user, isAuthenticated, isLoading, isReconnecting, login, logout],
+    [user, isAuthenticated, isLoading, isReconnecting, login, loginWithExternal, logout],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

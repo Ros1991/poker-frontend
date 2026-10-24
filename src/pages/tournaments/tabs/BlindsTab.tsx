@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
@@ -60,11 +60,12 @@ export function BlindsTab({
       tournamentBlindsApi.getAll(tournament.homeGameId, tournament.id),
   })
 
-  useEffect(() => {
-    if (blindLevels && !editMode) {
-      setDraft(blindLevels.map((l) => ({ ...l })))
-    }
-  }, [blindLevels, editMode])
+  // O rascunho nasce de uma cópia dos níveis salvos ao entrar no modo de edição (antes um effect
+  // copiava a cada mudança fora da edição — mesmo resultado, sem setState síncrono no effect)
+  function startEdit() {
+    setDraft((blindLevels ?? []).map((l) => ({ ...l })))
+    setEditMode(true)
+  }
 
   const saveMutation = useMutation({
     mutationFn: () =>
@@ -341,7 +342,7 @@ export function BlindsTab({
                 <Button
                   variant="secondary"
                   size="sm"
-                  onClick={() => setEditMode(true)}
+                  onClick={startEdit}
                 >
                   <Pencil className="h-4 w-4" />
                   Editar Blinds

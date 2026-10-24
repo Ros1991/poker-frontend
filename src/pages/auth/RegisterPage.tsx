@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
+import type { Location } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod/v4'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -12,6 +13,9 @@ import { Button } from '../../components/ui/Button'
 import { ROUTES } from '../../constants/routes'
 import * as authApi from '../../api/auth.api'
 import { errorMessage, errorStatus } from '../../utils/httpErrors'
+import { GoogleSignInSection } from '../../components/auth/GoogleSignInSection'
+import { LinkGoogleForm } from '../../components/auth/LinkGoogleForm'
+import { useGoogleSignIn } from '../../components/auth/useGoogleSignIn'
 
 const registerSchema = z
   .object({
@@ -38,6 +42,9 @@ const RESEND_COOLDOWN_SECONDS = 120
 
 const RATE_LIMIT_MESSAGE = 'Muitas tentativas seguidas. Espere um minuto.'
 
+/** Mensagem do 400 do cadastro quando o e-mail já tem conta (inclusive conta que só entra pelo Google). */
+const EMAIL_IN_USE_MESSAGE = 'E-mail já está em uso.'
+
 function rememberEmail(email: string) {
   try {
     localStorage.setItem(LAST_EMAIL_KEY, email)
@@ -51,6 +58,12 @@ function rememberEmail(email: string) {
  * e-mail. Depois do 202 a tela vira "Confira seu e-mail", com reenvio do link.
  */
 export function RegisterPage() {
+  const location = useLocation()
+  // Volta para onde a pessoa estava (ex.: o QR da TV abriu /parear/CODIGO e passou pelo login)
+  const from = (location.state as { from?: Location } | null)?.from
+  const returnTo = from ? `${from.pathname}${from.search}` : ROUTES.HOME
+  // Criar conta com o Google (SPEC-20261023-1210): conta nova já nasce confirmada e entra direto
+  const google = useGoogleSignIn(returnTo)
   const [isLoading, setIsLoading] = useState(false)
   const [serverError, setServerError] = useState<{
     text: string
@@ -111,94 +124,118 @@ export function RegisterPage() {
 
         {sentTo ? (
           <CheckEmailCard email={sentTo} />
+        ) : google.linkRequired ? (
+          <LinkGoogleForm
+            email={google.linkRequired.email}
+            ticket={google.linkRequired.ticket}
+            returnTo={returnTo}
+            onCancel={google.cancelLink}
+          />
         ) : (
-          <form
-            onSubmit={(e) => void handleSubmit(onSubmit)(e)}
-            className="flex flex-col gap-4 rounded-xl border border-border-default bg-bg-secondary p-6"
-          >
-            <Input
-              label="Nome completo"
-              type="text"
-              placeholder="Seu nome"
-              error={errors.fullName?.message}
-              autoComplete="name"
-              {...register('fullName')}
+          <div className="flex flex-col gap-4 rounded-xl border border-border-default bg-bg-secondary p-6">
+            <GoogleSignInSection
+              context="signup"
+              dividerText="ou cadastre-se com seu e-mail"
+              onCredential={google.handleCredential}
+              busy={google.busy}
+              error={google.error}
             />
 
-            <Input
-              label="Apelido (opcional)"
-              type="text"
-              placeholder="Seu apelido na mesa"
-              error={errors.nickname?.message}
-              {...register('nickname')}
-            />
+            <form
+              onSubmit={(e) => void handleSubmit(onSubmit)(e)}
+              className="flex flex-col gap-4"
+            >
+              <Input
+                label="Nome completo"
+                type="text"
+                placeholder="Seu nome"
+                error={errors.fullName?.message}
+                autoComplete="name"
+                {...register('fullName')}
+              />
 
-            <Input
-              label="E-mail"
-              type="email"
-              placeholder="seu@email.com"
-              error={errors.email?.message}
-              autoComplete="email"
-              helperText="Vamos mandar um link para confirmar este e-mail."
-              {...register('email')}
-            />
+              <Input
+                label="Apelido (opcional)"
+                type="text"
+                placeholder="Seu apelido na mesa"
+                error={errors.nickname?.message}
+                {...register('nickname')}
+              />
 
-            <Input
-              label="WhatsApp (opcional)"
-              type="tel"
-              placeholder="+55 11 99999-9999"
-              error={errors.whatsapp?.message}
-              autoComplete="tel"
-              {...register('whatsapp')}
-            />
+              <Input
+                label="E-mail"
+                type="email"
+                placeholder="seu@email.com"
+                error={errors.email?.message}
+                autoComplete="email"
+                helperText="Vamos mandar um link para confirmar este e-mail."
+                {...register('email')}
+              />
 
-            <PasswordInput
-              label="Senha"
-              placeholder="Mínimo 6 caracteres"
-              error={errors.password?.message}
-              autoComplete="new-password"
-              {...register('password')}
-            />
+              <Input
+                label="WhatsApp (opcional)"
+                type="tel"
+                placeholder="+55 11 99999-9999"
+                error={errors.whatsapp?.message}
+                autoComplete="tel"
+                {...register('whatsapp')}
+              />
 
-            <PasswordInput
-              label="Confirmar senha"
-              placeholder="Repita sua senha"
-              error={errors.confirmPassword?.message}
-              autoComplete="new-password"
-              {...register('confirmPassword')}
-            />
+              <PasswordInput
+                label="Senha"
+                placeholder="Mínimo 6 caracteres"
+                error={errors.password?.message}
+                autoComplete="new-password"
+                {...register('password')}
+              />
 
-            {serverError && (
-              <div
-                className="flex flex-col gap-1 rounded-lg border border-accent-red/40 bg-accent-red-soft p-3"
-                role="alert"
-              >
-                <p className="text-sm text-accent-red-deep">{serverError.text}</p>
-                {serverError.offerReset && (
-                  <Link
-                    to={ROUTES.FORGOT_PASSWORD}
-                    className="text-sm font-medium text-accent-blue hover:underline"
-                  >
-                    Esqueci minha senha
-                  </Link>
-                )}
-              </div>
-            )}
+              <PasswordInput
+                label="Confirmar senha"
+                placeholder="Repita sua senha"
+                error={errors.confirmPassword?.message}
+                autoComplete="new-password"
+                {...register('confirmPassword')}
+              />
 
-            <Button type="submit" loading={isLoading} className="mt-2">
-              Criar conta
-            </Button>
+              {serverError && (
+                <div
+                  className="flex flex-col gap-1 rounded-lg border border-accent-red/40 bg-accent-red-soft p-3"
+                  role="alert"
+                >
+                  <p className="text-sm text-accent-red-deep">{serverError.text}</p>
+                  {/* Dica neutra (vale para toda conta existente, não revela se ela usa o Google) */}
+                  {serverError.text === EMAIL_IN_USE_MESSAGE && (
+                    <p className="text-sm text-text-secondary">
+                      Entre com o Google ou use Esqueci minha senha.
+                    </p>
+                  )}
+                  {serverError.offerReset && (
+                    <Link
+                      to={ROUTES.FORGOT_PASSWORD}
+                      className="text-sm font-medium text-accent-blue hover:underline"
+                    >
+                      Esqueci minha senha
+                    </Link>
+                  )}
+                </div>
+              )}
 
-            <p className="text-center text-sm text-text-secondary">
-              Já tem uma conta?{' '}
-              <Link
-                to={ROUTES.LOGIN}
-                className="font-medium text-accent-blue hover:underline"
-              >
-                Fazer login
-              </Link>
-            </p>
-          </form>
+              <Button type="submit" loading={isLoading} className="mt-2">
+                Criar conta
+              </Button>
+
+              <p className="text-center text-sm text-text-secondary">
+                Já tem uma conta?{' '}
+                <Link
+                  to={ROUTES.LOGIN}
+                  state={from ? { from } : undefined}
+                  className="font-medium text-accent-blue hover:underline"
+                >
+                  Fazer login
+                </Link>
+              </p>
+            </form>
+          </div>
         )}
       </div>
     </div>

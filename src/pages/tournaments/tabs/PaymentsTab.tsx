@@ -6,6 +6,8 @@ import * as paymentsApi from '../../../api/payments.api'
 import * as tournamentsApi from '../../../api/tournaments.api'
 import { Button } from '../../../components/ui/Button'
 import { Badge } from '../../../components/ui/Badge'
+import { Modal } from '../../../components/ui/Modal'
+import { Input } from '../../../components/ui/Input'
 import { LoadingSpinner } from '../../../components/common/LoadingSpinner'
 import { PaymentModal } from '../../../components/tournament/PaymentModal'
 import { PAYMENT_STATUS_COLORS, PAYMENT_STATUS_LABELS } from '../../../constants/statuses'
@@ -228,45 +230,43 @@ export function PaymentsTab({ tournament, entries }: PaymentsTabProps) {
         tournamentId={tournament.id}
       />
 
-      {/* Modal de edição da chave PIX */}
-      {showPixModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-text-primary/40 p-4">
-          <div className="w-full max-w-sm rounded-xl border border-border-default bg-bg-card p-6 shadow-lg">
-            <h3 className="text-lg font-semibold text-text-primary mb-1">
-              Chave PIX do dia
-            </h3>
-            <p className="text-sm text-text-secondary mb-4">
-              Aparece no telão com QR Code. Chave de telefone deve incluir o
-              +55 (ex.: +5511999999999). Deixe vazio para remover.
-            </p>
-            <div className="flex flex-col gap-3">
-              <input
-                type="text"
-                value={pixKeyDraft}
-                onChange={(e) => setPixKeyDraft(e.target.value)}
-                placeholder="CPF, e-mail, +55 telefone ou chave aleatória"
-                className="w-full rounded-lg border border-border-input bg-bg-input px-3 py-2 text-text-primary focus:border-accent-blue focus:outline-none"
-              />
-              <div className="mt-1 flex gap-2">
-                <Button
-                  onClick={() => pixKeyMutation.mutate(pixKeyDraft)}
-                  loading={pixKeyMutation.isPending}
-                  className="flex-1"
-                >
-                  Salvar
-                </Button>
-                <Button
-                  variant="ghost"
-                  onClick={() => setShowPixModal(false)}
-                  disabled={pixKeyMutation.isPending}
-                >
-                  Cancelar
-                </Button>
-              </div>
-            </div>
+      {/* Edição da chave PIX (Modal do kit: fecha só no X/Cancelar — SPEC-20261023-1216) */}
+      <Modal
+        isOpen={showPixModal}
+        onClose={() => setShowPixModal(false)}
+        title="Chave PIX do dia"
+        size="sm"
+        footer={
+          <div className="flex justify-end gap-3">
+            <Button
+              variant="ghost"
+              onClick={() => setShowPixModal(false)}
+              disabled={pixKeyMutation.isPending}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => pixKeyMutation.mutate(pixKeyDraft)}
+              loading={pixKeyMutation.isPending}
+            >
+              Salvar
+            </Button>
           </div>
-        </div>
-      )}
+        }
+      >
+        <p className="mb-4 text-sm text-text-secondary">
+          Aparece no telão com QR Code. Chave de telefone deve incluir o
+          +55 (ex.: +5511999999999). Deixe vazio para remover.
+        </p>
+        <Input
+          id="pix-key-draft"
+          aria-label="Chave PIX do dia"
+          type="text"
+          value={pixKeyDraft}
+          onChange={(e) => setPixKeyDraft(e.target.value)}
+          placeholder="CPF, e-mail, +55 telefone ou chave aleatória"
+        />
+      </Modal>
     </div>
   )
 }

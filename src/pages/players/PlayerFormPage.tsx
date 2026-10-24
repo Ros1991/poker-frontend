@@ -13,7 +13,7 @@ import { Button } from '../../components/ui/Button'
 import { FileUpload } from '../../components/ui/FileUpload'
 import { LoadingSpinner } from '../../components/common/LoadingSpinner'
 import { ROUTES } from '../../constants/routes'
-import { useHomeGame } from '../../contexts/HomeGameContext'
+import { useHomeGame } from '../../hooks/useHomeGame'
 
 function formatPhone(value: string): string {
   const digits = value.replace(/\D/g, '').slice(0, 11)

@@ -12,14 +12,12 @@ import {
   BarChart3,
   Tv,
   Tablet,
-  QrCode,
   ArrowLeft,
   Play,
   Pause,
   Lock,
   XCircle,
   Pencil,
-  UserCog,
   UserCheck,
 } from 'lucide-react'
 import * as tournamentsApi from '../../api/tournaments.api'
@@ -49,7 +47,6 @@ import {
 } from '../../constants/routes'
 import { EntriesTab } from './tabs/EntriesTab'
 import { TablesTab } from './tabs/TablesTab'
-import { DealersTab } from './tabs/DealersTab'
 import { BlindsTab } from './tabs/BlindsTab'
 import { PrizesTab } from './tabs/PrizesTab'
 import { PaymentsTab } from './tabs/PaymentsTab'
@@ -63,7 +60,6 @@ import type { PlanFeature } from '../../types/plan.types'
 type TabKey =
   | 'jogadores'
   | 'mesas'
-  | 'dealers'
   | 'blinds'
   | 'premiacao'
   | 'pagamentos'
@@ -76,7 +72,6 @@ type TabKey =
 const tabs: { key: TabKey; label: string; icon: typeof Users; feature?: PlanFeature }[] = [
   { key: 'jogadores', label: 'Jogadores', icon: Users },
   { key: 'mesas', label: 'Mesas', icon: LayoutGrid, feature: 'Tables' },
-  { key: 'dealers', label: 'Dealers', icon: UserCog },
   { key: 'blinds', label: 'Blinds', icon: Clock },
   { key: 'premiacao', label: 'Premiação', icon: Trophy, feature: 'Prizes' },
   { key: 'pagamentos', label: 'Pagamentos', icon: CreditCard, feature: 'Payments' },
@@ -561,34 +556,21 @@ export function TournamentDashboardPage() {
         </div>
 
         {/* Quick Links */}
-        <div className="flex flex-wrap gap-2">
+        {/* Botões de 44 px (toque à mesa): o "Terminal do dealer" é a única porta para o terminal e para o QR que o dealer escaneia
+            (DL4), então é secondary — com borda, cara de ação, não de link apagado */}
+        <div className="flex flex-wrap items-center gap-2">
           <Link to={tvDisplayPath(tournament.id)} target="_blank">
-            <Button variant="gold" size="sm">
+            <Button variant="gold">
               <Tv className="h-4 w-4" />
               TV Display
             </Button>
           </Link>
-          <Link to={dealerTerminalPath(tournament.id)} target="_blank">
-            <Button variant="ghost" size="sm">
-              <Tablet className="h-4 w-4" />
-              Terminal Dealer
-            </Button>
-          </Link>
-          {!tournamentOver && canDealerQr && (
-            <Button variant="ghost" size="sm" onClick={() => setDealerQrOpen(true)}>
-              <QrCode className="h-4 w-4" />
-              QR do dealer
-              {connectedDealers.length > 0 && (
-                <Badge color="green">
-                  {connectedDealers.length} {connectedDealers.length === 1 ? 'conectado' : 'conectados'}
-                </Badge>
-              )}
-            </Button>
-          )}
-          {!tournamentOver && !canDealerQr && (
+          {/* Um botão só para o dealer (SPEC-20261023-1216, DL4): abre o QR para o dealer escanear
+              (com "Abrir o terminal aqui" dentro); torneio encerrado abre o terminal direto; plano
+              sem DealerQr fica com o cadeado. */}
+          {!canDealerQr ? (
             <Button
-              variant="ghost"
-              size="sm"
+              variant="secondary"
               onClick={() =>
                 gate.openFeature('DealerQr', {
                   currentPlan: tournament.ownerPlan ?? null,
@@ -598,11 +580,28 @@ export function TournamentDashboardPage() {
               title="Recurso de plano pago"
             >
               <Lock className="h-4 w-4 text-accent-gold-deep" />
-              QR do dealer
+              Terminal do dealer
+            </Button>
+          ) : tournamentOver ? (
+            <Link to={dealerTerminalPath(tournament.id)} target="_blank">
+              <Button variant="secondary">
+                <Tablet className="h-4 w-4" />
+                Terminal do dealer
+              </Button>
+            </Link>
+          ) : (
+            <Button variant="secondary" onClick={() => setDealerQrOpen(true)}>
+              <Tablet className="h-4 w-4" />
+              Terminal do dealer
+              {connectedDealers.length > 0 && (
+                <Badge color="green">
+                  {connectedDealers.length} {connectedDealers.length === 1 ? 'conectado' : 'conectados'}
+                </Badge>
+              )}
             </Button>
           )}
         </div>
-        {canDealerQr && (
+        {canDealerQr && !tournamentOver && (
           <DealerQrModal
             isOpen={dealerQrOpen}
             onClose={() => setDealerQrOpen(false)}
@@ -652,7 +651,6 @@ export function TournamentDashboardPage() {
           <EntriesTab tournament={tournament} entries={entries} />
         )}
         {activeTab === 'mesas' && <TablesTab tournament={tournament} />}
-        {activeTab === 'dealers' && <DealersTab tournament={tournament} />}
         {activeTab === 'blinds' && (
           <BlindsTab
             tournament={tournament}

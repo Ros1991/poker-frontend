@@ -12,7 +12,7 @@ import {
 import { cn } from '../../utils/cn'
 import { BrandLogo } from '../brand/BrandLogo'
 import { useAuth } from '../../hooks/useAuth'
-import { useHomeGame } from '../../contexts/HomeGameContext'
+import { useHomeGame } from '../../hooks/useHomeGame'
 import { ROUTES, homeGameDetailPath } from '../../constants/routes'
 
 interface SidebarProps {

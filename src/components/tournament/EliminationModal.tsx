@@ -75,7 +75,32 @@ export function EliminationModal({
   const otherActive = activeEntries.filter((e) => e.id !== entry.id)
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title="Eliminar Jogador" size="sm">
+    <Modal
+      isOpen={isOpen}
+      onClose={handleClose}
+      title="Eliminar Jogador"
+      size="sm"
+      footer={
+        showResult ? undefined : (
+          <div className="flex gap-3 justify-end">
+            <Button
+              variant="ghost"
+              onClick={handleClose}
+              disabled={eliminateMutation.isPending}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="danger"
+              onClick={handleConfirm}
+              loading={eliminateMutation.isPending}
+            >
+              Confirmar eliminação
+            </Button>
+          </div>
+        )
+      }
+    >
       {showResult ? (
         <div className="flex flex-col items-center gap-4 py-4">
           <div
@@ -108,11 +133,11 @@ export function EliminationModal({
             <AlertTriangle className="h-5 w-5 text-accent-yellow flex-shrink-0" />
             <div>
               <p className="text-sm font-medium text-text-primary">
-                Confirmar eliminacao
+                Confirmar eliminação
               </p>
               <p className="text-xs text-text-secondary">
-                {entry.person.nickname ?? entry.person.fullName} sera eliminado
-                na posicao {calculatedPosition}º.
+                {entry.person.nickname ?? entry.person.fullName} será eliminado
+                na posição {calculatedPosition}º.
               </p>
             </div>
           </div>
@@ -133,23 +158,6 @@ export function EliminationModal({
                 </option>
               ))}
             </select>
-          </div>
-
-          <div className="flex gap-3 justify-end pt-2">
-            <Button
-              variant="ghost"
-              onClick={handleClose}
-              disabled={eliminateMutation.isPending}
-            >
-              Cancelar
-            </Button>
-            <Button
-              variant="danger"
-              onClick={handleConfirm}
-              loading={eliminateMutation.isPending}
-            >
-              Confirmar Eliminacao
-            </Button>
           </div>
         </div>
       )}

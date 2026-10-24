@@ -19,7 +19,10 @@ const DEFAULT_TIMER_STATE: TimerState = {
 export function useBlindTimer(onExpire?: () => void) {
   const [timerState, setTimerState] = useState<TimerState>(DEFAULT_TIMER_STATE)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const lastServerSyncRef = useRef<number>(Date.now())
+  // Instante (Date.now) da última sincronização com o servidor. Começa em 0 sem ler o relógio no
+  // render (react-hooks/purity): o intervalo só roda com o relógio andando, e isso só acontece
+  // depois de um syncFromServer, que grava o instante real aqui antes.
+  const lastServerSyncRef = useRef<number>(0)
   const serverRemainingRef = useRef<number>(0)
   const expiredRef = useRef<boolean>(false)
   const onExpireRef = useRef(onExpire)

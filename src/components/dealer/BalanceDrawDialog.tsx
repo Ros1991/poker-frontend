@@ -31,7 +31,17 @@ export function BalanceDrawDialog({
   }
 
   return (
-    <Modal isOpen onClose={onClose} title="Quem muda de mesa" size="sm">
+    <Modal
+      isOpen
+      onClose={onClose}
+      title="Quem muda de mesa"
+      size="sm"
+      footer={
+        <Button size="lg" className="w-full" loading={loading} onClick={onConfirm}>
+          Confirmar mudança
+        </Button>
+      }
+    >
       <div className="mb-4 rounded-xl bg-bg-primary p-4 text-center">
         <p className="text-2xl font-bold text-text-primary">{move.playerName}</p>
         <p className="mt-2 text-base text-text-secondary">
@@ -43,9 +53,6 @@ export function BalanceDrawDialog({
         </p>
       </div>
       <div className="flex flex-col gap-2">
-        <Button size="lg" className="w-full" loading={loading} onClick={onConfirm}>
-          Confirmar mudança
-        </Button>
         <Button variant="secondary" className="w-full" disabled={loading} onClick={onReroll}>
           <Shuffle className="h-4 w-4" /> Sortear outro
         </Button>

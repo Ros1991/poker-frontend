@@ -44,7 +44,7 @@ export function AddMemberModal({
     enabled: isOpen,
   })
 
-  // Jogadores/dealers já vinculados a algum membro
+  // Jogadores já vinculados a algum membro
   const linkedPersonIds = new Set(
     (existingMembers ?? []).filter((m) => m.personId).map((m) => m.personId!),
   )
@@ -151,6 +151,25 @@ export function AddMemberModal({
       onClose={onClose}
       title="Adicionar Membro"
       size="md"
+      footer={
+        <div className="flex justify-end gap-3">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={onClose}
+            disabled={addMutation.isPending}
+          >
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleAdd}
+            loading={addMutation.isPending}
+            disabled={!found || alreadyMember}
+          >
+            Adicionar
+          </Button>
+        </div>
+      }
     >
       <div className="space-y-4">
         <div className="space-y-1.5">
@@ -225,11 +244,11 @@ export function AddMemberModal({
           </div>
         )}
 
-        {/* Vínculo com jogador/dealer */}
+        {/* Vínculo com jogador */}
         {found && !alreadyMember && availablePersons.length > 0 && (
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-text-primary">
-              Vincular a jogador/dealer (opcional)
+              Vincular a jogador (opcional)
             </label>
             <select
               value={selectedPersonId ?? ''}
@@ -239,7 +258,7 @@ export function AddMemberModal({
               <option value="">Nenhum</option>
               {availablePersons.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.nickname || p.fullName} ({p.type})
+                  {p.nickname || p.fullName}
                 </option>
               ))}
             </select>
@@ -257,24 +276,6 @@ export function AddMemberModal({
             Administrador do Home Game
           </span>
         </label>
-
-        <div className="flex justify-end gap-3 border-t border-border-default pt-4">
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={onClose}
-            disabled={addMutation.isPending}
-          >
-            Cancelar
-          </Button>
-          <Button
-            onClick={handleAdd}
-            loading={addMutation.isPending}
-            disabled={!found || alreadyMember}
-          >
-            Adicionar
-          </Button>
-        </div>
       </div>
     </Modal>
   )

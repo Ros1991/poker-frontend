@@ -8,7 +8,7 @@ import { Button } from '../../components/ui/Button'
 import { LoadingSpinner } from '../../components/common/LoadingSpinner'
 import { PlayerCard } from '../../components/player/PlayerCard'
 import { ROUTES, playerDetailPath } from '../../constants/routes'
-import { useHomeGame } from '../../contexts/HomeGameContext'
+import { useHomeGame } from '../../hooks/useHomeGame'
 
 export function PlayerListPage() {
   const navigate = useNavigate()
@@ -16,8 +16,9 @@ export function PlayerListPage() {
   const [search, setSearch] = useState('')
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['persons', selectedHomeGame?.id, 'Jogador', search],
-    queryFn: () => personsApi.getByHomeGame(selectedHomeGame!.id, 'Jogador'),
+    // Todas as pessoas: quem foi cadastrado como Dealer também joga (SPEC-20261023-1216, DL3)
+    queryKey: ['persons', selectedHomeGame?.id, search],
+    queryFn: () => personsApi.getByHomeGame(selectedHomeGame!.id),
     enabled: !!selectedHomeGame,
   })
 

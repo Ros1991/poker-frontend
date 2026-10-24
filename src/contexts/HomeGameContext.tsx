@@ -1,7 +1,5 @@
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useState,
@@ -10,16 +8,11 @@ import type { ReactNode } from 'react'
 import type { HomeGame } from '../types/homeGame.types'
 import * as homeGamesApi from '../api/homeGames.api'
 import { useAuth } from '../hooks/useAuth'
+import { HomeGameContext } from './homeGameContextValue'
+import type { HomeGameContextValue } from './homeGameContextValue'
 
-export interface HomeGameContextValue {
-  homeGames: HomeGame[]
-  selectedHomeGame: HomeGame | null
-  isLoading: boolean
-  selectHomeGame: (homeGame: HomeGame | null) => void
-  refreshHomeGames: () => Promise<void>
-}
-
-const HomeGameContext = createContext<HomeGameContextValue | null>(null)
+// O contexto mora em homeGameContextValue.ts e o hook em hooks/useHomeGame.ts: este arquivo só
+// exporta o provider (react-refresh/only-export-components).
 
 interface HomeGameProviderProps {
   children: ReactNode
@@ -79,12 +72,4 @@ export function HomeGameProvider({ children }: HomeGameProviderProps) {
       {children}
     </HomeGameContext.Provider>
   )
-}
-
-export function useHomeGame(): HomeGameContextValue {
-  const context = useContext(HomeGameContext)
-  if (!context) {
-    throw new Error('useHomeGame deve ser usado dentro de um HomeGameProvider')
-  }
-  return context
 }
