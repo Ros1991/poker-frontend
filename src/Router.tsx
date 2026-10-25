@@ -47,6 +47,9 @@ import { BlindStructureFormPage } from './pages/blinds/BlindStructureFormPage'
 // Plano da conta
 import { MyPlanPage } from './pages/plan/MyPlanPage'
 
+// Meu perfil
+import { MyProfilePage } from './pages/profile/MyProfilePage'
+
 // Users (Admin)
 import { UserListPage } from './pages/users/UserListPage'
 import { UserFormPage } from './pages/users/UserFormPage'
@@ -127,6 +130,9 @@ export function Router() {
 
         {/* Meu plano (SPEC-20261023-1205) */}
         <Route path={ROUTES.MY_PLAN} element={<MyPlanPage />} />
+
+        {/* Meu perfil (SPEC-20261023-1211) */}
+        <Route path={ROUTES.MY_PROFILE} element={<MyProfilePage />} />
 
         {/* Users (Admin only) */}
         <Route

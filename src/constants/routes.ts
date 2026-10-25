@@ -26,6 +26,8 @@ export const ROUTES = {
   USER_EDIT: '/users/:id/edit',
   /** Página "Meu plano" (SPEC-20261023-1205): plano, uso e tabela comparativa */
   MY_PLAN: '/meu-plano',
+  /** Página "Meu perfil" (SPEC-20261023-1211): dados, foto, senha, contas conectadas, aparelhos e excluir conta */
+  MY_PROFILE: '/meu-perfil',
   BLIND_STRUCTURE_NEW: '/home-games/:homeGameId/blinds/new',
   BLIND_STRUCTURE_EDIT: '/home-games/:homeGameId/blinds/:id/edit',
   DEALER_TERMINAL: '/dealer/:tournamentId',

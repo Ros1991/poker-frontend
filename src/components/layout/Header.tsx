@@ -1,9 +1,10 @@
-import { Crown, LogOut, Menu } from 'lucide-react'
+import { Crown, LogOut, Menu, UserRound } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../hooks/useAuth'
 import { Avatar } from '../ui/Avatar'
 import { ROUTES } from '../../constants/routes'
+import { ROLE_LABELS } from '../../constants/roles'
 import { BrandLogo } from '../brand/BrandLogo'
 import { Badge } from '../ui/Badge'
 import { usePlan } from '../../hooks/usePlan'
@@ -57,13 +58,30 @@ export function Header({ onMenuToggle }: HeaderProps) {
                 </Badge>
               )}
             </Link>
-            <div className="hidden sm:flex flex-col items-end">
-              <span className="text-sm font-medium text-text-primary">
-                {user.name}
+            {/* Meu perfil (SPEC-20261023-1211): ao lado de "Meu plano"; no celular o próprio avatar leva ao perfil */}
+            <Link
+              to={ROUTES.MY_PROFILE}
+              className="hidden min-h-[44px] min-w-[44px] items-center justify-center gap-2 rounded-lg px-2 text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors sm:inline-flex"
+              aria-label="Meu perfil"
+              title="Meu perfil"
+            >
+              <UserRound className="h-5 w-5" aria-hidden />
+              <span className="hidden md:inline">Meu perfil</span>
+            </Link>
+            <Link
+              to={ROUTES.MY_PROFILE}
+              className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center gap-3 rounded-lg px-1 hover:bg-bg-tertiary transition-colors"
+              aria-label={`Meu perfil: ${user.name}`}
+              title="Meu perfil"
+            >
+              <span className="hidden sm:flex flex-col items-end">
+                <span className="max-w-[12rem] truncate text-sm font-medium text-text-primary">
+                  {user.name}
+                </span>
+                <span className="text-xs text-text-secondary">{ROLE_LABELS[user.role] ?? user.role}</span>
               </span>
-              <span className="text-xs text-text-secondary">{user.role}</span>
-            </div>
-            <Avatar src={user.photoUrl} name={user.name} size="sm" />
+              <Avatar src={user.photoUrl} name={user.name} size="sm" />
+            </Link>
           </>
         )}
         <button

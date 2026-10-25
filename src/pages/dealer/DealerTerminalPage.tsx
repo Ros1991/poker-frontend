@@ -428,8 +428,10 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
           </>
         ) : noTables ? (
           <div className="flex flex-col items-center gap-3 py-12 text-center">
+            {/* As mesas nascem com as inscrições (SPEC-20261023-1214): aqui só cai torneio antigo com inscritos sem mesa */}
             <p className="text-text-secondary">
-              {activeEntries.length} {activeEntries.length === 1 ? 'jogador' : 'jogadores'} e nenhuma mesa sorteada.
+              {activeEntries.length === 1 ? '1 jogador sem mesa.' : `${activeEntries.length} jogadores sem mesa.`} Quem entrar daqui
+              para frente já senta sozinho.
             </p>
             <Button size="lg" className="w-full max-w-xs" onClick={() => setDrawOpen(true)}>
               <Shuffle className="h-5 w-5" /> Sortear mesas

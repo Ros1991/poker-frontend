@@ -57,6 +57,9 @@ export function TablesTab({ tournament }: TablesTabProps) {
   })
 
   const activePlayerCount = entries.filter((e) => e.status === 'Active' || e.status === 'Registered').length
+  // As mesas nascem com as inscrições (SPEC-20261023-1214): sortear é "Sortear de novo" quando elas já existem
+  const hasTables = (tables?.length ?? 0) > 0
+  const drawLabel = hasTables ? 'Sortear de novo' : 'Sortear mesas'
   const seatsNum = parseInt(seatsPerTable) || tournament.seatsPerTable || 9
   const calculatedTableCount = Math.max(
     1,
@@ -125,6 +128,10 @@ export function TablesTab({ tournament }: TablesTabProps) {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tables', tournament.id] })
+      queryClient.invalidateQueries({ queryKey: ['entries', tournament.id] })
+      // A lotação escolhida passa a valer para as mesas que a inscrição abrir depois (SeatsPerTable)
+      queryClient.invalidateQueries({ queryKey: ['tournament', tournament.id] })
+      queryClient.invalidateQueries({ queryKey: ['history', tournament.id] })
       toast.success('Mesas sorteadas com sucesso!')
       setShowDrawModal(false)
     },
@@ -175,9 +182,9 @@ export function TablesTab({ tournament }: TablesTabProps) {
             <Plus className="h-4 w-4" />
             Criar Mesa
           </Button>
-          <Button size="sm" onClick={() => setShowDrawModal(true)}>
+          <Button size="sm" variant={hasTables ? 'secondary' : 'primary'} onClick={() => setShowDrawModal(true)}>
             <Shuffle className="h-4 w-4" />
-            Sortear Mesas
+            {drawLabel}
           </Button>
         </div>
       </div>
@@ -195,13 +202,20 @@ export function TablesTab({ tournament }: TablesTabProps) {
         </div>
       )}
 
-      {(!tables || tables.length === 0) && (
+      {!hasTables && (
         <div className="text-center py-12">
           <LayoutGrid className="mx-auto h-10 w-10 text-text-muted mb-3" />
           <p className="text-text-secondary">Nenhuma mesa criada ainda.</p>
           <p className="text-sm text-text-secondary mt-1">
-            Use &quot;Sortear Mesas&quot; para distribuir os jogadores.
+            As mesas são criadas sozinhas quando você inscreve os jogadores.
           </p>
+          {/* Torneio antigo com inscritos sem mesa: o sorteio ainda distribui todo mundo de uma vez */}
+          {activePlayerCount > 0 && (
+            <Button size="sm" className="mt-4" onClick={() => setShowDrawModal(true)}>
+              <Shuffle className="h-4 w-4" />
+              Sortear mesas
+            </Button>
+          )}
         </div>
       )}
 
@@ -290,7 +304,7 @@ export function TablesTab({ tournament }: TablesTabProps) {
       <Modal
         isOpen={showDrawModal}
         onClose={() => setShowDrawModal(false)}
-        title="Sortear Mesas"
+        title={drawLabel}
         size="sm"
         footer={
           <div className="flex gap-3 justify-end">
@@ -302,20 +316,22 @@ export function TablesTab({ tournament }: TablesTabProps) {
               Cancelar
             </Button>
             <Button
+              variant={hasTables ? 'danger' : 'primary'}
               onClick={() => drawMutation.mutate()}
               loading={drawMutation.isPending}
             >
               <Shuffle className="h-4 w-4" />
-              Sortear
+              {hasTables ? 'Sim, sortear de novo' : 'Sortear'}
             </Button>
           </div>
         }
       >
         <div className="flex flex-col gap-4">
-          {tables && tables.length > 0 && (
+          {hasTables && (
             <div className="rounded-lg border border-accent-yellow/40 bg-accent-yellow-soft p-3 text-sm text-text-primary">
-              ⚠️ Já existem {tables.length} mesa(s). Sortear novamente vai{' '}
-              <strong>apagar todas as mesas atuais</strong> e re-sortear todos os jogadores do zero.
+              ⚠️ Já existem {tables?.length} {tables?.length === 1 ? 'mesa' : 'mesas'}. Sortear de novo vai{' '}
+              <strong>apagar todas as mesas atuais</strong> e sortear todos os jogadores do zero. A lotação escolhida
+              passa a valer para as mesas abertas depois.
             </div>
           )}
           <div className="rounded-lg bg-bg-tertiary p-3 text-sm text-text-secondary">

@@ -17,6 +17,13 @@ export interface AuthContextValue {
   /** Link do e-mail de confirmação + senha do cadastro (D16.10): confirma e já entra */
   confirmEmail: (token: string, password: string) => Promise<void>
   logout: () => Promise<void>
+  /**
+   * "Meu perfil" (SPEC-20261023-1211): depois de salvar nome/foto, o cabeçalho reflete na hora sem recarregar.
+   * Só troca campos do usuário da sessão (o formato de `AuthUser` não muda).
+   */
+  updateUser: (patch: Partial<Pick<AuthUser, 'name' | 'photoUrl'>>) => void
+  /** Conta excluída: a sessão já caiu no servidor, então só limpa os tokens deste aparelho (sem chamar o logout). */
+  clearSession: () => void
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null)

@@ -4,6 +4,7 @@ import type {
   CreateEntryRequest,
   EliminateRequest,
   AvailablePlayer,
+  BulkCreateEntriesResult,
 } from '../types/entry.types'
 
 const base = (tournamentId: string) =>
@@ -30,13 +31,14 @@ export async function create(
 /**
  * Inscrição em lote — a única rota do painel e do terminal (SPEC-20261023-1213, F13; liberada ao dealer).
  * Toda inscrição nasce Pendente: o pagamento é registrado depois, na tela de pagamentos (sem "buy-in pago").
- * Com mesas já criadas, o servidor senta quem entrou (tableId/seatNumber na resposta).
+ * O servidor já senta quem entrou (SPEC-20261023-1214): abre mesa e equilibra quando enche; `seating` diz onde
+ * cada um sentou e quem mudou de lugar.
  */
 export async function bulkCreate(
   tournamentId: string,
   personIds: string[],
-): Promise<TournamentEntry[]> {
-  const response = await apiClient.post<TournamentEntry[]>(
+): Promise<BulkCreateEntriesResult> {
+  const response = await apiClient.post<BulkCreateEntriesResult>(
     `${base(tournamentId)}/bulk`,
     { personIds },
   )

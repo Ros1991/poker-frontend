@@ -21,6 +21,8 @@ export type HistoryActivityType =
   | 'PlayerCreated'
   /** Foto do jogador posta/trocada pelo torneio — SPEC-20261023-1213 */
   | 'PlayerPhotoChanged'
+  /** Mesa aberta pela inscrição (e quem mudou para ela) — SPEC-20261023-1214 */
+  | 'TableOpened'
 
 export interface HistoryItem {
   /** "{kind}:{refId}" — único na lista */

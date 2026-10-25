@@ -64,6 +64,53 @@ export interface EliminationResult {
   whatsAppLink: string | null
 }
 
+/** Mesa aberta pela inscrição (SPEC-20261023-1214) */
+export interface SeatingOpenedTable {
+  tableId: string
+  tableName: string
+}
+
+/** Onde cada um sentou */
+export interface SeatingSeat {
+  entryId: string
+  playerName: string
+  tableId: string
+  tableName: string
+  seatNumber: number
+}
+
+/** Quem já estava sentado e mudou para a mesa aberta agora ("Ana: Mesa 1, lugar 3 → Mesa 2, lugar 5") */
+export interface SeatingMove {
+  entryId: string
+  playerName: string
+  fromTableId: string
+  fromTableName: string
+  fromSeat: number | null
+  toTableId: string
+  toTableName: string
+  toSeat: number
+}
+
+/** Resultado do assento da inscrição (espelha SeatingResultResponse do backend) */
+export interface SeatingResult {
+  /** Plano do dono com mesas: sem ele ninguém senta e o resultado não fala de mesa */
+  tablesEnabled: boolean
+  /** Torneio já começou (late registration): mudar de lugar entre uma mão e outra */
+  inProgress: boolean
+  openedTables: SeatingOpenedTable[]
+  /** Os inscritos agora (e, na primeira mesa, quem já estava inscrito sem lugar) */
+  seated: SeatingSeat[]
+  moves: SeatingMove[]
+  /** Texto pronto, ex.: "Mesa 2 aberta: 4 jogadores movidos" */
+  summary: string | null
+}
+
+/** Resposta de POST .../entries/bulk */
+export interface BulkCreateEntriesResult {
+  entries: TournamentEntry[]
+  seating: SeatingResult
+}
+
 /** Jogador do home game que ainda não está no torneio (só id, nome, apelido e foto — sem contato) */
 export interface AvailablePlayer {
   id: string

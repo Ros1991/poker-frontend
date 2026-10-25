@@ -128,6 +128,9 @@ export function DrawTablesDialog({
               }}
             />
           </div>
+          <p className="text-xs text-text-secondary">
+            As mesas que a inscrição abrir depois também terão {seatsNum} lugares.
+          </p>
           {!seatsValid && (
             <p className="text-xs text-accent-red-deep">
               Lugares por mesa: de {MIN_SEATS} a {MAX_SEATS}.

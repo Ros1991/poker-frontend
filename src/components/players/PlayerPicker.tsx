@@ -10,7 +10,7 @@ import { Button } from '../ui/Button'
 import { SearchInput } from '../ui/SearchInput'
 import { LoadingSpinner } from '../common/LoadingSpinner'
 import { EditablePhotoAvatar } from '../photo/EditablePhotoAvatar'
-import type { AvailablePlayer, TournamentEntry } from '../../types/entry.types'
+import type { AvailablePlayer, BulkCreateEntriesResult, TournamentEntry } from '../../types/entry.types'
 import { cn } from '../../utils/cn'
 import { cleanWhatsapp } from '../../utils/phone'
 import { normalizeSpaces, normalizeText } from '../../utils/text'
@@ -24,8 +24,8 @@ interface PlayerPickerProps {
   entries: TournamentEntry[] | undefined
   /** `terminal`: tela cheia do dealer (alvos maiores); `panel`: modal do painel */
   variant: 'panel' | 'terminal'
-  /** Inscrições criadas pelo lote (ponto único de leitura da resposta — a SPEC-20261023-1214 muda o retorno) */
-  onAdded: (created: TournamentEntry[]) => void
+  /** Resposta inteira do lote: inscrições criadas e onde cada um sentou / quem mudou de lugar (SPEC-20261023-1214) */
+  onAdded: (result: BulkCreateEntriesResult) => void
 }
 
 const label = (p: { fullName: string; nickname: string | null }) => p.nickname?.trim() || p.fullName
@@ -188,10 +188,10 @@ export function PlayerPicker({ tournamentId, entries, variant, onAdded }: Player
 
   const addMutation = useMutation({
     mutationFn: (ids: string[]) => entriesApi.bulkCreate(tournamentId, ids),
-    onSuccess: (createdEntries) => {
+    onSuccess: (result) => {
       setAddError(null)
       setSelected([])
-      onAdded(createdEntries)
+      onAdded(result)
     },
     // A seleção fica: dá para corrigir e tentar de novo
     onError: (err) => setAddError(serverMessage(err) ?? 'Não foi possível adicionar os jogadores.'),

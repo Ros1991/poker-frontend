@@ -8,6 +8,7 @@ import {
   Plus,
   Check,
   Crown,
+  UserRound,
 } from 'lucide-react'
 import { cn } from '../../utils/cn'
 import { BrandLogo } from '../brand/BrandLogo'
@@ -21,7 +22,7 @@ interface SidebarProps {
 }
 
 const adminItems = [
-  { to: ROUTES.USERS, label: 'Usuarios', icon: Shield },
+  { to: ROUTES.USERS, label: 'Usuários', icon: Shield },
 ]
 
 export function Sidebar({ className, onNavigate }: SidebarProps) {
@@ -133,6 +134,25 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
           </div>
         )}
         <ul className="flex flex-col gap-1 px-2">
+          {/* Meu perfil (SPEC-20261023-1211), ao lado de "Meu plano" */}
+          <li>
+            <NavLink
+              to={ROUTES.MY_PROFILE}
+              onClick={onNavigate}
+              title={collapsed ? 'Meu perfil' : undefined}
+              className={({ isActive }) =>
+                cn(
+                  'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors min-h-[44px]',
+                  isActive
+                    ? 'bg-accent-blue-soft text-accent-blue'
+                    : 'text-text-secondary hover:bg-bg-tertiary hover:text-text-primary',
+                )
+              }
+            >
+              <UserRound className="h-5 w-5 flex-shrink-0" />
+              {!collapsed && <span>Meu perfil</span>}
+            </NavLink>
+          </li>
           <li>
             <NavLink
               to={ROUTES.MY_PLAN}
@@ -160,7 +180,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
             {!collapsed && (
               <div className="px-3 mb-2">
                 <span className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
-                  Administracao
+                  Administração
                 </span>
               </div>
             )}

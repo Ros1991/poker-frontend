@@ -125,6 +125,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }, [])
 
+  // Meu perfil (SPEC-20261023-1211): nome/foto salvos aparecem no cabeçalho na hora
+  const updateUser = useCallback((patch: Partial<Pick<AuthUser, 'name' | 'photoUrl'>>) => {
+    setUser((current) => (current ? { ...current, ...patch } : current))
+  }, [])
+
+  // Conta excluída: o servidor já derrubou todas as sessões; só limpa este aparelho
+  const clearSession = useCallback(() => {
+    clearTokens()
+    setUser(null)
+  }, [])
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
@@ -135,8 +146,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
       loginWithExternal,
       confirmEmail,
       logout,
+      updateUser,
+      clearSession,
     }),
-    [user, isAuthenticated, isLoading, isReconnecting, login, loginWithExternal, confirmEmail, logout],
+    [user, isAuthenticated, isLoading, isReconnecting, login, loginWithExternal, confirmEmail, logout, updateUser, clearSession],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
