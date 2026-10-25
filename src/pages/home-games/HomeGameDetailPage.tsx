@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
@@ -14,7 +14,6 @@ import {
   UserPlus,
   Gamepad2,
   Trash2,
-  Camera,
   Timer,
 } from 'lucide-react'
 import { format } from 'date-fns'
@@ -29,6 +28,9 @@ import { Button } from '../../components/ui/Button'
 import { Badge } from '../../components/ui/Badge'
 import { Avatar } from '../../components/ui/Avatar'
 import { SearchInput } from '../../components/ui/SearchInput'
+import { EditablePhotoAvatar } from '../../components/photo/EditablePhotoAvatar'
+import { PlayerFormDialog } from '../../components/players/PlayerFormDialog'
+import { displayPhone } from '../../utils/phone'
 import { cn } from '../../utils/cn'
 import {
   ROUTES,
@@ -806,6 +808,10 @@ function MembrosTab({
 
 // ------- Persons Tab (Jogadores) -------
 
+// SPEC-20261023-1213 (F17/F20): "Novo jogador" e "Editar" abrem o PlayerFormDialog (mesmos campos do cadastro pelo
+// torneio, com foto — tirar na hora, galeria ou webcam, recorte quadrado); tocar no avatar troca/remove a foto (o
+// ícone de câmera fica sempre visível: no celular não existe "passar o mouse"). Mantém o selo "Dealer" e a lista
+// sem filtro de tipo da SPEC-20261023-1216.
 function PersonsTab({
   homeGameId,
   persons,
@@ -818,50 +824,8 @@ function PersonsTab({
   canManage: boolean
 }) {
   const queryClient = useQueryClient()
-  const [isFormOpen, setIsFormOpen] = useState(false)
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [editNickname, setEditNickname] = useState('')
-  const [editFullName, setEditFullName] = useState('')
-  const [editWhatsapp, setEditWhatsapp] = useState('')
-  const [editEmail] = useState('')
-
-  // Pessoas novas nascem sempre como Jogador; as antigas cadastradas como Dealer aparecem com o
-  // selo "Dealer" (o tipo continua no banco) e o organizador remove quem não joga.
-  const createMutation = useMutation({
-    mutationFn: async (data: { fullName: string; nickname?: string; email?: string; whatsapp?: string; photoFile?: File }) => {
-      const { photoFile, ...personData } = data
-      const created = await personsApi.create({ ...personData, homeGameId, type: 'Jogador' })
-      if (photoFile) {
-        try {
-          await personsApi.uploadPhoto(created.id, photoFile)
-        } catch {
-          toast.error('Jogador criado, mas erro ao enviar foto.')
-        }
-      }
-      return created
-    },
-    onSuccess: () => {
-      toast.success('Jogador criado com sucesso!')
-      setIsFormOpen(false)
-      queryClient.invalidateQueries({ queryKey: ['persons', homeGameId] })
-    },
-    onError: () => {
-      toast.error('Erro ao criar jogador.')
-    },
-  })
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: { nickname?: string; fullName?: string; whatsapp?: string; email?: string } }) =>
-      personsApi.update(id, data),
-    onSuccess: () => {
-      toast.success('Jogador atualizado!')
-      setEditingId(null)
-      queryClient.invalidateQueries({ queryKey: ['persons', homeGameId] })
-    },
-    onError: () => {
-      toast.error('Erro ao atualizar jogador.')
-    },
-  })
+  // null = fechado; 'new' = cadastro; Person = edição
+  const [dialog, setDialog] = useState<Person | 'new' | null>(null)
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => personsApi.remove(id),
@@ -874,53 +838,17 @@ function PersonsTab({
     },
   })
 
-  function startEdit(p: Person) {
-    setEditingId(p.id)
-    setEditNickname(p.nickname || '')
-    setEditFullName(p.fullName || '')
-    setEditWhatsapp(p.whatsapp ? displayPhone(p.whatsapp) : '')
-    void p.email
-  }
-
-  function saveEdit() {
-    if (!editingId || !editNickname.trim()) {
-      toast.error('Apelido é obrigatório.')
-      return
-    }
-    const rawDigits = editWhatsapp.replace(/\D/g, '') || undefined
-    // Limpar: remover +55 se presente, limitar a 11 dígitos
-    const cleanWhatsapp = rawDigits
-      ? (rawDigits.startsWith('55') && rawDigits.length > 11 ? rawDigits.slice(2) : rawDigits).slice(0, 11)
-      : undefined
-    updateMutation.mutate({
-      id: editingId,
-      data: {
-        nickname: editNickname.trim(),
-        fullName: editFullName.trim() || editNickname.trim(),
-        whatsapp: cleanWhatsapp,
-        email: editEmail.trim() || undefined,
-      },
-    })
-  }
+  const refreshPersons = () => void queryClient.invalidateQueries({ queryKey: ['persons', homeGameId] })
 
   return (
     <div className="space-y-4">
       {canManage && (
         <div className="flex justify-end">
-          <Button size="sm" onClick={() => setIsFormOpen(true)}>
+          <Button size="sm" onClick={() => setDialog('new')}>
             <Plus className="h-4 w-4" />
-            Novo Jogador
+            Novo jogador
           </Button>
         </div>
-      )}
-
-      {/* Inline form - above the list */}
-      {isFormOpen && (
-        <PersonFormInline
-          onSubmit={(data) => createMutation.mutate(data)}
-          onCancel={() => setIsFormOpen(false)}
-          isLoading={createMutation.isPending}
-        />
       )}
 
       {isLoading && (
@@ -939,272 +867,69 @@ function PersonsTab({
 
       {!isLoading && persons.length > 0 && (
         <div className="space-y-2">
-          {persons.map((p) =>
-            editingId === p.id ? (
-              <div
-                key={p.id}
-                className="rounded-lg border border-accent-blue/30 bg-bg-secondary p-3 space-y-3"
-              >
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <input
-                    type="text"
-                    placeholder="Apelido *"
-                    value={editNickname}
-                    onChange={(e) => setEditNickname(e.target.value)}
-                    className="rounded-lg border border-border-input bg-bg-primary px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-border-focus focus:outline-none"
-                    autoFocus
-                  />
-                  <input
-                    type="text"
-                    placeholder="Nome completo"
-                    value={editFullName}
-                    onChange={(e) => setEditFullName(e.target.value)}
-                    className="rounded-lg border border-border-input bg-bg-primary px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-border-focus focus:outline-none"
-                  />
-                  <input
-                    type="text"
-                    placeholder="(11) 99999-9999"
-                    value={formatPhone(editWhatsapp)}
-                    onChange={(e) => setEditWhatsapp(e.target.value)}
-                    className="rounded-lg border border-border-input bg-bg-primary px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-border-focus focus:outline-none"
-                  />
-                </div>
-                <div className="flex justify-end gap-2">
-                  <Button type="button" variant="secondary" size="sm" onClick={() => setEditingId(null)}>
-                    Cancelar
-                  </Button>
-                  <Button size="sm" onClick={saveEdit} loading={updateMutation.isPending}>
-                    Salvar
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div
-                key={p.id}
-                className="flex items-center gap-3 rounded-lg border border-border-default bg-bg-secondary p-3"
-              >
-                <PhotoAvatar personId={p.id} photoUrl={p.photoUrl} name={p.nickname || p.fullName} canManage={canManage} onUploaded={() => queryClient.invalidateQueries({ queryKey: ['persons', homeGameId] })} />
-                <div className="flex-1 min-w-0">
-                  <p className="flex min-w-0 items-center gap-2">
-                    <span className="font-medium text-text-primary truncate">
-                      {p.nickname || p.fullName}
-                    </span>
-                    {p.type === 'Dealer' && <Badge color="gray">Dealer</Badge>}
-                  </p>
-                  {p.nickname && p.fullName && p.nickname !== p.fullName && (
-                    <p className="text-xs text-text-secondary">{p.fullName}</p>
-                  )}
-                </div>
-                {p.whatsapp && (
-                  <span className="text-xs text-text-secondary hidden sm:block">
-                    {displayPhone(p.whatsapp)}
+          {persons.map((p) => (
+            <div
+              key={p.id}
+              className="flex items-center gap-3 rounded-lg border border-border-default bg-bg-secondary p-3"
+            >
+              <EditablePhotoAvatar
+                src={p.photoUrl}
+                name={p.nickname || p.fullName}
+                size="md"
+                canEdit={canManage}
+                upload={(blob) => personsApi.uploadPhoto(p.id, blob)}
+                remove={() => personsApi.removePhoto(p.id)}
+                onDone={refreshPersons}
+              />
+              <div className="flex-1 min-w-0">
+                <p className="flex min-w-0 items-center gap-2">
+                  <span className="font-medium text-text-primary truncate">
+                    {p.nickname || p.fullName}
                   </span>
-                )}
-                {canManage && (
-                  <button
-                    onClick={() => startEdit(p)}
-                    className="p-1.5 rounded-md text-text-secondary hover:text-accent-blue hover:bg-accent-blue-soft transition-colors"
-                    title="Editar jogador"
-                  >
-                    <Edit className="h-4 w-4" />
-                  </button>
-                )}
-                {canManage && (
-                  <button
-                    onClick={() => deleteMutation.mutate(p.id)}
-                    className="p-1.5 rounded-md text-text-secondary hover:text-accent-red hover:bg-accent-red-soft transition-colors"
-                    title="Remover jogador"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                  {p.type === 'Dealer' && <Badge color="gray">Dealer</Badge>}
+                </p>
+                {p.nickname && p.fullName && p.nickname !== p.fullName && (
+                  <p className="text-xs text-text-secondary">{p.fullName}</p>
                 )}
               </div>
-            ),
-          )}
+              {p.whatsapp && (
+                <span className="text-xs text-text-secondary hidden sm:block">
+                  {displayPhone(p.whatsapp)}
+                </span>
+              )}
+              {canManage && (
+                <button
+                  onClick={() => setDialog(p)}
+                  className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md text-text-secondary hover:text-accent-blue hover:bg-accent-blue-soft transition-colors"
+                  title="Editar jogador"
+                  aria-label={`Editar ${p.nickname || p.fullName}`}
+                >
+                  <Edit className="h-4 w-4" />
+                </button>
+              )}
+              {canManage && (
+                <button
+                  onClick={() => deleteMutation.mutate(p.id)}
+                  className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md text-text-secondary hover:text-accent-red hover:bg-accent-red-soft transition-colors"
+                  title="Remover jogador"
+                  aria-label={`Remover ${p.nickname || p.fullName}`}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          ))}
         </div>
       )}
-    </div>
-  )
-}
 
-// ------- Person Form Inline -------
-
-function formatPhone(value: string): string {
-  const digits = value.replace(/\D/g, '').slice(0, 11)
-  if (digits.length <= 2) return digits.length ? `(${digits}` : ''
-  if (digits.length <= 7) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`
-  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`
-}
-
-function displayPhone(phone: string): string {
-  const digits = phone.replace(/\D/g, '')
-  // Remove prefixo 55 se tiver mais de 11 dígitos
-  let local = digits.startsWith('55') && digits.length > 11 ? digits.slice(2) : digits
-  // Se ainda > 11 dígitos, truncar
-  if (local.length > 11) local = local.slice(0, 11)
-  if (local.length === 11) return `(${local.slice(0, 2)}) ${local.slice(2, 7)}-${local.slice(7)}`
-  if (local.length === 10) return `(${local.slice(0, 2)}) ${local.slice(2, 6)}-${local.slice(6)}`
-  return phone
-}
-
-// ------- Photo Avatar (clicável para trocar foto) -------
-
-function PhotoAvatar({
-  personId,
-  photoUrl,
-  name,
-  canManage,
-  onUploaded,
-}: {
-  personId: string
-  photoUrl: string | null
-  name: string
-  canManage: boolean
-  onUploaded: () => void
-}) {
-  const fileInputRef = useRef<HTMLInputElement>(null)
-
-  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    try {
-      await personsApi.uploadPhoto(personId, file)
-      toast.success('Foto atualizada!')
-      onUploaded()
-    } catch {
-      toast.error('Erro ao enviar foto.')
-    }
-    e.target.value = ''
-  }
-
-  if (!canManage) {
-    return <Avatar src={photoUrl} name={name} size="md" />
-  }
-
-  return (
-    <div className="relative group shrink-0">
-      <Avatar src={photoUrl} name={name} size="md" />
-      <button
-        type="button"
-        onClick={() => fileInputRef.current?.click()}
-        className="absolute inset-0 flex items-center justify-center rounded-full bg-text-primary text-white opacity-0 group-hover:opacity-70 transition-opacity"
-        title="Trocar foto"
-      >
-        <Camera className="h-4 w-4" />
-      </button>
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={(e) => void handleFileChange(e)}
+      <PlayerFormDialog
+        isOpen={dialog !== null}
+        onClose={() => setDialog(null)}
+        homeGameId={homeGameId}
+        person={dialog === 'new' ? null : dialog}
+        existing={persons}
       />
     </div>
-  )
-}
-
-// ------- Person Form Inline -------
-
-function PersonFormInline({
-  onSubmit,
-  onCancel,
-  isLoading,
-}: {
-  onSubmit: (data: { fullName: string; nickname?: string; email?: string; whatsapp?: string; photoFile?: File }) => void
-  onCancel: () => void
-  isLoading: boolean
-}) {
-  const [fullName, setFullName] = useState('')
-  const [nickname, setNickname] = useState('')
-  const [whatsapp, setWhatsapp] = useState('')
-  const [photoFile, setPhotoFile] = useState<File | null>(null)
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
-
-  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (file) {
-      setPhotoFile(file)
-      setPhotoPreview(URL.createObjectURL(file))
-    }
-  }
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    if (!nickname.trim()) {
-      toast.error('Apelido e obrigatorio.')
-      return
-    }
-    const rawDigits = whatsapp.replace(/\D/g, '') || undefined
-    const cleanWhatsapp = rawDigits
-      ? (rawDigits.startsWith('55') && rawDigits.length > 11 ? rawDigits.slice(2) : rawDigits).slice(0, 11)
-      : undefined
-    onSubmit({
-      fullName: fullName.trim() || nickname.trim(),
-      nickname: nickname.trim(),
-      whatsapp: cleanWhatsapp,
-      photoFile: photoFile || undefined,
-    })
-  }
-
-  return (
-    <form
-      onSubmit={handleSubmit}
-      className="rounded-lg border border-accent-blue/30 bg-bg-secondary p-4 space-y-3"
-    >
-      <h4 className="text-sm font-semibold text-text-primary">
-        Novo Jogador
-      </h4>
-      <div className="flex items-start gap-4">
-        {/* Foto */}
-        <label className="shrink-0 cursor-pointer group" title="Adicionar foto">
-          <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
-          {photoPreview ? (
-            <img
-              src={photoPreview}
-              alt="Foto"
-              className="h-16 w-16 rounded-full object-cover border-2 border-accent-blue/30 group-hover:border-accent-blue transition-colors"
-            />
-          ) : (
-            <div className="h-16 w-16 rounded-full bg-bg-tertiary border-2 border-dashed border-border-default group-hover:border-accent-blue flex items-center justify-center transition-colors">
-              <Camera className="h-5 w-5 text-text-secondary group-hover:text-accent-blue" />
-            </div>
-          )}
-        </label>
-        {/* Campos */}
-        <div className="flex-1 grid gap-3 sm:grid-cols-3">
-          <input
-            type="text"
-            placeholder="Apelido *"
-            value={nickname}
-            onChange={(e) => setNickname(e.target.value)}
-            className="rounded-lg border border-border-input bg-bg-primary px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-border-focus focus:outline-none"
-            autoFocus
-          />
-          <input
-            type="text"
-            placeholder="Nome completo"
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            className="rounded-lg border border-border-input bg-bg-primary px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-border-focus focus:outline-none"
-          />
-          <input
-            type="text"
-            placeholder="(11) 99999-9999"
-            value={formatPhone(whatsapp)}
-            onChange={(e) => setWhatsapp(e.target.value)}
-            className="rounded-lg border border-border-input bg-bg-primary px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-border-focus focus:outline-none"
-          />
-        </div>
-      </div>
-      <div className="flex justify-end gap-2">
-        <Button type="button" variant="secondary" size="sm" onClick={onCancel}>
-          Cancelar
-        </Button>
-        <Button type="submit" size="sm" loading={isLoading}>
-          Salvar
-        </Button>
-      </div>
-    </form>
   )
 }
 
@@ -1226,6 +951,10 @@ function BlindsTab({
     defaultBuyIn?: number | null
     defaultStartingStack?: number | null
     levels?: { levelNumber: number; smallBlind: number; bigBlind: number; ante: number; durationMinutes: number; isBreak: boolean }[]
+    // Custos padrão e dealer pago (SPEC-20261023-1215)
+    defaultCosts?: { amount: number }[]
+    defaultHasDealer?: boolean
+    defaultDealerFee?: number | null
   }[]
   isLoading: boolean
   canManage: boolean
@@ -1300,7 +1029,16 @@ function BlindsTab({
                   </p>
                 )}
                 <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-text-secondary ml-7">
-                  <span>{bs.levelCount ?? bs.levels?.length ?? 0} niveis</span>
+                  <span>{bs.levelCount ?? bs.levels?.length ?? 0} níveis</span>
+                  {(bs.defaultCosts?.length ?? 0) > 0 && (
+                    <span className="tabular-nums">
+                      {bs.defaultCosts!.length} {bs.defaultCosts!.length === 1 ? 'custo padrão' : 'custos padrão'} ·{' '}
+                      {formatCurrency(bs.defaultCosts!.reduce((sum, c) => sum + c.amount, 0))}
+                    </span>
+                  )}
+                  {bs.defaultHasDealer && bs.defaultDealerFee != null && (
+                    <span className="tabular-nums">dealer {formatCurrency(bs.defaultDealerFee)} cada</span>
+                  )}
                   {bs.defaultBuyIn != null && <span className="tabular-nums">Buy-in: R$ {bs.defaultBuyIn.toFixed(2)}</span>}
                   {bs.defaultStartingStack != null && <span className="tabular-nums">Stack: {bs.defaultStartingStack.toLocaleString('pt-BR')}</span>}
                   {!bs.homeGameId && <span>(global)</span>}

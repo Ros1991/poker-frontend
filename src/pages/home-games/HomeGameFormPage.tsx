@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useForm, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -7,11 +7,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { ArrowLeft, Loader2 } from 'lucide-react'
 import * as homeGamesApi from '../../api/homeGames.api'
+import * as homeGameLogoApi from '../../api/homeGameLogo.api'
 import { isPlanLimitError } from '../../api/client'
 import { MY_PLAN_QUERY_KEY } from '../../hooks/usePlan'
 import { Input } from '../../components/ui/Input'
 import { Textarea } from '../../components/ui/Textarea'
 import { Button } from '../../components/ui/Button'
+import { LogoPicker } from '../../components/photo/LogoPicker'
 import { ROUTES, homeGameDetailPath } from '../../constants/routes'
 import { useHomeGame } from '../../hooks/useHomeGame'
 import { AccessDeniedState } from '../../components/common/AccessDeniedState'
@@ -20,26 +22,40 @@ import { isForbiddenError } from '../../utils/httpErrors'
 const homeGameSchema = z.object({
   name: z
     .string()
-    .min(1, 'Nome e obrigatorio')
-    .max(100, 'Maximo 100 caracteres'),
+    .min(1, 'Nome é obrigatório')
+    .max(100, 'Máximo de 100 caracteres'),
   description: z
     .string()
-    .max(500, 'Maximo 500 caracteres')
+    .max(500, 'Máximo de 500 caracteres')
     .optional()
     .or(z.literal('')),
   location: z
     .string()
-    .max(200, 'Maximo 200 caracteres')
+    .max(200, 'Máximo de 200 caracteres')
     .optional()
     .or(z.literal('')),
   pixKey: z.string().max(100).optional().or(z.literal('')),
   pixBeneficiario: z.string().max(100).optional().or(z.literal('')),
-  defaultBuyIn: z.coerce.number().min(0, 'Valor invalido').optional(),
-  defaultRebuy: z.coerce.number().min(0, 'Valor invalido').optional(),
-  defaultAddon: z.coerce.number().min(0, 'Valor invalido').optional(),
+  defaultBuyIn: z.coerce.number().min(0, 'Valor inválido').optional(),
+  defaultRebuy: z.coerce.number().min(0, 'Valor inválido').optional(),
+  defaultAddon: z.coerce.number().min(0, 'Valor inválido').optional(),
 })
 
 type HomeGameFormData = z.infer<typeof homeGameSchema>
+
+/**
+ * Envia a logo escolhida (ou remove a marcada) depois de salvar o home game (SPEC-20261023-1213). Falha na logo não
+ * desfaz o resto: avisa e segue.
+ */
+async function saveLogo(homeGameId: string, logo: Blob | null, removeCurrent: boolean): Promise<void> {
+  try {
+    if (logo) await homeGameLogoApi.uploadLogo(homeGameId, logo)
+    else if (removeCurrent) await homeGameLogoApi.removeLogo(homeGameId)
+  } catch (err) {
+    const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+    toast.error(msg ?? 'Home game salvo, mas a logo não foi atualizada. Tente de novo.')
+  }
+}
 
 export function HomeGameFormPage() {
   const { id } = useParams<{ id: string }>()
@@ -47,6 +63,9 @@ export function HomeGameFormPage() {
   const queryClient = useQueryClient()
   const { refreshHomeGames, selectHomeGame } = useHomeGame()
   const isEditing = !!id
+  // Logo do clube: escolhida aqui e enviada ao salvar (endpoint próprio)
+  const [logo, setLogo] = useState<Blob | null>(null)
+  const [logoRemoved, setLogoRemoved] = useState(false)
 
   const {
     data: homeGame,
@@ -94,12 +113,15 @@ export function HomeGameFormPage() {
   }, [homeGame, reset])
 
   const createMutation = useMutation({
-    mutationFn: (data: HomeGameFormData) =>
-      homeGamesApi.create({
+    mutationFn: async (data: HomeGameFormData) => {
+      const created = await homeGamesApi.create({
         name: data.name,
         description: data.description || undefined,
         location: data.location || undefined,
-      }),
+      })
+      await saveLogo(created.id, logo, false)
+      return created
+    },
     onSuccess: async (result) => {
       toast.success('Home game criado com sucesso!')
       queryClient.invalidateQueries({ queryKey: ['homeGames'] })
@@ -116,12 +138,15 @@ export function HomeGameFormPage() {
   })
 
   const updateMutation = useMutation({
-    mutationFn: (data: HomeGameFormData) =>
-      homeGamesApi.update(id!, {
+    mutationFn: async (data: HomeGameFormData) => {
+      const updated = await homeGamesApi.update(id!, {
         name: data.name,
         description: data.description || undefined,
         location: data.location || undefined,
-      }),
+      })
+      await saveLogo(updated.id, logo, logoRemoved && !!homeGame?.logoUrl)
+      return updated
+    },
     onSuccess: () => {
       toast.success('Home game atualizado com sucesso!')
       queryClient.invalidateQueries({ queryKey: ['homeGame', id] })
@@ -184,11 +209,11 @@ export function HomeGameFormPage() {
           Voltar
         </button>
         <h1 className="text-2xl font-bold text-text-primary">
-          {isEditing ? 'Editar Home Game' : 'Novo Home Game'}
+          {isEditing ? 'Editar home game' : 'Novo home game'}
         </h1>
         <p className="mt-1 text-sm text-text-secondary">
           {isEditing
-            ? 'Altere as informacoes do home game.'
+            ? 'Altere as informações do home game.'
             : 'Preencha os dados para criar um novo home game.'}
         </p>
       </div>
@@ -205,8 +230,8 @@ export function HomeGameFormPage() {
         />
 
         <Textarea
-          label="Descricao"
-          placeholder="Descricao do home game..."
+          label="Descrição"
+          placeholder="Descrição do home game..."
           error={errors.description?.message}
           {...register('description')}
         />
@@ -218,6 +243,15 @@ export function HomeGameFormPage() {
           {...register('location')}
         />
 
+        <LogoPicker
+          currentUrl={homeGame?.logoUrl}
+          value={logo}
+          onChange={setLogo}
+          removed={logoRemoved}
+          onRemovedChange={setLogoRemoved}
+          disabled={isSubmitting}
+        />
+
         <div className="border-t border-border-default pt-4">
           <h3 className="text-sm font-medium text-text-secondary mb-3">
             Dados PIX (para pagamentos)
@@ -225,13 +259,13 @@ export function HomeGameFormPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
               label="Chave PIX"
-              placeholder="CPF, e-mail, telefone ou chave aleatoria"
+              placeholder="CPF, e-mail, telefone ou chave aleatória"
               error={errors.pixKey?.message}
               {...register('pixKey')}
             />
             <Input
-              label="Beneficiario PIX"
-              placeholder="Nome do beneficiario"
+              label="Beneficiário PIX"
+              placeholder="Nome do beneficiário"
               error={errors.pixBeneficiario?.message}
               {...register('pixBeneficiario')}
             />
@@ -240,7 +274,7 @@ export function HomeGameFormPage() {
 
         <div className="border-t border-border-default pt-4">
           <h3 className="text-sm font-medium text-text-secondary mb-3">
-            Valores padrao (R$)
+            Valores padrão (R$)
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Input
@@ -283,7 +317,7 @@ export function HomeGameFormPage() {
             Cancelar
           </Button>
           <Button type="submit" loading={isSubmitting}>
-            {isEditing ? 'Salvar Alteracoes' : 'Criar Home Game'}
+            {isEditing ? 'Salvar alterações' : 'Criar home game'}
           </Button>
         </div>
       </form>

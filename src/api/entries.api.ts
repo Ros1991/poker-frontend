@@ -4,8 +4,6 @@ import type {
   CreateEntryRequest,
   EliminateRequest,
   AvailablePlayer,
-  QuickAddEntryRequest,
-  QuickAddEntryResponse,
 } from '../types/entry.types'
 
 const base = (tournamentId: string) =>
@@ -29,14 +27,18 @@ export async function create(
   return response.data
 }
 
+/**
+ * Inscrição em lote — a única rota do painel e do terminal (SPEC-20261023-1213, F13; liberada ao dealer).
+ * Toda inscrição nasce Pendente: o pagamento é registrado depois, na tela de pagamentos (sem "buy-in pago").
+ * Com mesas já criadas, o servidor senta quem entrou (tableId/seatNumber na resposta).
+ */
 export async function bulkCreate(
   tournamentId: string,
   personIds: string[],
-  buyInPaid: boolean,
 ): Promise<TournamentEntry[]> {
   const response = await apiClient.post<TournamentEntry[]>(
     `${base(tournamentId)}/bulk`,
-    { personIds, buyInPaid },
+    { personIds },
   )
   return response.data
 }
@@ -115,7 +117,7 @@ export async function undoElimination(
   return response.data
 }
 
-/** Jogadores do home game que ainda não estão no torneio (terminal: só nome e apelido) */
+/** Jogadores do home game que ainda não estão no torneio (só id, nome, apelido e foto; o dealer também usa) */
 export async function getAvailablePlayers(
   tournamentId: string,
 ): Promise<AvailablePlayer[]> {
@@ -125,14 +127,3 @@ export async function getAvailablePlayers(
   return response.data
 }
 
-/** Inscrição rápida pelo terminal; se já houver mesas, o servidor senta o jogador sozinho */
-export async function quickAdd(
-  tournamentId: string,
-  data: QuickAddEntryRequest,
-): Promise<QuickAddEntryResponse> {
-  const response = await apiClient.post<QuickAddEntryResponse>(
-    `${base(tournamentId)}/quick-add`,
-    { buyInPaid: false, ...data },
-  )
-  return response.data
-}

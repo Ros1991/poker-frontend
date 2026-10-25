@@ -4,13 +4,17 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { ArrowLeft, Plus, Trash2, Coffee } from 'lucide-react'
 import * as blindStructuresApi from '../../api/blindStructures.api'
+import * as homeGamesApi from '../../api/homeGames.api'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { LoadingSpinner } from '../../components/common/LoadingSpinner'
 import { AccessDeniedState } from '../../components/common/AccessDeniedState'
+import { PlanLock, requiredPlanFor } from '../../components/plan'
+import { hasFeature } from '../../hooks/usePlan'
+import { usePlanCatalog } from '../../hooks/usePlanCatalog'
 import { isForbiddenError } from '../../utils/httpErrors'
 import { homeGameDetailPath } from '../../constants/routes'
-import type { BlindLevel } from '../../types/blind.types'
+import type { BlindLevel, BlindStructureDefaultCost } from '../../types/blind.types'
 
 interface LevelRow {
   key: number
@@ -43,6 +47,36 @@ const DEFAULT_LEVELS: LevelRow[] = [
 
 let nextKey = 100
 
+/** Custo padrão em edição (valor como texto, igual aos outros campos numéricos da página). */
+interface CostRow {
+  key: number
+  description: string
+  amount: string
+  beneficiary: string
+  pixKey: string
+  /** Sem campo na tela: só repassado do que já estava gravado */
+  pixKeyType: string | null
+}
+
+/** Mesmo teto do backend (BlindStructuresController.MaxDefaultCosts). */
+const MAX_DEFAULT_COSTS = 20
+
+const emptyCostRow = (): CostRow => ({
+  key: ++nextKey,
+  description: '',
+  amount: '',
+  beneficiary: '',
+  pixKey: '',
+  pixKeyType: null,
+})
+
+const isBlankCost = (c: CostRow) =>
+  !c.description.trim() && !c.amount.trim() && !c.beneficiary.trim() && !c.pixKey.trim()
+
+function formatCurrency(value: number): string {
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
+}
+
 export function BlindStructureFormPage() {
   const navigate = useNavigate()
   const { homeGameId, id } = useParams<{ homeGameId: string; id?: string }>()
@@ -70,6 +104,10 @@ export function BlindStructureFormPage() {
   const [levels, setLevels] = useState<LevelRow[]>(() =>
     DEFAULT_LEVELS.map((l) => ({ ...l })),
   )
+  // Custos padrão do torneio e dealer pago (SPEC-20261023-1215)
+  const [costs, setCosts] = useState<CostRow[]>([])
+  const [hasDealer, setHasDealer] = useState(false)
+  const [dealerFee, setDealerFee] = useState<string>('')
 
   const {
     data: existing,
@@ -80,6 +118,22 @@ export function BlindStructureFormPage() {
     queryFn: () => blindStructuresApi.getById(id!),
     enabled: !!id,
   })
+
+  // Plano do DONO do home game da estrutura (SPEC-20261023-1205): sem CostExtras (Mesa) a seção de custos
+  // padrão fica com cadeado e só leitura, e o payload OMITE defaultCosts/defaultHasDealer/defaultDealerFee
+  // (PUT sem os campos = manter; queda de plano nunca apaga nada). Estrutura global (template do Admin, sem
+  // home game) fica liberada. Mesma chave de cache do TournamentFormPage.
+  const isGlobal = isEdit && !!existing && !existing.homeGameId
+  const structureHomeGameId = isEdit ? (existing?.homeGameId ?? undefined) : homeGameId
+  const { data: homeGame } = useQuery({
+    queryKey: ['homeGame', structureHomeGameId],
+    queryFn: () => homeGamesApi.getById(structureHomeGameId!),
+    enabled: !!structureHomeGameId,
+  })
+  const { plans } = usePlanCatalog()
+  const canEditCosts = isGlobal || (!!homeGame && hasFeature(homeGame.planFeatures, 'CostExtras'))
+  const costsLocked = !isGlobal && !!homeGame && !hasFeature(homeGame.planFeatures, 'CostExtras')
+  const requiredPlan = requiredPlanFor('CostExtras', plans)
 
   useEffect(() => {
     if (existing) {
@@ -101,6 +155,20 @@ export function BlindStructureFormPage() {
         (existing.defaultRankingContribMode as 'PerPlayer' | 'Percent') ?? 'PerPlayer',
       )
       setDefaultRankingContribValue(existing.defaultRankingContribValue != null ? String(existing.defaultRankingContribValue) : '')
+      setCosts(
+        [...(existing.defaultCosts ?? [])]
+          .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+          .map((c: BlindStructureDefaultCost) => ({
+            key: ++nextKey,
+            description: c.description,
+            amount: String(c.amount),
+            beneficiary: c.beneficiary ?? '',
+            pixKey: c.pixKey ?? '',
+            pixKeyType: c.pixKeyType ?? null,
+          })),
+      )
+      setHasDealer(existing.defaultHasDealer ?? false)
+      setDealerFee(existing.defaultDealerFee != null ? String(existing.defaultDealerFee) : '')
       setLevels(
         existing.levels.map((l: BlindLevel, i: number) => ({
           key: i + 1,
@@ -152,6 +220,23 @@ export function BlindStructureFormPage() {
           isBreak: l.isBreak,
           breakDescription: l.isBreak ? (l.breakDescription || 'Intervalo') : undefined,
         })),
+        // Custos padrão e dealer só quando o plano libera (ou template global); senão o campo nem vai e o
+        // backend mantém o que já estava gravado. Cartão totalmente vazio é ignorado.
+        ...(canEditCosts
+          ? {
+              defaultCosts: costs
+                .filter((c) => !isBlankCost(c))
+                .map((c) => ({
+                  description: c.description.trim(),
+                  amount: Number(c.amount),
+                  beneficiary: c.beneficiary.trim() || null,
+                  pixKey: c.pixKey.trim() || null,
+                  pixKeyType: c.pixKeyType,
+                })),
+              defaultHasDealer: hasDealer,
+              defaultDealerFee: hasDealer ? Number(dealerFee) : null,
+            }
+          : {}),
       }
       if (isEdit) {
         return blindStructuresApi.update(id!, payload)
@@ -168,8 +253,9 @@ export function BlindStructureFormPage() {
         navigate(-1)
       }
     },
-    onError: () => {
-      toast.error('Erro ao salvar estrutura de blinds.')
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+      toast.error(msg || 'Erro ao salvar estrutura de blinds.')
     },
   })
 
@@ -224,15 +310,46 @@ export function BlindStructureFormPage() {
     )
   }
 
+  function addCost() {
+    if (costs.length >= MAX_DEFAULT_COSTS) return
+    setCosts([...costs, emptyCostRow()])
+  }
+
+  function removeCost(key: number) {
+    setCosts(costs.filter((c) => c.key !== key))
+  }
+
+  function updateCost(key: number, field: 'description' | 'amount' | 'beneficiary' | 'pixKey', value: string) {
+    setCosts(costs.map((c) => (c.key === key ? { ...c, [field]: value } : c)))
+  }
+
+  const filledCosts = costs.filter((c) => !isBlankCost(c))
+  const costsTotal = filledCosts.reduce((sum, c) => sum + (Number(c.amount) || 0), 0)
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!name.trim()) {
-      toast.error('Nome e obrigatorio.')
+      toast.error('Nome é obrigatório.')
       return
     }
     if (levels.length === 0) {
-      toast.error('Adicione pelo menos um nivel.')
+      toast.error('Adicione pelo menos um nível.')
       return
+    }
+    if (canEditCosts) {
+      const invalid = filledCosts.some((c) => !c.description.trim() || !(Number(c.amount) > 0))
+      if (invalid) {
+        toast.error('Preencha descrição e valor de cada custo padrão.')
+        return
+      }
+      if (filledCosts.length > MAX_DEFAULT_COSTS) {
+        toast.error(`Uma estrutura pode ter no máximo ${MAX_DEFAULT_COSTS} custos padrão.`)
+        return
+      }
+      if (hasDealer && !(Number(dealerFee) > 0)) {
+        toast.error('Informe o valor por dealer.')
+        return
+      }
     }
     saveMutation.mutate()
   }
@@ -260,7 +377,7 @@ export function BlindStructureFormPage() {
           <ArrowLeft className="h-5 w-5" />
         </button>
         <h1 className="text-2xl font-bold text-text-primary">
-          {isEdit ? 'Editar Estrutura de Torneio' : 'Nova Estrutura de Torneio'}
+          {isEdit ? 'Editar estrutura de torneio' : 'Nova estrutura de torneio'}
         </h1>
       </div>
 
@@ -273,20 +390,20 @@ export function BlindStructureFormPage() {
             label="Nome *"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Ex: Padrao 20min"
+            placeholder="Ex.: Padrão 20 min"
           />
           <Input
-            label="Descricao"
+            label="Descrição"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="Descricao opcional"
+            placeholder="Descrição opcional"
           />
         </div>
 
-        {/* Valores Padrao */}
+        {/* Valores padrão */}
         <div>
           <h2 className="text-sm font-semibold text-text-secondary uppercase tracking-wider mb-3">
-            Valores Padrao
+            Valores padrão
           </h2>
           <div className="grid gap-4 sm:grid-cols-3">
             <Input
@@ -306,7 +423,7 @@ export function BlindStructureFormPage() {
               placeholder="Ex: 50.00"
             />
             <Input
-              label="Addon (R$)"
+              label="Add-on (R$)"
               type="number"
               step="0.01"
               value={defaultAddon}
@@ -316,21 +433,21 @@ export function BlindStructureFormPage() {
           </div>
           <div className="grid gap-4 sm:grid-cols-3 mt-4">
             <Input
-              label="Stack Inicial"
+              label="Stack inicial"
               type="number"
               value={defaultStartingStack}
               onChange={(e) => setDefaultStartingStack(e.target.value)}
               placeholder="Ex: 10000"
             />
             <Input
-              label="Stack Rebuy"
+              label="Stack do rebuy"
               type="number"
               value={defaultRebuyStack}
               onChange={(e) => setDefaultRebuyStack(e.target.value)}
               placeholder="Ex: 10000"
             />
             <Input
-              label="Stack Addon"
+              label="Stack do add-on"
               type="number"
               value={defaultAddonStack}
               onChange={(e) => setDefaultAddonStack(e.target.value)}
@@ -339,21 +456,21 @@ export function BlindStructureFormPage() {
           </div>
           <div className="grid gap-4 sm:grid-cols-3 mt-4">
             <Input
-              label="Max Rebuys (0 = ilimitado)"
+              label="Máx. de rebuys (0 = ilimitado)"
               type="number"
               value={defaultMaxRebuys}
               onChange={(e) => setDefaultMaxRebuys(e.target.value)}
               placeholder="0"
             />
             <Input
-              label="Late Registration ate nivel"
+              label="Late registration até o nível"
               type="number"
               value={defaultLateRegistrationLevel}
               onChange={(e) => setDefaultLateRegistrationLevel(e.target.value)}
               placeholder="Ex: 6"
             />
             <Input
-              label="Rebuy ate nivel"
+              label="Rebuy até o nível"
               type="number"
               value={defaultRebuyUntilLevel}
               onChange={(e) => setDefaultRebuyUntilLevel(e.target.value)}
@@ -368,7 +485,7 @@ export function BlindStructureFormPage() {
                 onChange={(e) => setDefaultAddonAllowed(e.target.checked)}
                 className="h-5 w-5 rounded border-border-input bg-bg-input text-accent-blue focus:ring-accent-blue"
               />
-              <span className="text-sm text-text-primary">Addon Permitido</span>
+              <span className="text-sm text-text-primary">Add-on permitido</span>
             </label>
             {defaultAddonAllowed && (
               <label className="flex items-center gap-2 min-h-[44px] cursor-pointer">
@@ -378,12 +495,12 @@ export function BlindStructureFormPage() {
                   onChange={(e) => setDefaultAddonDoubleAllowed(e.target.checked)}
                   className="h-5 w-5 rounded border-border-input bg-bg-input text-accent-blue focus:ring-accent-blue"
                 />
-                <span className="text-sm text-text-primary">Addon Duplo Permitido</span>
+                <span className="text-sm text-text-primary">Add-on duplo permitido</span>
               </label>
             )}
           </div>
 
-          {/* Staff e Ranking padrao */}
+          {/* Staff e ranking padrão */}
           <div className="grid gap-4 sm:grid-cols-3 mt-4">
             <Input
               label="Staff por jogador (R$)"
@@ -395,7 +512,7 @@ export function BlindStructureFormPage() {
             />
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium text-text-secondary">
-                Contribuicao p/ ranking
+                Contribuição p/ ranking
               </label>
               <select
                 value={defaultRankingContribMode}
@@ -407,13 +524,13 @@ export function BlindStructureFormPage() {
                 className="min-h-[44px] w-full rounded-lg border border-border-input bg-bg-input px-3 py-2.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-border-focus"
               >
                 <option value="PerPlayer">Valor fixo por jogador</option>
-                <option value="Percent">% do liquido</option>
+                <option value="Percent">% do líquido</option>
               </select>
             </div>
             <Input
               label={
                 defaultRankingContribMode === 'Percent'
-                  ? '% do liquido'
+                  ? '% do líquido'
                   : 'Ranking por jogador (R$)'
               }
               type="number"
@@ -425,21 +542,191 @@ export function BlindStructureFormPage() {
           </div>
         </div>
 
+        {/* Custos padrão do torneio (SPEC-20261023-1215) */}
+        <section aria-labelledby="custos-padrao-titulo">
+          <div className="mb-1 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+            <h2
+              id="custos-padrao-titulo"
+              className="text-sm font-semibold text-text-secondary uppercase tracking-wider"
+            >
+              Custos padrão do torneio
+            </h2>
+            {filledCosts.length > 0 && (
+              <span className="text-sm font-semibold text-text-primary tabular-nums">
+                Total: {formatCurrency(costsTotal)}
+              </span>
+            )}
+          </div>
+
+          {costsLocked ? (
+            <div className="mt-3 flex flex-col gap-4">
+              <PlanLock
+                feature="CostExtras"
+                title="Custos padrão"
+                description={`Custos padrão estão disponíveis ${requiredPlan ? `a partir do plano ${requiredPlan}` : 'nos planos pagos'}. Os que já estão nesta estrutura ficam guardados.`}
+                currentPlan={homeGame?.ownerPlan ?? null}
+                homeGameName={homeGame?.name ?? null}
+                className="w-full"
+              />
+              {(filledCosts.length > 0 || hasDealer) && (
+                <div className="rounded-lg border border-border-default bg-bg-primary p-3">
+                  <p className="mb-2 text-xs font-medium text-text-secondary">Guardados nesta estrutura (só leitura)</p>
+                  <ul className="flex flex-col gap-1.5">
+                    {filledCosts.map((c) => (
+                      <li key={c.key} className="flex items-start justify-between gap-3 text-sm">
+                        <span className="min-w-0 wrap-anywhere text-text-primary">
+                          {c.description}
+                          {c.beneficiary && <span className="text-text-secondary"> · Para: {c.beneficiary}</span>}
+                        </span>
+                        <span className="shrink-0 tabular-nums text-text-primary">{formatCurrency(Number(c.amount) || 0)}</span>
+                      </li>
+                    ))}
+                    {hasDealer && (
+                      <li className="flex items-start justify-between gap-3 text-sm">
+                        <span className="text-text-primary">Dealer pago (por dealer)</span>
+                        <span className="shrink-0 tabular-nums text-text-primary">{formatCurrency(Number(dealerFee) || 0)}</span>
+                      </li>
+                    )}
+                  </ul>
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              <p className="mb-3 text-xs text-text-secondary">
+                Cada torneio criado com esta estrutura já nasce com estes custos (valor fixo por torneio). Dá para
+                editar ou excluir na aba Custos do torneio. Staff é por jogador e fica no campo acima.
+              </p>
+
+              {costs.length > 0 && (
+                <div className="flex flex-col gap-3">
+                  {costs.map((c, i) => (
+                    <div
+                      key={c.key}
+                      className="grid grid-cols-1 gap-3 rounded-lg border border-border-default bg-bg-primary p-3 sm:grid-cols-[2fr_1fr_1.5fr_1.5fr_auto] sm:items-end"
+                    >
+                      <Input
+                        id={`custo-${c.key}-descricao`}
+                        label="Descrição *"
+                        value={c.description}
+                        onChange={(e) => updateCost(c.key, 'description', e.target.value)}
+                        placeholder="Ex.: Churrasqueiro"
+                        maxLength={200}
+                        disabled={!canEditCosts}
+                      />
+                      <Input
+                        id={`custo-${c.key}-valor`}
+                        label="Valor (R$) *"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        inputMode="decimal"
+                        value={c.amount}
+                        onChange={(e) => updateCost(c.key, 'amount', e.target.value)}
+                        placeholder="Ex.: 330"
+                        disabled={!canEditCosts}
+                      />
+                      <Input
+                        id={`custo-${c.key}-para-quem`}
+                        label="Para quem (opcional)"
+                        value={c.beneficiary}
+                        onChange={(e) => updateCost(c.key, 'beneficiary', e.target.value)}
+                        placeholder="Ex.: Zé do churrasco"
+                        maxLength={200}
+                        disabled={!canEditCosts}
+                      />
+                      <Input
+                        id={`custo-${c.key}-pix`}
+                        label="Chave PIX (opcional)"
+                        value={c.pixKey}
+                        onChange={(e) => updateCost(c.key, 'pixKey', e.target.value)}
+                        placeholder="CPF, e-mail, telefone..."
+                        maxLength={200}
+                        disabled={!canEditCosts}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeCost(c.key)}
+                        disabled={!canEditCosts}
+                        className="flex min-h-[44px] min-w-[44px] items-center justify-center gap-2 justify-self-end rounded-lg text-sm text-text-secondary transition-colors hover:bg-accent-red-soft hover:text-accent-red disabled:cursor-not-allowed"
+                        title="Remover custo"
+                        aria-label={`Remover custo ${c.description.trim() || i + 1}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        <span className="sm:hidden">Remover</span>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={addCost}
+                  disabled={!canEditCosts || costs.length >= MAX_DEFAULT_COSTS}
+                  className="min-h-[44px]"
+                >
+                  <Plus className="h-4 w-4" />
+                  Adicionar custo
+                </Button>
+                {costs.length >= MAX_DEFAULT_COSTS && (
+                  <span className="text-xs text-text-secondary">Máximo de {MAX_DEFAULT_COSTS} custos padrão.</span>
+                )}
+              </div>
+
+              <div className="mt-4 flex flex-col gap-3 border-t border-border-default pt-4">
+                <label className="flex min-h-[44px] cursor-pointer items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={hasDealer}
+                    onChange={(e) => setHasDealer(e.target.checked)}
+                    disabled={!canEditCosts}
+                    className="h-5 w-5 rounded border-border-input bg-bg-input text-accent-blue focus:ring-accent-blue"
+                  />
+                  <span className="text-sm text-text-primary">Este torneio tem dealer pago</span>
+                </label>
+                {hasDealer && (
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    <Input
+                      id="valor-por-dealer"
+                      label="Valor por dealer (R$) *"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      inputMode="decimal"
+                      value={dealerFee}
+                      onChange={(e) => setDealerFee(e.target.value)}
+                      placeholder="Ex.: 150"
+                      disabled={!canEditCosts}
+                    />
+                    <p className="text-xs text-text-secondary sm:col-span-2 sm:self-end sm:pb-3">
+                      Ao criar o torneio, o sistema pergunta quantos dealers e lança o custo (quantidade × valor).
+                    </p>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </section>
+
         {/* Levels Table */}
         <div>
           <h2 className="text-sm font-semibold text-text-secondary uppercase tracking-wider mb-3">
-            Niveis
+            Níveis
           </h2>
 
           <div className="overflow-x-auto">
             <table className="w-full text-sm tabular-nums">
               <thead>
                 <tr className="border-b border-border-default text-left text-text-secondary">
-                  <th className="px-2 py-2 w-16">Nivel</th>
+                  <th className="px-2 py-2 w-16">Nível</th>
                   <th className="px-2 py-2">Small Blind</th>
                   <th className="px-2 py-2">Big Blind</th>
                   <th className="px-2 py-2">Ante</th>
-                  <th className="px-2 py-2 w-24">Duracao (min)</th>
+                  <th className="px-2 py-2 w-24">Duração (min)</th>
                   <th className="px-2 py-2 w-24">Intervalo?</th>
                   <th className="px-2 py-2 w-12"></th>
                 </tr>
@@ -541,11 +828,11 @@ export function BlindStructureFormPage() {
           <div className="flex gap-2 mt-3">
             <Button type="button" variant="secondary" size="sm" onClick={addLevel}>
               <Plus className="h-4 w-4" />
-              Adicionar Nivel
+              Adicionar nível
             </Button>
             <Button type="button" variant="secondary" size="sm" onClick={addBreak}>
               <Coffee className="h-4 w-4" />
-              Adicionar Intervalo
+              Adicionar intervalo
             </Button>
           </div>
         </div>
@@ -560,7 +847,7 @@ export function BlindStructureFormPage() {
             Cancelar
           </Button>
           <Button type="submit" loading={saveMutation.isPending}>
-            {isEdit ? 'Salvar' : 'Criar Estrutura'}
+            {isEdit ? 'Salvar' : 'Criar estrutura'}
           </Button>
         </div>
       </form>

@@ -4,6 +4,8 @@ import type { Table } from '../../api/tables.api'
 import { tableLabel } from '../../utils/tableBalance'
 
 export { isActiveStatus, tableLabel } from '../../utils/tableBalance'
+// Busca sem acento: utilitário único em utils/text.ts (SPEC-20261023-1213)
+export { normalizeText } from '../../utils/text'
 
 export function formatCurrency(value: number): string {
   return new Intl.NumberFormat('pt-BR', {
@@ -57,10 +59,4 @@ export function statusLabel(entry: TournamentEntry): string {
 export function apiErrorMessage(err: unknown, fallback: string): string {
   const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
   return msg || fallback
-}
-
-/** Minúsculas e sem acento, para busca por nome */
-export function normalizeText(text: string): string {
-  // Remove os acentos (marcas combinantes)
-  return text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
 }

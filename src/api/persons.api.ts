@@ -37,9 +37,10 @@ export async function remove(id: string): Promise<void> {
   await apiClient.delete(`/Persons/${id}`)
 }
 
-export async function uploadPhoto(id: string, file: File): Promise<Person> {
+/** Foto já recortada (JPEG 512 × 512) — SPEC-20261023-1213 */
+export async function uploadPhoto(id: string, photo: Blob): Promise<Person> {
   const formData = new FormData()
-  formData.append('file', file)
+  formData.append('file', photo, 'foto.jpg')
   const response = await apiClient.post<Person>(
     `/Persons/${id}/photo`,
     formData,
@@ -47,6 +48,12 @@ export async function uploadPhoto(id: string, file: File): Promise<Person> {
       headers: { 'Content-Type': 'multipart/form-data' },
     },
   )
+  return response.data
+}
+
+/** Remove a foto (só o organizador) */
+export async function removePhoto(id: string): Promise<Person> {
+  const response = await apiClient.delete<Person>(`/Persons/${id}/photo`)
   return response.data
 }
 

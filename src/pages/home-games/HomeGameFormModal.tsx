@@ -1,30 +1,46 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import * as homeGamesApi from '../../api/homeGames.api'
+import * as homeGameLogoApi from '../../api/homeGameLogo.api'
 import { isPlanLimitError } from '../../api/client'
 import { MY_PLAN_QUERY_KEY } from '../../hooks/usePlan'
 import { Modal } from '../../components/ui/Modal'
 import { Input } from '../../components/ui/Input'
 import { Textarea } from '../../components/ui/Textarea'
 import { Button } from '../../components/ui/Button'
+import { LogoPicker } from '../../components/photo/LogoPicker'
 import type { HomeGame } from '../../types/homeGame.types'
 
 const homeGameSchema = z.object({
-  name: z.string().min(1, 'Nome e obrigatorio').max(100, 'Maximo 100 caracteres'),
-  description: z.string().max(500, 'Maximo 500 caracteres').optional().or(z.literal('')),
-  location: z.string().max(200, 'Maximo 200 caracteres').optional().or(z.literal('')),
+  name: z.string().min(1, 'Nome é obrigatório').max(100, 'Máximo de 100 caracteres'),
+  description: z.string().max(500, 'Máximo de 500 caracteres').optional().or(z.literal('')),
+  location: z.string().max(200, 'Máximo de 200 caracteres').optional().or(z.literal('')),
   pixKey: z.string().max(100).optional().or(z.literal('')),
   pixBeneficiario: z.string().max(100).optional().or(z.literal('')),
-  defaultBuyIn: z.coerce.number().min(0, 'Valor invalido').optional(),
-  defaultRebuy: z.coerce.number().min(0, 'Valor invalido').optional(),
-  defaultAddon: z.coerce.number().min(0, 'Valor invalido').optional(),
+  defaultBuyIn: z.coerce.number().min(0, 'Valor inválido').optional(),
+  defaultRebuy: z.coerce.number().min(0, 'Valor inválido').optional(),
+  defaultAddon: z.coerce.number().min(0, 'Valor inválido').optional(),
 })
 
 type HomeGameFormData = z.infer<typeof homeGameSchema>
+
+/**
+ * Envia a logo escolhida (ou remove a marcada) depois de salvar o home game (SPEC-20261023-1213). Falha na logo não
+ * desfaz o resto: avisa e segue.
+ */
+async function saveLogo(homeGameId: string, logo: Blob | null, removeCurrent: boolean): Promise<void> {
+  try {
+    if (logo) await homeGameLogoApi.uploadLogo(homeGameId, logo)
+    else if (removeCurrent) await homeGameLogoApi.removeLogo(homeGameId)
+  } catch (err) {
+    const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+    toast.error(msg ?? 'Home game salvo, mas a logo não foi atualizada. Tente de novo.')
+  }
+}
 
 interface HomeGameFormModalProps {
   isOpen: boolean
@@ -40,6 +56,18 @@ export function HomeGameFormModal({
   homeGame,
 }: HomeGameFormModalProps) {
   const isEditing = !!homeGame
+  // Logo do clube: escolhida aqui e enviada ao salvar (endpoint próprio)
+  const [logo, setLogo] = useState<Blob | null>(null)
+  const [logoRemoved, setLogoRemoved] = useState(false)
+  // Abriu de novo: começa sem logo escolhida (ajuste de estado durante o render, sem efeito)
+  const [wasOpen, setWasOpen] = useState(isOpen)
+  if (wasOpen !== isOpen) {
+    setWasOpen(isOpen)
+    if (isOpen) {
+      setLogo(null)
+      setLogoRemoved(false)
+    }
+  }
 
   const {
     register,
@@ -91,12 +119,15 @@ export function HomeGameFormModal({
   const queryClient = useQueryClient()
 
   const createMutation = useMutation({
-    mutationFn: (data: HomeGameFormData) =>
-      homeGamesApi.create({
+    mutationFn: async (data: HomeGameFormData) => {
+      const created = await homeGamesApi.create({
         name: data.name,
         description: data.description || undefined,
         location: data.location || undefined,
-      }),
+      })
+      await saveLogo(created.id, logo, false)
+      return created
+    },
     onSuccess: () => {
       toast.success('Home game criado com sucesso!')
       void queryClient.invalidateQueries({ queryKey: MY_PLAN_QUERY_KEY })
@@ -114,12 +145,15 @@ export function HomeGameFormModal({
   })
 
   const updateMutation = useMutation({
-    mutationFn: (data: HomeGameFormData) =>
-      homeGamesApi.update(homeGame!.id, {
+    mutationFn: async (data: HomeGameFormData) => {
+      const updated = await homeGamesApi.update(homeGame!.id, {
         name: data.name,
         description: data.description || undefined,
         location: data.location || undefined,
-      }),
+      })
+      await saveLogo(updated.id, logo, logoRemoved && !!homeGame?.logoUrl)
+      return updated
+    },
     onSuccess: () => {
       toast.success('Home game atualizado com sucesso!')
       onSuccess()
@@ -143,7 +177,7 @@ export function HomeGameFormModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={isEditing ? 'Editar Home Game' : 'Novo Home Game'}
+      title={isEditing ? 'Editar home game' : 'Novo home game'}
       size="lg"
       footer={
         <div className="flex justify-end gap-3">
@@ -156,7 +190,7 @@ export function HomeGameFormModal({
             Cancelar
           </Button>
           <Button type="submit" form="home-game-form" loading={isSubmitting}>
-            {isEditing ? 'Salvar' : 'Criar Home Game'}
+            {isEditing ? 'Salvar' : 'Criar home game'}
           </Button>
         </div>
       }
@@ -170,8 +204,8 @@ export function HomeGameFormModal({
         />
 
         <Textarea
-          label="Descricao"
-          placeholder="Descricao do home game..."
+          label="Descrição"
+          placeholder="Descrição do home game..."
           error={errors.description?.message}
           {...register('description')}
         />
@@ -183,6 +217,15 @@ export function HomeGameFormModal({
           {...register('location')}
         />
 
+        <LogoPicker
+          currentUrl={homeGame?.logoUrl}
+          value={logo}
+          onChange={setLogo}
+          removed={logoRemoved}
+          onRemovedChange={setLogoRemoved}
+          disabled={isSubmitting}
+        />
+
         <div className="border-t border-border-default pt-4">
           <h3 className="text-sm font-medium text-text-secondary mb-3">
             Dados PIX (para pagamentos)
@@ -190,13 +233,13 @@ export function HomeGameFormModal({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
               label="Chave PIX"
-              placeholder="CPF, e-mail, telefone ou chave aleatoria"
+              placeholder="CPF, e-mail, telefone ou chave aleatória"
               error={errors.pixKey?.message}
               {...register('pixKey')}
             />
             <Input
-              label="Beneficiario PIX"
-              placeholder="Nome do beneficiario"
+              label="Beneficiário PIX"
+              placeholder="Nome do beneficiário"
               error={errors.pixBeneficiario?.message}
               {...register('pixBeneficiario')}
             />
@@ -205,7 +248,7 @@ export function HomeGameFormModal({
 
         <div className="border-t border-border-default pt-4">
           <h3 className="text-sm font-medium text-text-secondary mb-3">
-            Valores padrao (R$)
+            Valores padrão (R$)
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Input

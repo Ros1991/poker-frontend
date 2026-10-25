@@ -13,19 +13,34 @@ import { Badge } from '../../../components/ui/Badge'
 import { ConfirmDialog } from '../../../components/ui/ConfirmDialog'
 import { LoadingSpinner } from '../../../components/common/LoadingSpinner'
 import type { Tournament } from '../../../types/tournament.types'
-import type { CostExtra } from '../../../types/costExtra.types'
+import { COST_TYPE_DEFAULT, type CostExtra } from '../../../types/costExtra.types'
 
 interface CostExtrasTabProps {
   tournament: Tournament
 }
 
 const costExtraSchema = z.object({
-  description: z.string().min(1, 'Descricao obrigatoria'),
-  amount: z.coerce.number().min(0.01, 'Valor invalido'),
-  paidByPersonId: z.string().optional(),
+  description: z
+    .string()
+    .trim()
+    .min(1, 'Descrição obrigatória')
+    .max(500, 'Até 500 caracteres'),
+  amount: z.coerce.number().min(0.01, 'Valor inválido'),
+  beneficiary: z.string().trim().max(200, 'Até 200 caracteres'),
+  pixKey: z.string().trim().max(200, 'Até 200 caracteres'),
 })
 
 type CostExtraFormData = z.infer<typeof costExtraSchema>
+
+/** Campo opcional vazio vai como null (o PUT grava o pedido inteiro). */
+const orNull = (v: string) => (v.trim() === '' ? null : v.trim())
+
+const EMPTY_FORM: CostExtraFormData = {
+  description: '',
+  amount: 0,
+  beneficiary: '',
+  pixKey: '',
+}
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat('pt-BR', {
@@ -47,11 +62,7 @@ export function CostExtrasTab({ tournament }: CostExtrasTabProps) {
     formState: { errors },
   } = useForm<CostExtraFormData>({
     resolver: zodResolver(costExtraSchema) as Resolver<CostExtraFormData>,
-    defaultValues: {
-      description: '',
-      amount: 0,
-      paidByPersonId: '',
-    },
+    defaultValues: EMPTY_FORM,
   })
 
   const { data: costs, isLoading } = useQuery({
@@ -64,14 +75,15 @@ export function CostExtrasTab({ tournament }: CostExtrasTabProps) {
       costExtrasApi.create(tournament.id, {
         description: data.description,
         amount: data.amount,
-        paidByPersonId: data.paidByPersonId || undefined,
+        beneficiary: orNull(data.beneficiary),
+        pixKey: orNull(data.pixKey),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['costExtras', tournament.id] })
       queryClient.invalidateQueries({ queryKey: ['tournament', tournament.id] })
       toast.success('Custo adicionado!')
       setShowForm(false)
-      reset()
+      reset(EMPTY_FORM)
     },
     onError: () => {
       toast.error('Erro ao adicionar custo.')
@@ -116,11 +128,18 @@ export function CostExtrasTab({ tournament }: CostExtrasTabProps) {
     },
   })
 
+  // Edição manda TODOS os campos do custo (o PUT copia o pedido inteiro): sem isso a primeira edição
+  // apagaria beneficiário e chave PIX (ex.: churrasqueiro vindo da estrutura, Staff com a chave do home game).
+  // Tipo da chave e Caixa não aparecem na tela: vão como estavam.
   const editMutation = useMutation({
-    mutationFn: (vars: { id: string; data: CostExtraFormData }) =>
-      costExtrasApi.update(tournament.id, vars.id, {
+    mutationFn: (vars: { cost: CostExtra; data: CostExtraFormData }) =>
+      costExtrasApi.update(tournament.id, vars.cost.id, {
         description: vars.data.description,
         amount: vars.data.amount,
+        beneficiary: orNull(vars.data.beneficiary),
+        pixKey: orNull(vars.data.pixKey),
+        pixKeyType: vars.cost.pixKeyType ?? null,
+        isCashBox: vars.cost.isCashBox ?? false,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['costExtras', tournament.id] })
@@ -128,14 +147,19 @@ export function CostExtrasTab({ tournament }: CostExtrasTabProps) {
       toast.success('Custo atualizado!')
       setShowForm(false)
       setEditingCost(null)
-      reset()
+      reset(EMPTY_FORM)
     },
     onError: () => toast.error('Erro ao atualizar custo.'),
   })
 
   function openEdit(cost: CostExtra) {
     setEditingCost(cost)
-    reset({ description: cost.description, amount: cost.amount, paidByPersonId: '' })
+    reset({
+      description: cost.description,
+      amount: cost.amount,
+      beneficiary: cost.beneficiary ?? '',
+      pixKey: cost.pixKey ?? '',
+    })
     setShowForm(true)
   }
 
@@ -161,7 +185,7 @@ export function CostExtrasTab({ tournament }: CostExtrasTabProps) {
           size="sm"
           onClick={() => {
             setEditingCost(null)
-            reset()
+            reset(EMPTY_FORM)
             setShowForm(true)
           }}
         >
@@ -186,6 +210,7 @@ export function CostExtrasTab({ tournament }: CostExtrasTabProps) {
             const pending = cost.amount - paidAmount
             const isStaff = cost.costType === 'Staff'
             const isRanking = cost.costType === 'RankingAccumulated'
+            const isDefault = cost.costType === COST_TYPE_DEFAULT
             return (
               <div
                 key={cost.id}
@@ -200,9 +225,17 @@ export function CostExtrasTab({ tournament }: CostExtrasTabProps) {
                       {cost.description}
                       {isStaff && <Badge color="blue">Staff (auto)</Badge>}
                       {isRanking && <Badge color="purple">Ranking (auto)</Badge>}
+                      {isDefault && (
+                        <span title="Veio da estrutura de blinds" className="inline-flex">
+                          <Badge color="gray">Padrão</Badge>
+                        </span>
+                      )}
                     </p>
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5 text-xs text-text-secondary sm:flex-nowrap">
                       {cost.beneficiary && <span>Para: {cost.beneficiary}</span>}
+                      {cost.pixKey && !cost.isCashBox && (
+                        <span className="wrap-anywhere">PIX: {cost.pixKey}</span>
+                      )}
                       {isPaid && cost.paymentMethod && (
                         <span className="text-accent-green-deep">
                           Pago via {cost.paymentMethod}
@@ -299,7 +332,7 @@ export function CostExtrasTab({ tournament }: CostExtrasTabProps) {
         onClose={() => {
           setShowForm(false)
           setEditingCost(null)
-          reset()
+          reset(EMPTY_FORM)
         }}
         title={editingCost ? 'Editar Custo Extra' : 'Adicionar Custo Extra'}
         size="sm"
@@ -311,7 +344,7 @@ export function CostExtrasTab({ tournament }: CostExtrasTabProps) {
               onClick={() => {
                 setShowForm(false)
                 setEditingCost(null)
-                reset()
+                reset(EMPTY_FORM)
               }}
               disabled={createMutation.isPending || editMutation.isPending}
             >
@@ -330,23 +363,36 @@ export function CostExtrasTab({ tournament }: CostExtrasTabProps) {
         <form
           id="cost-extra-form"
           onSubmit={handleSubmit((data) => {
-            if (editingCost) editMutation.mutate({ id: editingCost.id, data })
+            if (editingCost) editMutation.mutate({ cost: editingCost, data })
             else createMutation.mutate(data)
           })}
           className="flex flex-col gap-4"
         >
           <Input
-            label="Descricao *"
+            label="Descrição *"
             {...register('description')}
             error={errors.description?.message}
-            placeholder="Ex: Comida, Bebidas, Local..."
+            placeholder="Ex.: Comida, bebidas, local..."
           />
           <Input
             label="Valor (R$) *"
             type="number"
             step="0.01"
+            inputMode="decimal"
             {...register('amount')}
             error={errors.amount?.message}
+          />
+          <Input
+            label="Para quem (opcional)"
+            {...register('beneficiary')}
+            error={errors.beneficiary?.message}
+            placeholder="Ex.: Zé do churrasco"
+          />
+          <Input
+            label="Chave PIX (opcional)"
+            {...register('pixKey')}
+            error={errors.pixKey?.message}
+            placeholder="CPF, e-mail, telefone ou chave aleatória"
           />
         </form>
       </Modal>

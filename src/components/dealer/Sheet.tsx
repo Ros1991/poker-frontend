@@ -17,6 +17,11 @@ interface SheetProps {
   toolbar?: ReactNode
   /** Ficha do jogador fica acima das outras telas (Jogadores, Mesas) */
   elevated?: boolean
+  /**
+   * false: o conteúdo NÃO rola sozinho — vira uma coluna flex de altura fixa para quem está dentro controlar a
+   * rolagem e manter um rodapé fixo (ex.: PlayerPicker do "Adicionar jogadores", SPEC-20261023-1213)
+   */
+  scrollable?: boolean
 }
 
 /**
@@ -29,7 +34,7 @@ export function Sheet(props: SheetProps) {
   return <OpenSheet {...props} />
 }
 
-function OpenSheet({ onClose, title, children, toolbar, elevated }: SheetProps) {
+function OpenSheet({ onClose, title, children, toolbar, elevated, scrollable = true }: SheetProps) {
   const viewport = useVisualViewport()
   const handleFocus = useFocusedFieldIntoView()
 
@@ -66,13 +71,19 @@ function OpenSheet({ onClose, title, children, toolbar, elevated }: SheetProps) 
         </div>
         {toolbar && <div className="px-1 pb-1 pt-2">{toolbar}</div>}
       </header>
-      <div
-        className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pt-3"
-        style={{ paddingBottom: 'calc(2.5rem + env(safe-area-inset-bottom))' }}
-        onFocus={handleFocus}
-      >
-        {children}
-      </div>
+      {scrollable ? (
+        <div
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pt-3"
+          style={{ paddingBottom: 'calc(2.5rem + env(safe-area-inset-bottom))' }}
+          onFocus={handleFocus}
+        >
+          {children}
+        </div>
+      ) : (
+        <div className="flex min-h-0 flex-1 flex-col pt-3" onFocus={handleFocus}>
+          {children}
+        </div>
+      )}
     </div>,
     document.body,
   )

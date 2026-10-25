@@ -156,7 +156,10 @@ export function PrizesTab({ tournament, entries }: PrizesTabProps) {
         </div>
         <div className="rounded-lg bg-bg-primary p-4">
           <p className="text-xs text-text-secondary">Premiação Líquida</p>
-          <p className="text-xl font-bold text-accent-green-deep tabular-nums">
+          {/* Valor real, mesmo negativo (custos padrão antes das inscrições, SPEC-20261023-1215): negativo em vermelho */}
+          <p
+            className={`text-xl font-bold tabular-nums ${(calculation?.netPrizePool ?? tournament.netPrizePool) < 0 ? 'text-accent-red-deep' : 'text-accent-green-deep'}`}
+          >
             {formatCurrency(calculation?.netPrizePool ?? tournament.netPrizePool)}
           </p>
         </div>

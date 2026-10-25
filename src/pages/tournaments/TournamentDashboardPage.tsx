@@ -540,7 +540,11 @@ export function TournamentDashboardPage() {
               <>
                 <div className="rounded-lg bg-bg-primary p-3">
                   <p className="text-xs text-text-secondary">Premiação</p>
-                  <p className="text-xl font-bold text-accent-green-deep tabular-nums">
+                  {/* Com custo fixo (custos padrão da estrutura, SPEC-20261023-1215) o líquido começa negativo:
+                      em vermelho, nunca em verde (o telão mostra 0; aqui fica o valor real) */}
+                  <p
+                    className={`text-xl font-bold tabular-nums ${premiacao < 0 ? 'text-accent-red-deep' : 'text-accent-green-deep'}`}
+                  >
                     {formatCurrency(premiacao)}
                   </p>
                 </div>

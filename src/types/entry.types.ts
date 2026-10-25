@@ -12,6 +12,7 @@ export interface TournamentEntry {
   tableId: string | null
   seatNumber: number | null
   status: EntryStatus
+  /** Legado (SPEC-20261023-1213, F15): sempre false em inscrição nova — o pagamento vem da tela de pagamentos */
   buyInPaid: boolean
   buyInAmount: number
   rebuyCount: number
@@ -32,10 +33,9 @@ export interface TournamentEntry {
   createdAt: string
 }
 
+/** Inscrição individual: nasce sempre Pendente (sem "buy-in pago") */
 export interface CreateEntryRequest {
-  tournamentId: string
   personId: string
-  paid?: boolean
 }
 
 export interface RebuyRequest {
@@ -64,7 +64,7 @@ export interface EliminationResult {
   whatsAppLink: string | null
 }
 
-/** Jogador do home game que ainda não está no torneio (só nome e apelido) */
+/** Jogador do home game que ainda não está no torneio (só id, nome, apelido e foto — sem contato) */
 export interface AvailablePlayer {
   id: string
   fullName: string
@@ -72,17 +72,3 @@ export interface AvailablePlayer {
   photoUrl: string | null
 }
 
-/** Cadastro rápido do terminal: pessoa existente (personId) ou nova (fullName/nickname) */
-export interface QuickAddEntryRequest {
-  personId?: string
-  fullName?: string
-  nickname?: string
-  buyInPaid?: boolean
-}
-
-export interface QuickAddEntryResponse {
-  entry: TournamentEntry
-  tableId: string | null
-  tableName: string | null
-  seatNumber: number | null
-}

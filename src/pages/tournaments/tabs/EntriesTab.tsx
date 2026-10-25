@@ -18,7 +18,9 @@ import * as tournamentsApi from '../../../api/tournaments.api'
 import { hasFeature } from '../../../hooks/usePlan'
 import { Button } from '../../../components/ui/Button'
 import { Badge } from '../../../components/ui/Badge'
-import { Avatar } from '../../../components/ui/Avatar'
+import { EditablePhotoAvatar } from '../../../components/photo/EditablePhotoAvatar'
+import * as personsApi from '../../../api/persons.api'
+import * as tournamentPlayersApi from '../../../api/tournamentPlayers.api'
 import { SearchInput } from '../../../components/ui/SearchInput'
 import { ConfirmDialog } from '../../../components/ui/ConfirmDialog'
 import { Modal } from '../../../components/ui/Modal'
@@ -308,10 +310,17 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
             >
               {/* Player info */}
               <div className="flex items-center gap-3 w-full sm:flex-1 sm:min-w-[200px]">
-                <Avatar
+                {/* Tocar no avatar põe/troca a foto (SPEC-20261023-1213, F20); o organizador também remove */}
+                <EditablePhotoAvatar
                   src={entry.person.photoUrl}
                   name={entry.person.nickname ?? entry.person.fullName}
-                  size="sm"
+                  size="md"
+                  upload={(blob) => tournamentPlayersApi.uploadPhoto(tournament.id, entry.personId, blob)}
+                  remove={() => personsApi.removePhoto(entry.personId)}
+                  onDone={() => {
+                    void queryClient.invalidateQueries({ queryKey: ['entries', tournament.id] })
+                    void queryClient.invalidateQueries({ queryKey: ['persons', tournament.homeGameId] })
+                  }}
                 />
                 <div className="min-w-0">
                   <p
@@ -508,8 +517,7 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
         isOpen={showAddPlayer}
         onClose={() => setShowAddPlayer(false)}
         tournamentId={tournament.id}
-        homeGameId={tournament.homeGameId}
-        allowPayment={canPay}
+        entries={entries}
       />
 
       {canPay && (

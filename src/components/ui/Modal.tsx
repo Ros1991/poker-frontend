@@ -17,6 +17,12 @@ interface ModalProps {
   footer?: ReactNode
   className?: string
   size?: 'sm' | 'md' | 'lg' | 'xl'
+  /**
+   * Corpo sem rolagem própria: vira uma coluna flex que encolhe junto com a área visível (inclusive com o teclado
+   * aberto) para quem está dentro rolar a própria lista e manter o próprio rodapé à vista (ex.: PlayerPicker do
+   * "Adicionar jogadores"). Quem usa dá a altura preferida com um filho `flex min-h-0 flex-col h-[…]`.
+   */
+  fill?: boolean
 }
 
 const sizeClasses = {
@@ -37,7 +43,7 @@ export function Modal(props: ModalProps) {
   return <OpenModal {...props} />
 }
 
-function OpenModal({ onClose, title, children, footer, className, size = 'md' }: ModalProps) {
+function OpenModal({ onClose, title, children, footer, className, size = 'md', fill = false }: ModalProps) {
   const titleId = useId()
   const viewport = useVisualViewport()
   const handleFocus = useFocusedFieldIntoView()
@@ -79,7 +85,10 @@ function OpenModal({ onClose, title, children, footer, className, size = 'md' }:
         </div>
         <div
           data-modal-body
-          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6"
+          className={cn(
+            'min-h-0 flex-1 px-4 py-4 sm:px-6',
+            fill ? 'flex flex-col overflow-hidden' : 'overflow-y-auto overscroll-contain',
+          )}
           onFocus={handleFocus}
         >
           {children}

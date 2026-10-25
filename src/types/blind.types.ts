@@ -1,3 +1,19 @@
+/**
+ * Custo padrão de valor fixo por torneio guardado na estrutura (SPEC-20261023-1215): todo torneio criado com a
+ * estrutura já nasce com ele na aba Custos (CostType "Default"). Ex.: Churrasqueiro — R$ 330.
+ */
+export interface BlindStructureDefaultCost {
+  id?: string
+  description: string
+  amount: number
+  /** "Para quem" (opcional) */
+  beneficiary?: string | null
+  pixKey?: string | null
+  /** Sem campo na tela; só repassado */
+  pixKeyType?: string | null
+  sortOrder?: number
+}
+
 export interface BlindStructure {
   id: string
   name: string
@@ -22,6 +38,15 @@ export interface BlindStructure {
   defaultStaffAmount?: number | null
   defaultRankingContribMode?: string | null
   defaultRankingContribValue?: number | null
+  /**
+   * Custos padrão (SPEC-20261023-1215). No PUT: ausente = manter a lista atual; lista (inclusive vazia) =
+   * substituir. O formulário do Mesa omite o campo (e os dois de dealer) para não apagar nada.
+   */
+  defaultCosts?: BlindStructureDefaultCost[]
+  /** "Este torneio tem dealer pago": a criação do torneio pergunta quantos dealers */
+  defaultHasDealer?: boolean
+  /** Valor POR DEALER, por torneio (obrigatório quando defaultHasDealer) */
+  defaultDealerFee?: number | null
 }
 
 export interface BlindLevel {

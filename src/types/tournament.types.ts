@@ -74,6 +74,11 @@ export interface CreateTournamentRequest {
   staffAmount?: number
   rankingContribMode?: 'PerPlayer' | 'Percent'
   rankingContribValue?: number
+  /**
+   * Quantos dealers trabalham no torneio quando a estrutura tem dealer pago (0–20; ausente = 1). Vira o custo
+   * "Dealers (N × R$ X)" na criação (e na primeira estrutura de um rascunho) — SPEC-20261023-1215.
+   */
+  dealerCount?: number
 }
 
 export interface UpdateTournamentRequest extends Partial<CreateTournamentRequest> {

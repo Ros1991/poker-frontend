@@ -17,6 +17,10 @@ export type HistoryActivityType =
   | 'PlayerSeated'
   | 'TableBroken'
   | 'PlayerRemoved'
+  /** Jogador novo cadastrado pelo torneio (painel ou terminal) — SPEC-20261023-1213 */
+  | 'PlayerCreated'
+  /** Foto do jogador posta/trocada pelo torneio — SPEC-20261023-1213 */
+  | 'PlayerPhotoChanged'
 
 export interface HistoryItem {
   /** "{kind}:{refId}" — único na lista */

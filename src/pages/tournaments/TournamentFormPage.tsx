@@ -1,15 +1,17 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { useForm, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Minus, Plus } from 'lucide-react'
 import * as tournamentsApi from '../../api/tournaments.api'
 import * as homeGamesApi from '../../api/homeGames.api'
 import * as rankingsApi from '../../api/rankings.api'
 import * as blindStructuresApi from '../../api/blindStructures.api'
+import * as costExtrasApi from '../../api/costExtras.api'
+import { COST_TYPE_DEFAULT } from '../../types/costExtra.types'
 import { isPlanLimitError } from '../../api/client'
 import { hasFeature, MY_PLAN_QUERY_KEY } from '../../hooks/usePlan'
 import { Button } from '../../components/ui/Button'
@@ -18,27 +20,34 @@ import { LoadingSpinner } from '../../components/common/LoadingSpinner'
 import { tournamentDashboardPath } from '../../constants/routes'
 
 const tournamentSchema = z.object({
-  name: z.string().min(1, 'Nome obrigatorio'),
-  date: z.string().min(1, 'Data obrigatoria'),
+  name: z.string().min(1, 'Nome obrigatório'),
+  date: z.string().min(1, 'Data obrigatória'),
   rankingId: z.string().optional(),
   blindStructureId: z.string().optional(),
-  buyInAmount: z.coerce.number().min(0, 'Valor invalido'),
-  rebuyAmount: z.coerce.number().min(0, 'Valor invalido'),
-  addonAmount: z.coerce.number().min(0, 'Valor invalido'),
-  startingStack: z.coerce.number().min(1, 'Stack invalido'),
-  rebuyStack: z.coerce.number().min(0, 'Valor invalido'),
-  addonStack: z.coerce.number().min(0, 'Valor invalido'),
-  maxRebuys: z.coerce.number().min(0, 'Valor invalido'),
+  buyInAmount: z.coerce.number().min(0, 'Valor inválido'),
+  rebuyAmount: z.coerce.number().min(0, 'Valor inválido'),
+  addonAmount: z.coerce.number().min(0, 'Valor inválido'),
+  startingStack: z.coerce.number().min(1, 'Stack inválido'),
+  rebuyStack: z.coerce.number().min(0, 'Valor inválido'),
+  addonStack: z.coerce.number().min(0, 'Valor inválido'),
+  maxRebuys: z.coerce.number().min(0, 'Valor inválido'),
   addonAllowed: z.boolean(),
   addonDoubleAllowed: z.boolean(),
   seatsPerTable: z.coerce.number().min(2, 'Mínimo 2').max(12, 'Máximo 12'),
   responsiblePixKey: z.string().optional(),
-  staffAmount: z.coerce.number().min(0, 'Valor invalido'),
+  staffAmount: z.coerce.number().min(0, 'Valor inválido'),
   rankingContribMode: z.enum(['PerPlayer', 'Percent']),
-  rankingContribValue: z.coerce.number().min(0, 'Valor invalido'),
+  rankingContribValue: z.coerce.number().min(0, 'Valor inválido'),
 })
 
 type TournamentFormData = z.infer<typeof tournamentSchema>
+
+/** Mesmo limite do backend (TournamentService.MaxDealerCount). */
+const MAX_DEALERS = 20
+
+function formatCurrency(value: number): string {
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
+}
 
 export function TournamentFormPage() {
   const navigate = useNavigate()
@@ -64,6 +73,7 @@ export function TournamentFormPage() {
     register,
     handleSubmit,
     setValue,
+    getValues,
     watch,
     reset,
     formState: { errors },
@@ -112,7 +122,11 @@ export function TournamentFormPage() {
   const canPay = planKnown && hasFeature(homeGame?.planFeatures, 'Payments')
   const canRank = planKnown && hasFeature(homeGame?.planFeatures, 'Rankings')
   const canTables = planKnown && hasFeature(homeGame?.planFeatures, 'Tables')
+  // Custos padrão da estrutura e custo de dealer só com CostExtras (no Mesa o backend não copia nada)
+  const canCosts = planKnown && hasFeature(homeGame?.planFeatures, 'CostExtras')
   const showRanking = canPay && canRank
+  // "Quantos dealers neste torneio?" (SPEC-20261023-1215): de 0 a 20, começa em 1
+  const [dealerCount, setDealerCount] = useState(1)
 
   // Rankings do home game
   const { data: rankings } = useQuery({
@@ -127,6 +141,39 @@ export function TournamentFormPage() {
     queryFn: () => blindStructuresApi.getAll({ homeGameId }),
     enabled: !!homeGameId,
   })
+
+  // Custos padrão da estrutura escolhida (SPEC-20261023-1215). Na criação todos entram (prévia só leitura);
+  // na edição só no caso "rascunho sem estrutura recebe a primeira" e se o torneio ainda não tem custo Padrão
+  // (o backend aplica a mesma regra); trocar de estrutura não mexe nos custos já lançados.
+  const selectedStructure = blindStructures?.find((bs) => bs.id === selectedBlindStructureId)
+  const hadNoStructure = isEditMode && !!existingTournament && !existingTournament.blindStructureId
+  const { data: existingCosts } = useQuery({
+    queryKey: ['costExtras', tournamentId],
+    queryFn: () => costExtrasApi.getAll(tournamentId!),
+    enabled: hadNoStructure && canCosts && !!tournamentId,
+  })
+  const alreadyHasDefaults = (existingCosts ?? []).some((c) => c.costType === COST_TYPE_DEFAULT)
+  const structureCosts = [...(selectedStructure?.defaultCosts ?? [])].sort(
+    (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0),
+  )
+  const structureDealerFee =
+    selectedStructure?.defaultHasDealer && (selectedStructure.defaultDealerFee ?? 0) > 0
+      ? (selectedStructure.defaultDealerFee as number)
+      : null
+  const defaultsApply =
+    canCosts &&
+    !!selectedStructure &&
+    (!isEditMode || (hadNoStructure && existingCosts !== undefined && !alreadyHasDefaults))
+  const showDefaultsPreview = defaultsApply && (structureCosts.length > 0 || structureDealerFee != null)
+  const askDealers = defaultsApply && structureDealerFee != null
+  const isSwitchingStructure =
+    isEditMode &&
+    !!existingTournament?.blindStructureId &&
+    !!selectedBlindStructureId &&
+    selectedBlindStructureId !== existingTournament.blindStructureId
+  const fixedCostsTotal = structureCosts.reduce((sum, c) => sum + c.amount, 0)
+  const dealerTotal = askDealers ? dealerCount * (structureDealerFee ?? 0) : 0
+  const previewTotal = fixedCostsTotal + dealerTotal
 
   // Pre-preencher valores ao selecionar estrutura
   useEffect(() => {
@@ -174,6 +221,14 @@ export function TournamentFormPage() {
     if (structure.defaultRankingContribValue != null)
       setValue('rankingContribValue', structure.defaultRankingContribValue)
   }, [selectedBlindStructureId, blindStructures, setValue])
+
+  // O <select> só mostra o valor quando a opção já existe: se o torneio carregou antes da lista de estruturas, o
+  // campo aparecia como "Selecione..." (o formulário guardava o id certo). Reaplica o valor quando a lista chega.
+  useEffect(() => {
+    if (!isEditMode || !blindStructures) return
+    const current = getValues('blindStructureId')
+    if (current) setValue('blindStructureId', current)
+  }, [isEditMode, blindStructures, getValues, setValue])
 
   // Pre-preencher campos em modo edicao
   useEffect(() => {
@@ -271,6 +326,8 @@ export function TournamentFormPage() {
       // Sem Payments no plano: nada de staff nem PIX do dia (o backend também força nulo)
       staffAmount: canPay ? data.staffAmount : undefined,
       responsiblePixKey: canPay ? data.responsiblePixKey : undefined,
+      // Só quando a pergunta aparece (estrutura com dealer pago e plano com custos); vira "Dealers (N × R$ X)"
+      dealerCount: askDealers ? dealerCount : undefined,
     }
     if (isEditMode) {
       updateMutation.mutate(payload as Record<string, unknown>)
@@ -290,7 +347,7 @@ export function TournamentFormPage() {
   if (!homeGameId) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
-        <p className="text-text-secondary">Home Game nao encontrado.</p>
+        <p className="text-text-secondary">Home game não encontrado.</p>
       </div>
     )
   }
@@ -367,7 +424,7 @@ export function TournamentFormPage() {
               ))}
             </select>
             <p className="text-xs text-text-secondary">
-              Ao selecionar, os valores abaixo serao preenchidos automaticamente
+              Ao selecionar, os valores abaixo serão preenchidos automaticamente
             </p>
           </div>
 
@@ -390,6 +447,97 @@ export function TournamentFormPage() {
             </div>
           )}
         </div>
+
+        {/* Custos padrão da estrutura + dealers (SPEC-20261023-1215) */}
+        {showDefaultsPreview && (
+          <div className="rounded-lg border border-border-default bg-bg-primary p-4">
+            <h2 className="text-sm font-semibold text-text-primary">
+              {isEditMode ? 'Custos que serão adicionados ao torneio' : 'Custos que entram neste torneio'}
+            </h2>
+            <ul className="mt-2 flex flex-col gap-1.5">
+              {structureCosts.map((c, i) => (
+                <li key={c.id ?? i} className="flex items-start justify-between gap-3 text-sm">
+                  <span className="min-w-0 wrap-anywhere text-text-primary">
+                    {c.description}
+                    {c.beneficiary && <span className="text-text-secondary"> · Para: {c.beneficiary}</span>}
+                  </span>
+                  <span className="shrink-0 tabular-nums text-text-primary">{formatCurrency(c.amount)}</span>
+                </li>
+              ))}
+              {askDealers && dealerCount > 0 && (
+                <li className="flex items-start justify-between gap-3 text-sm">
+                  <span className="min-w-0 text-text-primary">
+                    {dealerCount === 1 ? 'Dealer' : `Dealers (${dealerCount} × ${formatCurrency(structureDealerFee ?? 0)})`}
+                  </span>
+                  <span className="shrink-0 tabular-nums text-text-primary">{formatCurrency(dealerTotal)}</span>
+                </li>
+              )}
+            </ul>
+            <div className="mt-2 flex items-center justify-between gap-3 border-t border-border-default pt-2 text-sm font-semibold text-text-primary">
+              <span>Total</span>
+              <span className="tabular-nums">{formatCurrency(previewTotal)}</span>
+            </div>
+
+            {askDealers && (
+              <div className="mt-4 flex flex-col gap-1.5">
+                <label htmlFor="quantidade-dealers" className="text-sm font-medium text-text-secondary">
+                  Quantos dealers neste torneio?
+                </label>
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setDealerCount((n) => Math.max(0, n - 1))}
+                      disabled={dealerCount <= 0}
+                      className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-border-input bg-bg-input text-text-primary transition-colors hover:bg-bg-tertiary disabled:cursor-not-allowed disabled:text-text-muted"
+                      aria-label="Menos um dealer"
+                    >
+                      <Minus className="h-4 w-4" aria-hidden />
+                    </button>
+                    <input
+                      id="quantidade-dealers"
+                      type="number"
+                      inputMode="numeric"
+                      min={0}
+                      max={MAX_DEALERS}
+                      value={dealerCount}
+                      onChange={(e) => {
+                        const n = Math.trunc(Number(e.target.value))
+                        setDealerCount(Number.isFinite(n) ? Math.min(MAX_DEALERS, Math.max(0, n)) : 0)
+                      }}
+                      className="min-h-[44px] w-16 rounded-lg border border-border-input bg-bg-input px-2 text-center text-sm text-text-primary tabular-nums focus:outline-none focus:ring-2 focus:ring-border-focus"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setDealerCount((n) => Math.min(MAX_DEALERS, n + 1))}
+                      disabled={dealerCount >= MAX_DEALERS}
+                      className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-border-input bg-bg-input text-text-primary transition-colors hover:bg-bg-tertiary disabled:cursor-not-allowed disabled:text-text-muted"
+                      aria-label="Mais um dealer"
+                    >
+                      <Plus className="h-4 w-4" aria-hidden />
+                    </button>
+                  </div>
+                  <span className="text-sm text-text-secondary tabular-nums" aria-live="polite">
+                    {dealerCount === 0
+                      ? 'Sem custo de dealer'
+                      : `${dealerCount} × ${formatCurrency(structureDealerFee ?? 0)} = ${formatCurrency(dealerTotal)}`}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            <p className="mt-3 text-xs text-text-secondary">
+              {isEditMode
+                ? 'Você pode editar ou excluir na aba Custos depois de salvar.'
+                : 'Você pode editar ou excluir na aba Custos depois de criar.'}
+            </p>
+          </div>
+        )}
+        {isSwitchingStructure && canCosts && (
+          <p className="text-xs text-text-secondary">
+            Trocar a estrutura não altera os custos já lançados (aba Custos).
+          </p>
+        )}
 
         {/* Valores */}
         <div>
@@ -555,7 +703,7 @@ export function TournamentFormPage() {
             Cancelar
           </Button>
           <Button type="submit" loading={isPending}>
-            {isEditMode ? 'Salvar Alteracoes' : 'Criar Torneio'}
+            {isEditMode ? 'Salvar alterações' : 'Criar torneio'}
           </Button>
         </div>
       </form>

@@ -1,6 +1,8 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { ArrowRightLeft, CreditCard, PlusCircle, RefreshCw, Skull, Undo2 } from 'lucide-react'
-import { Avatar } from '../ui/Avatar'
+import * as tournamentPlayersApi from '../../api/tournamentPlayers.api'
 import { Button } from '../ui/Button'
+import { EditablePhotoAvatar } from '../photo/EditablePhotoAvatar'
 import type { Table } from '../../api/tables.api'
 import type { TournamentEntry } from '../../types/entry.types'
 import type { HistoryItem } from '../../types/history.types'
@@ -55,6 +57,7 @@ export function PlayerSheet({
   showPayments = true,
   showTables = true,
 }: PlayerSheetProps) {
+  const queryClient = useQueryClient()
   if (!entry) return null
   const active = isActiveStatus(entry.status)
   // Campeão (nunca eliminado, eliminatedAt nulo) não tem eliminação a desfazer
@@ -63,7 +66,18 @@ export function PlayerSheet({
   return (
     <Sheet isOpen onClose={onClose} title="Ficha do jogador" elevated>
       <div className="mb-3 flex items-center gap-3">
-        <Avatar src={entry.person.photoUrl} name={entry.person.fullName} size="lg" />
+        {/* Tocar no avatar troca a foto (SPEC-20261023-1213, F20) — dealer e organizador; remover só no painel */}
+        <EditablePhotoAvatar
+          src={entry.person.photoUrl}
+          name={playerName(entry)}
+          size="xl"
+          upload={(blob) => tournamentPlayersApi.uploadPhoto(tournamentId, entry.personId, blob)}
+          onDone={() => {
+            void queryClient.invalidateQueries({ queryKey: ['entries', tournamentId] })
+            void queryClient.invalidateQueries({ queryKey: ['history', tournamentId] })
+            void queryClient.invalidateQueries({ queryKey: ['tables', tournamentId] })
+          }}
+        />
         <div className="min-w-0">
           <p className="truncate text-xl font-bold text-text-primary">{playerName(entry)}</p>
           {entry.person.nickname && (

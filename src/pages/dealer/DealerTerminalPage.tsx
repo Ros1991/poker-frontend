@@ -526,18 +526,10 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
         isOpen={screen === 'addPlayer'}
         onClose={() => setScreen(null)}
         tournamentId={tournamentId}
-        tournament={tournament}
-        onAdded={(result) => {
-          invalidateAll()
-          // Inscrição nova: qualquer BuyIn dela no histórico é o desta ação
-          void actions.showUndoToast(
-            `${playerName(result.entry)} entrou no torneio`,
-            result.entry.id,
-            ['BuyIn'],
-            new Set(),
-          )
-        }}
-        onPay={canPay ? (entry) => actions.openPayment(entry) : undefined}
+        entries={entries}
+        tables={allTables}
+        // Adicionou ou desfez pelo resumo (SPEC-20261023-1213, F14): o resumo tem o "Desfazer" de cada um
+        onChanged={invalidateAll}
         showTables={canTables}
       />
 

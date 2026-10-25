@@ -20,10 +20,12 @@ export interface CreatePersonRequest {
   nickname?: string
   email?: string
   whatsapp?: string
-  photoUrl?: string
   document?: string
   notes?: string
 }
+
+// Foto: só por POST /Persons/{id}/photo (o servidor ignora photoUrl no cadastro — SPEC-20261023-1213).
+// No PUT, campo ausente/undefined não muda nada e "" limpa (apelido, e-mail, WhatsApp, notas).
 
 export interface UpdatePersonRequest extends Partial<Omit<CreatePersonRequest, 'homeGameId'>> {
   isActive?: boolean

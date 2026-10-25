@@ -83,7 +83,10 @@ export function FinancialTab({ tournament, entries }: FinancialTabProps) {
             <DollarSign className="h-4 w-4 text-accent-blue" />
             <span className="text-xs text-text-secondary">Premiação Líquida</span>
           </div>
-          <p className="text-2xl font-bold text-accent-blue tabular-nums">
+          {/* Valor real, mesmo negativo (custos padrão antes das inscrições, SPEC-20261023-1215): negativo em vermelho */}
+          <p
+            className={`text-2xl font-bold tabular-nums ${tournament.netPrizePool < 0 ? 'text-accent-red-deep' : 'text-accent-blue'}`}
+          >
             {formatCurrency(tournament.netPrizePool)}
           </p>
         </div>
