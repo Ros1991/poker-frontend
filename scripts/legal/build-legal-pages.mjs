@@ -135,6 +135,9 @@ function page(doc) {
 <style>${CSS}</style>
 </head>
 <body>
+<!-- email_off: o Cloudflare (Email Address Obfuscation) troca e-mails por um link que só abre com JavaScript;
+     estas páginas existem justamente para quem lê sem JS (robô de verificação do Google), então o contato fica em texto. -->
+<!--email_off-->
 <a class="skip" href="#conteudo">${esc(HEADER.skipLink)}</a>
 <header><div class="wrap bar">
 <a class="logo" href="/"><img src="/brand/logo-completa.png" alt="Poker da Galera" width="220" height="231" /></a>
@@ -158,6 +161,7 @@ ${sections}
 </ul></nav>
 <div class="right"><p><strong>${esc(FOOTER.tvLine)}</strong></p><p>${esc(FOOTER.copyright(Number(year)))} · <a href="mailto:${esc(LEGAL_INFO.email)}">${esc(LEGAL_INFO.email)}</a></p></div>
 </div></footer>
+<!--/email_off-->
 </body>
 </html>
 `
