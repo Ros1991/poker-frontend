@@ -22,7 +22,7 @@ interface SidebarProps {
 }
 
 const adminItems = [
-  { to: ROUTES.USERS, label: 'Usuários', icon: Shield },
+  { to: ROUTES.USERS, label: 'Administração', icon: Shield },
 ]
 
 export function Sidebar({ className, onNavigate }: SidebarProps) {
@@ -180,7 +180,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
             {!collapsed && (
               <div className="px-3 mb-2">
                 <span className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
-                  Administração
+                  Sistema
                 </span>
               </div>
             )}

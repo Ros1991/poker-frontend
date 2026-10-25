@@ -3,7 +3,8 @@ import { Link, useParams } from 'react-router-dom'
 import { ChevronRight, Share2, Trophy } from 'lucide-react'
 import { Avatar } from '../../components/ui/Avatar'
 import { FINAL_TABLE_SIZE } from '../../constants/ranking'
-import { publicRankingPlayerPath } from '../../constants/routes'
+import { publicRankingPath, publicRankingPlayerPath } from '../../constants/routes'
+import { useCanonical } from '../../hooks/usePageMeta'
 import type { PublicRankingPlayer } from '../../types/publicRanking.types'
 import { cn } from '../../utils/cn'
 import { resolveMediaUrl } from '../../utils/mediaUrl'
@@ -30,6 +31,8 @@ export function PublicRankingPage() {
   useEffect(() => {
     if (ranking) document.title = `${ranking.name} · Ranking`
   }, [ranking])
+  // Canonical do próprio ranking (o do index.html é o da raiz) — SPEC-20261023-1207
+  useCanonical(ranking ? publicRankingPath(ranking.slug) : null)
 
   if (isLoading) return <PublicLoading />
 

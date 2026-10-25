@@ -21,6 +21,9 @@ import { DealerAccessPage } from './pages/dealer/DealerAccessPage'
 import { PublicRankingPage } from './pages/public-ranking/PublicRankingPage'
 import { PublicPlayerPage } from './pages/public-ranking/PublicPlayerPage'
 
+// Termos e privacidade (sem login; carregados sob demanda — SPEC-20261023-1207)
+import { TermsRoute, PrivacyRoute } from './pages/legal/LegalRoutes'
+
 // Home Games
 import { HomeGameListPage } from './pages/home-games/HomeGameListPage'
 import { HomeGameFormPage } from './pages/home-games/HomeGameFormPage'
@@ -55,13 +58,14 @@ import { WelcomePage } from './pages/onboarding/WelcomePage'
 
 // Users (Admin)
 import { UserListPage } from './pages/users/UserListPage'
+import { UserDetailPage } from './pages/users/UserDetailPage'
 import { UserFormPage } from './pages/users/UserFormPage'
 
 export function Router() {
   return (
     <Routes>
       {/* Public routes */}
-      {/* "/": painel se logado; senão a tela da TV com QR e botão Entrar */}
+      {/* "/": painel se logado; terminal se dealer; telão se TV pareada; senão a landing (SPEC-20261023-1207) */}
       <Route path={ROUTES.HOME} element={<RootGate />} />
       <Route path={ROUTES.LOGIN} element={<LoginPage />} />
       <Route path={ROUTES.REGISTER} element={<RegisterPage />} />
@@ -76,6 +80,9 @@ export function Router() {
         path={ROUTES.PUBLIC_RANKING_PLAYER}
         element={<PublicPlayerPage />}
       />
+      {/* Termos de uso e política de privacidade (SPEC-20261023-1207) */}
+      <Route path={ROUTES.TERMS} element={<TermsRoute />} />
+      <Route path={ROUTES.PRIVACY} element={<PrivacyRoute />} />
 
       {/* Protected routes with sidebar layout */}
       <Route
@@ -137,7 +144,7 @@ export function Router() {
         {/* Meu perfil (SPEC-20261023-1211) */}
         <Route path={ROUTES.MY_PROFILE} element={<MyProfilePage />} />
 
-        {/* Users (Admin only) */}
+        {/* Administração (SPEC-20261023-1206, só Admin): lista, ficha e editar dados; sem criar usuário (D14) */}
         <Route
           path={ROUTES.USERS}
           element={
@@ -147,7 +154,15 @@ export function Router() {
           }
         />
         <Route
-          path={ROUTES.USER_NEW}
+          path={ROUTES.USER_DETAIL}
+          element={
+            <ProtectedRoute roles={['Admin']}>
+              <UserDetailPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path={ROUTES.USER_EDIT}
           element={
             <ProtectedRoute roles={['Admin']}>
               <UserFormPage />

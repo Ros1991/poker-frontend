@@ -21,8 +21,10 @@ export const ROUTES = {
   RANKING_NEW: '/home-games/:homeGameId/rankings/new',
   RANKING_DETAIL: '/rankings/:id',
   RANKING_EDIT: '/rankings/:id/edit',
+  /** Administração (SPEC-20261023-1206, só Admin): contas; sem "criar usuário" (D14) */
   USERS: '/users',
-  USER_NEW: '/users/new',
+  /** Ficha da conta na Administração */
+  USER_DETAIL: '/users/:id',
   USER_EDIT: '/users/:id/edit',
   /** Página "Meu plano" (SPEC-20261023-1205): plano, uso e tabela comparativa */
   MY_PLAN: '/meu-plano',
@@ -39,6 +41,10 @@ export const ROUTES = {
   PAIR_DISPLAY: '/parear/:code?',
   PUBLIC_RANKING: '/r/:slug',
   PUBLIC_RANKING_PLAYER: '/r/:slug/:personId',
+  /** Termos de uso (SPEC-20261023-1207); sem JavaScript o nginx serve public/termos.html */
+  TERMS: '/termos',
+  /** Política de privacidade (SPEC-20261023-1207); sem JavaScript o nginx serve public/privacidade.html */
+  PRIVACY: '/privacidade',
 } as const
 
 export function resetPasswordPath(token: string) {
@@ -119,6 +125,10 @@ export function publicRankingPlayerPath(slug: string, personId: string) {
 
 export function userEditPath(id: string) {
   return `/users/${id}/edit`
+}
+
+export function userDetailPath(id: string) {
+  return `/users/${id}`
 }
 
 export function blindStructureNewPath(homeGameId: string) {

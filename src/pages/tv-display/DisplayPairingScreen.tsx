@@ -48,6 +48,13 @@ export function DisplayPairingScreen({ code, connectionError }: DisplayPairingSc
             <p className="text-center text-sm text-text-secondary">
               Organizador ou jogador com conta: entre para ver seus torneios.
             </p>
+            {/* Só no celular (SPEC-20261023-1207): a landing explica o produto; na TV não polui */}
+            <Link
+              to={ROUTES.HOME}
+              className="mx-auto inline-flex min-h-[44px] items-center rounded-sm px-2 text-sm font-semibold text-accent-blue underline underline-offset-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+            >
+              O que é o Poker da Galera?
+            </Link>
           </section>
 
           <section className="flex flex-col items-center gap-5 rounded-2xl border border-border-default bg-bg-card p-6 lg:flex-1 lg:p-10">

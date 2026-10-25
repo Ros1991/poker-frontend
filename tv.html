@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content" />
+    <!--
+      SPEC-20261023-1207: o mesmo app do index.html, servido pelo nginx em `location = /tv`, só com o cartão próprio
+      do telão (prévia de pktv.com.br / pkdg.com.br no WhatsApp). Em desenvolvimento o Vite segue servindo /tv pelo
+      index.html (só muda o cartão, não a tela). Os ?v= são carimbados por scripts/brand/build-icons.mjs
+      (og-image-tv.png tem versão própria).
+    -->
+    <title>Telão do Poker da Galera</title>
+    <meta name="description" content="Abra na TV e leia o QR com o celular." />
+    <meta name="robots" content="noindex" />
+    <meta name="theme-color" content="#F5F7FA" />
+    <meta name="color-scheme" content="light" />
+    <link rel="icon" href="/favicon.ico?v=f2dae284" sizes="48x48" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=f2dae284" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=f2dae284" />
+    <link rel="manifest" href="/site.webmanifest?v=f2dae284" />
+    <link rel="canonical" href="https://pokerdagalera.com.br/tv" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://pokerdagalera.com.br/tv" />
+    <meta property="og:site_name" content="Poker da Galera" />
+    <meta property="og:locale" content="pt_BR" />
+    <meta property="og:title" content="Telão do Poker da Galera" />
+    <meta property="og:description" content="Abra na TV e leia o QR com o celular." />
+    <meta property="og:image" content="%VITE_PUBLIC_APP_URL%/og-image-tv.png?v=218c4835" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Abra na TV e leia o QR: pktv.com.br ou pkdg.com.br" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Telão do Poker da Galera" />
+    <meta name="twitter:description" content="Abra na TV e leia o QR com o celular." />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

@@ -1,194 +1,159 @@
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useForm, type Resolver } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { z } from 'zod/v4'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ArrowLeft } from 'lucide-react'
+import { AlertCircle, ArrowLeft } from 'lucide-react'
 import { toast } from 'sonner'
 import * as usersApi from '../../api/users.api'
 import { Input } from '../../components/ui/Input'
-import { PasswordInput } from '../../components/ui/PasswordInput'
 import { Select } from '../../components/ui/Select'
 import { Button } from '../../components/ui/Button'
 import { LoadingSpinner } from '../../components/common/LoadingSpinner'
-import { ROUTES } from '../../constants/routes'
+import { ROUTES, userDetailPath } from '../../constants/routes'
+import { useAuth } from '../../hooks/useAuth'
+import type { UserRole } from '../../types/user.types'
+import { formatPhone, isValidWhatsapp, whatsappInput } from '../../utils/phone'
+import { errorMessage, errorStatus } from '../../utils/httpErrors'
+import {
+  ADMIN_USERS_QUERY_KEY,
+  ROLE_OPTIONS,
+  adminUserQueryKey,
+  isGuid,
+  roleLabel,
+} from './adminUserFormat'
 
-const roleOptions = [
-  { value: 'Admin', label: 'Administrador' },
-  { value: 'TournamentDirector', label: 'Organizador' },
-  { value: 'Dealer', label: 'Dealer' },
-  { value: 'Player', label: 'Jogador' },
-]
+const schema = z.object({
+  fullName: z.string().trim().min(1, 'Nome é obrigatório').max(200, 'O nome deve ter no máximo 200 caracteres'),
+  nickname: z.string().trim().max(100, 'O apelido deve ter no máximo 100 caracteres'),
+  email: z.email('E-mail inválido'),
+  whatsapp: z
+    .string()
+    .refine((v) => !v.trim() || isValidWhatsapp(v), 'Informe o WhatsApp com DDD (10 ou 11 dígitos)'),
+  role: z.enum(['Admin', 'TournamentDirector', 'Dealer', 'Player']),
+})
 
-const createUserSchema = z
-  .object({
-    fullName: z.string().min(1, 'Nome e obrigatorio'),
-    nickname: z.string().optional(),
-    email: z.email('E-mail invalido'),
-    whatsapp: z.string().optional(),
-    password: z.string().min(6, 'Senha deve ter pelo menos 6 caracteres'),
-    confirmPassword: z.string().min(1, 'Confirme a senha'),
-    role: z.enum(['Admin', 'TournamentDirector', 'Dealer', 'Player']),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: 'As senhas nao coincidem',
-    path: ['confirmPassword'],
-  })
+type FormData = z.infer<typeof schema>
 
-const editUserSchema = z
-  .object({
-    fullName: z.string().min(1, 'Nome e obrigatorio'),
-    nickname: z.string().optional(),
-    email: z.email('E-mail invalido'),
-    whatsapp: z.string().optional(),
-    password: z.string().optional(),
-    confirmPassword: z.string().optional(),
-    role: z.enum(['Admin', 'TournamentDirector', 'Dealer', 'Player']),
-  })
-  .refine(
-    (data) => {
-      if (data.password && data.password.length > 0) {
-        return data.password === data.confirmPassword
-      }
-      return true
-    },
-    {
-      message: 'As senhas nao coincidem',
-      path: ['confirmPassword'],
-    },
-  )
-
-type CreateUserFormData = z.infer<typeof createUserSchema>
-type EditUserFormData = z.infer<typeof editUserSchema>
-type UserFormData = CreateUserFormData | EditUserFormData
-
+/**
+ * "Editar dados" da Administração (SPEC-20261023-1206): nome, apelido, e-mail, WhatsApp e papel. Só edição — a
+ * administração não cria contas (D14) — e sem campos de senha (ficam no modal "Redefinir senha" da ficha). O Admin não
+ * muda o próprio papel; trocar o papel de alguém encerra as sessões dessa pessoa.
+ */
 export function UserFormPage() {
   const { id } = useParams<{ id: string }>()
-  const isEditing = Boolean(id)
   const navigate = useNavigate()
+  const location = useLocation()
   const queryClient = useQueryClient()
+  const { user: me } = useAuth()
+  const validId = isGuid(id)
 
-  const { data: user, isLoading: isLoadingUser } = useQuery({
-    queryKey: ['user', id],
+  const { data: user, isLoading, isError, error } = useQuery({
+    queryKey: adminUserQueryKey(id ?? ''),
     queryFn: () => usersApi.getById(id!),
-    enabled: isEditing,
+    enabled: validId,
+    retry: (count, err) => errorStatus(err) !== 404 && count < 2,
   })
+  const isSelf = !!user && me?.id === user.id
 
   const {
     register,
     handleSubmit,
-    formState: { errors },
-  } = useForm<UserFormData>({
-    resolver: zodResolver(
-      isEditing ? editUserSchema : createUserSchema,
-    ) as Resolver<UserFormData>,
+    setValue,
+    control,
+    formState: { errors, isDirty },
+  } = useForm<FormData>({
+    resolver: zodResolver(schema),
     values: user
       ? {
-          fullName: user.name,
-          nickname: '',
+          fullName: user.fullName,
+          nickname: user.nickname ?? '',
           email: user.email,
-          whatsapp: '',
-          password: '',
-          confirmPassword: '',
+          whatsapp: user.whatsapp ? formatPhone(user.whatsapp) : '',
           role: user.role,
         }
       : undefined,
   })
 
-  const createMutation = useMutation({
-    mutationFn: (data: CreateUserFormData) =>
-      usersApi.create({
-        fullName: data.fullName,
-        nickname: data.nickname || undefined,
-        email: data.email,
-        whatsapp: data.whatsapp || undefined,
-        password: data.password,
-        role: data.role,
-      }),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['users'] })
-      toast.success('Usuario criado com sucesso!')
-      navigate(ROUTES.USERS)
-    },
-    onError: () => {
-      toast.error('Erro ao criar usuario.')
-    },
-  })
+  const goBack = () =>
+    navigate(validId ? userDetailPath(id) : ROUTES.USERS, { state: location.state })
 
-  const updateMutation = useMutation({
-    mutationFn: (data: UserFormData) =>
+  const mutation = useMutation({
+    mutationFn: (data: FormData) =>
       usersApi.update(id!, {
-        fullName: data.fullName,
-        nickname: data.nickname || undefined,
-        email: data.email,
-        password: data.password || undefined,
-        role: data.role,
+        fullName: data.fullName.trim(),
+        nickname: data.nickname.trim(),
+        email: data.email.trim(),
+        whatsapp: whatsappInput(data.whatsapp),
+        // A própria conta não muda de papel (o backend também recusa)
+        role: isSelf ? undefined : (data.role as UserRole),
       }),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['users'] })
-      await queryClient.invalidateQueries({ queryKey: ['user', id] })
-      toast.success('Usuario atualizado com sucesso!')
-      navigate(ROUTES.USERS)
+    onSuccess: async (detail) => {
+      queryClient.setQueryData(adminUserQueryKey(detail.id), detail)
+      await queryClient.invalidateQueries({ queryKey: ADMIN_USERS_QUERY_KEY })
+      toast.success('Dados da conta atualizados!')
+      goBack()
     },
-    onError: () => {
-      toast.error('Erro ao atualizar usuario.')
+    onError: (err) => {
+      toast.error(errorMessage(err) ?? 'Não foi possível salvar os dados da conta.')
     },
   })
 
-  const isSubmitting = createMutation.isPending || updateMutation.isPending
+  const whatsapp = useWatch({ control, name: 'whatsapp' })
 
-  function onSubmit(data: UserFormData) {
-    if (isEditing) {
-      updateMutation.mutate(data)
-    } else {
-      createMutation.mutate(data as CreateUserFormData)
-    }
-  }
-
-  if (isEditing && isLoadingUser) {
+  if (validId && isLoading) {
     return (
       <div className="flex justify-center py-20">
-        <LoadingSpinner size="lg" text="Carregando usuario..." />
+        <LoadingSpinner size="lg" text="Carregando a conta..." />
+      </div>
+    )
+  }
+
+  if (!validId || isError || !user) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 p-6 py-20 text-center">
+        <AlertCircle className="h-12 w-12 text-accent-red" aria-hidden="true" />
+        <p className="text-text-secondary">
+          {!validId || errorStatus(error) === 404 ? 'Conta não encontrada.' : 'Não foi possível carregar a conta.'}
+        </p>
+        <Button variant="secondary" onClick={() => navigate(ROUTES.USERS)}>
+          Voltar para a Administração
+        </Button>
       </div>
     )
   }
 
   return (
     <div className="flex flex-col gap-6 p-4 sm:p-6">
-      {/* Header */}
       <div className="flex items-center gap-3">
         <button
-          onClick={() => navigate(-1)}
-          className="flex h-10 w-10 items-center justify-center rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors"
-          aria-label="Voltar"
+          type="button"
+          onClick={goBack}
+          className="flex h-11 w-11 items-center justify-center rounded-lg text-text-secondary transition-colors hover:bg-bg-tertiary hover:text-text-primary"
+          aria-label="Voltar para a ficha"
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
-        <div>
-          <h1 className="text-2xl font-bold text-text-primary">
-            {isEditing ? 'Editar Usuario' : 'Novo Usuario'}
-          </h1>
-          <p className="text-sm text-text-secondary">
-            {isEditing
-              ? 'Atualize os dados do usuario'
-              : 'Crie um novo usuario do sistema'}
-          </p>
+        <div className="min-w-0">
+          <h1 className="truncate text-2xl font-bold text-text-primary">Editar dados</h1>
+          <p className="truncate text-sm text-text-secondary">{user.fullName}</p>
         </div>
       </div>
 
-      {/* Form */}
       <form
-        onSubmit={(e) => void handleSubmit(onSubmit)(e)}
-        className="flex flex-col gap-6 rounded-xl border border-border-default bg-bg-secondary p-6 max-w-2xl"
+        onSubmit={(e) => void handleSubmit((data) => mutation.mutate(data))(e)}
+        className="flex max-w-2xl flex-col gap-6 rounded-xl border border-border-default bg-bg-card p-4 shadow-sm sm:p-6"
       >
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Input
-            label="Nome Completo *"
-            placeholder="Nome do usuario"
+            id="usuario-nome"
+            label="Nome completo *"
+            placeholder="Nome da pessoa"
             error={errors.fullName?.message}
             {...register('fullName')}
           />
           <Input
+            id="usuario-apelido"
             label="Apelido"
             placeholder="Apelido (opcional)"
             error={errors.nickname?.message}
@@ -198,57 +163,61 @@ export function UserFormPage() {
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Input
+            id="usuario-email"
             label="E-mail *"
             type="email"
-            placeholder="usuario@email.com"
+            placeholder="pessoa@email.com"
             error={errors.email?.message}
+            helperText="Ao trocar, o e-mail novo vale para entrar e para receber os avisos."
             {...register('email')}
           />
           <Input
+            id="usuario-whatsapp"
             label="WhatsApp"
-            placeholder="+5511999999999"
+            inputMode="tel"
+            placeholder="(11) 99999-9999"
             error={errors.whatsapp?.message}
             {...register('whatsapp')}
-          />
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <PasswordInput
-            label={isEditing ? 'Nova Senha' : 'Senha *'}
-            placeholder={
-              isEditing ? 'Deixe vazio para manter' : 'Minimo 6 caracteres'
+            value={whatsapp ?? ''}
+            onChange={(e) =>
+              setValue('whatsapp', formatPhone(whatsappInput(e.target.value)), {
+                shouldDirty: true,
+                shouldValidate: !!errors.whatsapp,
+              })
             }
-            error={errors.password?.message}
-            autoComplete="new-password"
-            {...register('password')}
-          />
-          <PasswordInput
-            label={isEditing ? 'Confirmar Nova Senha' : 'Confirmar Senha *'}
-            placeholder="Repita a senha"
-            autoComplete="new-password"
-            error={errors.confirmPassword?.message}
-            {...register('confirmPassword')}
           />
         </div>
 
-        <Select
-          label="Perfil *"
-          options={roleOptions}
-          placeholder="Selecione o perfil"
-          error={errors.role?.message}
-          {...register('role')}
-        />
+        <div className="flex flex-col gap-1.5">
+          {isSelf ? (
+            <>
+              <span className="text-sm font-medium text-text-secondary">Papel</span>
+              <p className="flex min-h-[44px] items-center rounded-lg border border-border-input bg-bg-tertiary px-3 text-sm text-text-primary">
+                {roleLabel(user.role)}
+              </p>
+            </>
+          ) : (
+            <Select
+              id="usuario-papel"
+              label="Papel *"
+              options={ROLE_OPTIONS}
+              error={errors.role?.message}
+              {...register('role')}
+            />
+          )}
+          <p className="text-xs text-text-secondary">
+            {isSelf
+              ? 'Esta é a sua conta: você não pode mudar o seu próprio papel.'
+              : 'Trocar o papel encerra as sessões da pessoa (ela entra de novo com o papel novo).'}
+          </p>
+        </div>
 
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => navigate(-1)}
-          >
+          <Button type="button" variant="secondary" onClick={goBack}>
             Cancelar
           </Button>
-          <Button type="submit" loading={isSubmitting}>
-            {isEditing ? 'Salvar Alteracoes' : 'Criar Usuario'}
+          <Button type="submit" loading={mutation.isPending} disabled={!isDirty}>
+            Salvar alterações
           </Button>
         </div>
       </form>

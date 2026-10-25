@@ -3,7 +3,8 @@ import type { ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ChevronLeft, Share2 } from 'lucide-react'
 import { Avatar } from '../../components/ui/Avatar'
-import { publicRankingPath } from '../../constants/routes'
+import { publicRankingPath, publicRankingPlayerPath } from '../../constants/routes'
+import { useCanonical } from '../../hooks/usePageMeta'
 import { cn } from '../../utils/cn'
 import { resolveMediaUrl } from '../../utils/mediaUrl'
 import { PublicLoading, PublicMessage, PublicShell } from './PublicLayout'
@@ -39,6 +40,8 @@ export function PublicPlayerPage() {
   useEffect(() => {
     if (ranking && player) document.title = `${player.displayName} · ${ranking.name}`
   }, [ranking, player])
+  // Canonical da própria página do jogador (o do index.html é o da raiz) — SPEC-20261023-1207
+  useCanonical(ranking && player ? publicRankingPlayerPath(ranking.slug, player.personId) : null)
 
   if (isLoading) return <PublicLoading />
 

@@ -11,6 +11,10 @@
  *   `${PUBLIC_SITE_URL}/` e não para `window.location.origin` (o telão pode estar em outro domínio).
  * - `PUBLIC_SITE_HOST` — "pokerdagalera.com.br", para exibir em texto.
  * - `CONTACT_EMAIL` — e-mail de contato público.
+ *
+ * Os domínios curtos do telão (`TV_SHORT_DOMAINS`, SPEC-20261023-1207) ficam em `pages/landing/landing.content.ts`:
+ * aquele arquivo é importado direto pelo Node (gerador das páginas legais e suíte da landing) e não pode depender
+ * deste módulo, que lê `import.meta.env` (só existe no Vite).
  */
 
 function onlyDigits(value: unknown): string {

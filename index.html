@@ -7,22 +7,29 @@
     <meta name="description" content="Gestão de home games de poker: relógio de blinds, telão na TV, inscrições, rebuys e ranking da galera." />
     <meta name="theme-color" content="#F5F7FA" />
     <meta name="color-scheme" content="light" />
-    <link rel="icon" href="/favicon.ico?v=34a9801a" sizes="48x48" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=34a9801a" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=34a9801a" />
-    <link rel="manifest" href="/site.webmanifest?v=34a9801a" />
+    <link rel="icon" href="/favicon.ico?v=f2dae284" sizes="48x48" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=f2dae284" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=f2dae284" />
+    <link rel="manifest" href="/site.webmanifest?v=f2dae284" />
+    <!-- SPEC-20261023-1207: raiz = landing; endereço canônico sempre o domínio oficial (www e domínio antigo redirecionam) -->
+    <link rel="canonical" href="https://pokerdagalera.com.br/" />
     <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://pokerdagalera.com.br/" />
     <meta property="og:site_name" content="Poker da Galera" />
     <meta property="og:locale" content="pt_BR" />
     <meta property="og:title" content="Poker da Galera — gestão de home games" />
     <meta property="og:description" content="Gestão de home games de poker: relógio de blinds, telão na TV, inscrições, rebuys e ranking da galera." />
-    <meta property="og:image" content="%VITE_PUBLIC_APP_URL%/og-image.png?v=34a9801a" />
+    <meta property="og:image" content="%VITE_PUBLIC_APP_URL%/og-image.png?v=f2dae284" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Logo do Poker da Galera com relógio de blinds, telão na TV e ranking" />
     <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Poker da Galera — gestão de home games" />
+    <meta name="twitter:description" content="Gestão de home games de poker: relógio de blinds, telão na TV, inscrições, rebuys e ranking da galera." />
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <!-- SPEC-20261023-1207: boot decide entre a landing sozinha (visitante novo em /) e o app completo (src/main.tsx) -->
+    <script type="module" src="/src/pages/landing/boot.tsx"></script>
   </body>
 </html>

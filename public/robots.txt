@@ -1,0 +1,24 @@
+# Poker da Galera — SPEC-20261023-1207
+# Público: a landing (/), termos, privacidade e os rankings públicos (/r/...).
+# O resto é o app (exige login) ou aparelho (TV, dealer): fora dos buscadores.
+User-agent: *
+Allow: /
+Allow: /r/
+Disallow: /home-games
+Disallow: /tournaments
+Disallow: /players
+Disallow: /rankings
+Disallow: /users
+Disallow: /dealer
+Disallow: /parear
+Disallow: /tv
+Disallow: /login
+Disallow: /register
+Disallow: /esqueci-senha
+Disallow: /redefinir-senha
+Disallow: /confirmar-email
+Disallow: /boas-vindas
+Disallow: /meu-plano
+Disallow: /meu-perfil
+
+Sitemap: https://pokerdagalera.com.br/sitemap.xml
