@@ -89,25 +89,8 @@ export async function remove(
   await apiClient.delete(`${base(tournamentId)}/${entryId}`)
 }
 
-export async function removeRebuy(
-  tournamentId: string,
-  entryId: string,
-): Promise<TournamentEntry> {
-  const response = await apiClient.delete<TournamentEntry>(
-    `${base(tournamentId)}/${entryId}/rebuy`,
-  )
-  return response.data
-}
-
-export async function removeAddon(
-  tournamentId: string,
-  entryId: string,
-): Promise<TournamentEntry> {
-  const response = await apiClient.delete<TournamentEntry>(
-    `${base(tournamentId)}/${entryId}/addon`,
-  )
-  return response.data
-}
+// SPEC-20261023-1217 (L17): as funções que desfaziam "o último" rebuy/add-on (DELETE entries/{id}/rebuy|addon, sem
+// confirmação nem rastro) saíram: tudo que se desfaz passa pelo histórico (history.api.ts), amarrado ao item exato.
 
 export async function undoElimination(
   tournamentId: string,

@@ -16,6 +16,8 @@ import { isPlanLimitError } from '../../api/client'
 import { hasFeature, MY_PLAN_QUERY_KEY } from '../../hooks/usePlan'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
+import { PixKeyInput } from '../../components/pix/PixKeyInput'
+import { checkPixKey, toPixKeyPayload, type PixKeyType } from '../../utils/pix'
 import { LoadingSpinner } from '../../components/common/LoadingSpinner'
 import { tournamentDashboardPath } from '../../constants/routes'
 
@@ -76,6 +78,8 @@ export function TournamentFormPage() {
     getValues,
     watch,
     reset,
+    setError,
+    clearErrors,
     formState: { errors },
   } = useForm<TournamentFormData>({
     resolver: zodResolver(tournamentSchema) as Resolver<TournamentFormData>,
@@ -102,6 +106,9 @@ export function TournamentFormPage() {
   })
 
   const selectedBlindStructureId = watch('blindStructureId')
+  // PIX do dia (SPEC-20261023-1218): texto do campo no form; o tipo escolhido (null = automático) fica aqui
+  const pixKeyValue = watch('responsiblePixKey') ?? ''
+  const [pixKeyType, setPixKeyType] = useState<PixKeyType | null>(null)
   // Em modo edicao, nao queremos sobrescrever os valores carregados quando
   // o formulario faz reset() com o blindStructureId original. Guardamos esse
   // id inicial para ignorar a primeira execucao do prefill.
@@ -313,6 +320,17 @@ export function TournamentFormPage() {
 
   function onSubmit(data: TournamentFormData) {
     const hasRanking = showRanking && !!data.rankingId
+    // Chave do dia no formato dos bancos: inválida ou ambígua (CPF × celular sem escolha) não deixa salvar
+    const savedPix = existingTournament?.responsiblePixKey ?? null
+    if (canPay) {
+      const pixCheck = checkPixKey(data.responsiblePixKey, pixKeyType, savedPix)
+      if (pixCheck.error) {
+        setError('responsiblePixKey', { message: pixCheck.error }, { shouldFocus: true })
+        toast.error(pixCheck.error)
+        return
+      }
+    }
+    const pix = toPixKeyPayload(data.responsiblePixKey, pixKeyType, savedPix)
     const payload = {
       ...data,
       rankingId: hasRanking ? data.rankingId : undefined,
@@ -325,7 +343,8 @@ export function TournamentFormPage() {
       rankingContribValue: hasRanking ? data.rankingContribValue : 0,
       // Sem Payments no plano: nada de staff nem PIX do dia (o backend também força nulo)
       staffAmount: canPay ? data.staffAmount : undefined,
-      responsiblePixKey: canPay ? data.responsiblePixKey : undefined,
+      responsiblePixKey: canPay ? pix.key : undefined,
+      responsiblePixKeyType: canPay ? pix.type : undefined,
       // Só quando a pergunta aparece (estrutura com dealer pago e plano com custos); vira "Dealers (N × R$ X)"
       dealerCount: askDealers ? dealerCount : undefined,
     }
@@ -393,13 +412,24 @@ export function TournamentFormPage() {
           />
         </div>
 
-        {/* PIX do responsável pelo torneio no dia (opcional) — só com Payments no plano */}
+        {/* PIX do responsável pelo torneio no dia (opcional) — só com Payments no plano. Aceita do jeito que a
+            pessoa digita e grava no formato dos bancos (SPEC-20261023-1218) */}
         {canPay && (
-          <Input
-            label="PIX do responsável (no dia) — opcional"
-            {...register('responsiblePixKey')}
+          <PixKeyInput
+            id="responsible-pix-key"
+            label="PIX do responsável no dia (opcional)"
+            value={pixKeyValue}
+            onChange={(v) => {
+              setValue('responsiblePixKey', v, { shouldDirty: true })
+              clearErrors('responsiblePixKey')
+            }}
+            type={pixKeyType}
+            onTypeChange={(t) => {
+              setPixKeyType(t)
+              clearErrors('responsiblePixKey')
+            }}
+            savedKey={existingTournament?.responsiblePixKey ?? null}
             error={errors.responsiblePixKey?.message}
-            placeholder="CPF, e-mail, telefone ou chave aleatória"
           />
         )}
 

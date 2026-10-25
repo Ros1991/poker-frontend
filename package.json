@@ -7,8 +7,9 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "typecheck": "tsc -b",
-    "lint": "eslint . && node scripts/check-raw-colors.mjs",
+    "lint": "eslint . && node scripts/check-raw-colors.mjs && node scripts/check-pix.mjs",
     "lint:colors": "node scripts/check-raw-colors.mjs",
+    "check:pix": "node scripts/check-pix.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

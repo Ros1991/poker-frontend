@@ -9,23 +9,19 @@ import * as tablesApi from '../../api/tables.api'
 import * as timerApi from '../../api/timer.api'
 import { useBlindTimer } from '../../hooks/useBlindTimer'
 import { useWebSocket } from '../../hooks/useWebSocket'
-import { Avatar } from '../../components/ui/Avatar'
 import { Button } from '../../components/ui/Button'
-import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { LoadingSpinner } from '../../components/common/LoadingSpinner'
-import { PaymentModal } from '../../components/tournament/PaymentModal'
-import { AddonDialog } from '../../components/dealer/AddonDialog'
 import { AddPlayerSheet } from '../../components/dealer/AddPlayerSheet'
 import { BalanceDrawDialog } from '../../components/dealer/BalanceDrawDialog'
 import { BreakTableDialog } from '../../components/dealer/BreakTableDialog'
 import { DrawTablesDialog } from '../../components/dealer/DrawTablesDialog'
-import { EliminateDialog } from '../../components/dealer/EliminateDialog'
+import { EliminatedPlayerRow } from '../../components/dealer/EliminatedPlayerRow'
 import { HistorySheet } from '../../components/dealer/HistorySheet'
 import { MoreMenu } from '../../components/dealer/MoreMenu'
 import type { MoreScreen } from '../../components/dealer/MoreMenu'
 import { MovePlayerDialog } from '../../components/dealer/MovePlayerDialog'
+import { usePlayerActionDialogs } from '../../components/dealer/PlayerActionDialogs'
 import { PlayerCard } from '../../components/dealer/PlayerCard'
-import type { PlayerActionRules } from '../../components/dealer/PlayerCard'
 import { PlayerSheet } from '../../components/dealer/PlayerSheet'
 import { PlayersSheet } from '../../components/dealer/PlayersSheet'
 import { TableAlerts } from '../../components/dealer/TableAlerts'
@@ -35,10 +31,9 @@ import { TerminalHeader } from '../../components/dealer/TerminalHeader'
 import { terminalFeatures, useTerminalActions } from '../../components/dealer/useTerminalActions'
 import {
   apiErrorMessage,
-  formatCurrency,
   isActiveStatus,
+  playerActionRules,
   playerName,
-  statusLabel,
   tableLabel,
 } from '../../components/dealer/terminalFormat'
 import { analyzeTables, countUnseated, pickRandomBalanceMove, seatedByTable } from '../../utils/tableBalance'
@@ -95,10 +90,6 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
   const [screen, setScreen] = useState<MoreScreen | null>(null)
   const [fichaEntryId, setFichaEntryId] = useState<string | null>(null)
   const [showEliminated, setShowEliminated] = useState(false)
-  const [rebuyEntry, setRebuyEntry] = useState<TournamentEntry | null>(null)
-  const [addonEntry, setAddonEntry] = useState<TournamentEntry | null>(null)
-  const [eliminateEntry, setEliminateEntry] = useState<TournamentEntry | null>(null)
-  const [undoElimEntry, setUndoElimEntry] = useState<TournamentEntry | null>(null)
   const [moveEntry, setMoveEntry] = useState<TournamentEntry | null>(null)
   const [drawOpen, setDrawOpen] = useState(false)
   const [breakOpen, setBreakOpen] = useState(false)
@@ -193,13 +184,8 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
 
   const fichaEntry = allEntries.find((e) => e.id === fichaEntryId) ?? null
 
-  function rulesFor(entry: TournamentEntry): PlayerActionRules {
-    const maxRebuys = tournament?.maxRebuys ?? 0
-    return {
-      canRebuy: !(maxRebuys > 0 && entry.rebuyCount >= maxRebuys),
-      canAddon: !entry.addonPurchased && (tournament?.addonAllowed ?? false),
-    }
-  }
+  // Regras dos botões compartilhadas com a aba Jogadores do painel (SPEC-20261023-1217)
+  const rulesFor = (entry: TournamentEntry) => playerActionRules(tournament, entry)
 
   function tablematesOf(entry: TournamentEntry): TournamentEntry[] {
     return activeEntries
@@ -281,6 +267,17 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
       // Sem os dados novos, os avisos do topo aparecem na próxima consulta
     }
   }
+
+  // Diálogos de ação (rebuy, add-on, eliminar, desfazer eliminação, pagar) compartilhados com o painel
+  // (SPEC-20261023-1217, L14); depois de eliminar, a quebra/equilíbrio das mesas como sempre
+  const flows = usePlayerActionDialogs({
+    tournamentId,
+    tournament,
+    actions,
+    showPayment: canPay,
+    candidatesFor: tablematesOf,
+    onEliminated: () => void evaluateTablesAfterElimination(),
+  })
 
   function drawBalanceMove(excludeEntryId?: string) {
     const move = pickRandomBalanceMove(analysis, allTables, allEntries, excludeEntryId)
@@ -415,10 +412,10 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
                     entry={entry}
                     rules={rulesFor(entry)}
                     onOpen={() => setFichaEntryId(entry.id)}
-                    onRebuy={() => setRebuyEntry(entry)}
-                    onAddon={() => setAddonEntry(entry)}
-                    onPay={() => actions.openPayment(entry)}
-                    onEliminate={() => setEliminateEntry(entry)}
+                    onRebuy={() => flows.askRebuy(entry)}
+                    onAddon={() => flows.askAddon(entry)}
+                    onPay={() => flows.openPayment(entry)}
+                    onEliminate={() => flows.askEliminate(entry)}
                     showPayment={canPay}
                     showSeat={false}
                   />
@@ -455,10 +452,10 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
                     entry={entry}
                     rules={rulesFor(entry)}
                     onOpen={() => setFichaEntryId(entry.id)}
-                    onRebuy={() => setRebuyEntry(entry)}
-                    onAddon={() => setAddonEntry(entry)}
-                    onPay={() => actions.openPayment(entry)}
-                    onEliminate={() => setEliminateEntry(entry)}
+                    onRebuy={() => flows.askRebuy(entry)}
+                    onAddon={() => flows.askAddon(entry)}
+                    onPay={() => flows.openPayment(entry)}
+                    onEliminate={() => flows.askEliminate(entry)}
                     showPayment={canPay}
                   />
                 ))}
@@ -481,17 +478,7 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
               <div className="flex flex-col gap-1.5">
                 {/* Eliminados: fundo zebra e nome em text-secondary, sem opacidade (que derrubava o texto abaixo de AA) */}
                 {eliminatedEntries.map((entry) => (
-                  <button
-                    key={entry.id}
-                    type="button"
-                    onClick={() => setFichaEntryId(entry.id)}
-                    className="flex min-h-[48px] items-center gap-2 rounded-lg border border-border-default bg-bg-zebra p-2 text-left"
-                  >
-                    <Avatar src={entry.person.photoUrl} name={entry.person.fullName} size="sm" />
-                    <span className="min-w-0 flex-1 truncate text-sm text-text-secondary">{playerName(entry)}</span>
-                    <span className="text-xs text-text-secondary">{statusLabel(entry)}</span>
-                    <ChevronRight className="h-4 w-4 text-text-muted" />
-                  </button>
+                  <EliminatedPlayerRow key={entry.id} entry={entry} onOpen={() => setFichaEntryId(entry.id)} />
                 ))}
               </div>
             )}
@@ -564,6 +551,7 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
         onClose={() => setScreen(null)}
         tournamentId={tournamentId}
         onUndo={actions.undoItem}
+        paymentsLocked={!!tournament && !canPay}
       />
 
       {/* ── Ficha do jogador ── */}
@@ -571,98 +559,26 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
         entry={fichaEntry}
         tables={allTables}
         tournamentId={tournamentId}
+        tournament={tournament}
         rules={fichaEntry ? rulesFor(fichaEntry) : { canRebuy: false, canAddon: false }}
         onClose={() => setFichaEntryId(null)}
-        onRebuy={() => fichaEntry && setRebuyEntry(fichaEntry)}
-        onAddon={() => fichaEntry && setAddonEntry(fichaEntry)}
-        onPay={() => fichaEntry && actions.openPayment(fichaEntry)}
-        onEliminate={() => fichaEntry && setEliminateEntry(fichaEntry)}
+        onRebuy={() => fichaEntry && flows.askRebuy(fichaEntry)}
+        onAddon={() => fichaEntry && flows.askAddon(fichaEntry)}
+        onPay={() => fichaEntry && flows.openPayment(fichaEntry)}
+        onEliminate={() => fichaEntry && flows.askEliminate(fichaEntry)}
         onMove={() => {
           if (!fichaEntry) return
           if (noTables) toast.info('Sorteie as mesas antes de mover jogadores.')
           else setMoveEntry(fichaEntry)
         }}
-        onUndoElimination={() => fichaEntry && setUndoElimEntry(fichaEntry)}
+        onUndoElimination={() => fichaEntry && flows.askUndoElimination(fichaEntry)}
         onUndo={actions.undoItem}
         showPayments={canPay}
         showTables={canTables}
       />
 
-      {/* ── Ações do jogador ── */}
-      <ConfirmDialog
-        isOpen={!!rebuyEntry}
-        onClose={() => setRebuyEntry(null)}
-        onConfirm={() =>
-          rebuyEntry &&
-          actions.rebuyMutation.mutate(rebuyEntry, { onSettled: () => setRebuyEntry(null) })
-        }
-        title="Rebuy"
-        message={
-          rebuyEntry
-            ? `Rebuy para ${playerName(rebuyEntry)}: ${formatCurrency(tournament?.rebuyAmount ?? 0)}?`
-            : ''
-        }
-        confirmLabel="Confirmar rebuy"
-        variant="warning"
-        loading={actions.rebuyMutation.isPending}
-      />
-
-      <AddonDialog
-        entry={addonEntry}
-        tournament={tournament}
-        loading={actions.addonMutation.isPending}
-        onClose={() => setAddonEntry(null)}
-        onConfirm={(isDouble) =>
-          addonEntry &&
-          actions.addonMutation.mutate(
-            { entry: addonEntry, isDouble },
-            { onSettled: () => setAddonEntry(null) },
-          )
-        }
-      />
-
-      {eliminateEntry && (
-        <EliminateDialog
-          entry={eliminateEntry}
-          tablemates={tablematesOf(eliminateEntry)}
-          loading={actions.eliminateMutation.isPending}
-          onClose={() => setEliminateEntry(null)}
-          onConfirm={(eliminatedByEntryId) =>
-            actions.eliminateMutation.mutate(
-              { entry: eliminateEntry, eliminatedByEntryId },
-              {
-                onSuccess: () => {
-                  setEliminateEntry(null)
-                  void evaluateTablesAfterElimination()
-                },
-              },
-            )
-          }
-        />
-      )}
-
-      <ConfirmDialog
-        isOpen={!!undoElimEntry}
-        onClose={() => setUndoElimEntry(null)}
-        onConfirm={() =>
-          undoElimEntry &&
-          actions.undoEliminationMutation.mutate(undoElimEntry, { onSettled: () => setUndoElimEntry(null) })
-        }
-        title="Desfazer eliminação"
-        message={undoElimEntry ? `Desfazer a eliminação de ${playerName(undoElimEntry)}? Ele volta a jogar.` : ''}
-        confirmLabel="Desfazer"
-        variant="warning"
-        loading={actions.undoEliminationMutation.isPending}
-      />
-
-      {canPay && (
-        <PaymentModal
-          isOpen={!!actions.paymentEntry}
-          onClose={actions.closePayment}
-          entry={actions.paymentEntry}
-          tournamentId={tournamentId}
-        />
-      )}
+      {/* ── Ações do jogador (diálogos compartilhados com o painel) ── */}
+      {flows.dialogs}
 
       {/* ── Mesas (só com controle de mesas no plano) ── */}
       {canTables && moveEntry && (

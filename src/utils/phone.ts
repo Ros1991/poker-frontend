@@ -1,5 +1,7 @@
 // WhatsApp brasileiro: uma regra só para o painel, o terminal e o servidor (PhoneNumbers.cs).
 // Guardado só com os dígitos locais (DDD + número, 10 ou 11 dígitos), sem o 55 do país.
+// A chave PIX de celular NÃO usa esta regra: ela fica em `utils/pix.ts` (SPEC-20261023-1218), mais estrita (DDDs da
+// Anatel, 9 obrigatório, fixo recusado, gravada como +55…) e autocontida para rodar no Node. Não unificar.
 
 /** Teto de dígitos guardados enquanto digita: um número que não vira 10–11 dígitos aparece inteiro e a validação recusa */
 const MAX_INPUT_DIGITS = 15

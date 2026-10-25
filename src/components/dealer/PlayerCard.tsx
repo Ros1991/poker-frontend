@@ -24,14 +24,20 @@ interface PlayerCardProps {
   showSeat?: boolean
 }
 
-/** "Deve R$ 50,00" em vermelho ou "Pago" em verde (texto pequeno: variante -deep, que passa AA) */
+/**
+ * "Deve R$ 50,00" em vermelho, "Pagou a mais R$ 20,00" em azul (pago acima do devido — a mesma conta do `amountDue`,
+ * SPEC-20261023-1217, L13) ou "Pago" em verde (texto pequeno: variante -deep, que passa AA; o azul base já passa)
+ */
 export function DueLabel({ entry, className }: { entry: TournamentEntry; className?: string }) {
   const due = amountDue(entry)
-  return due > 0 ? (
-    <span className={cn('font-semibold tabular-nums text-accent-red-deep', className)}>Deve {formatCurrency(due)}</span>
-  ) : (
-    <span className={cn('font-semibold text-accent-green-deep', className)}>Pago</span>
-  )
+  if (due > 0)
+    return <span className={cn('font-semibold tabular-nums text-accent-red-deep', className)}>Deve {formatCurrency(due)}</span>
+  const over = Math.round((entry.totalPaid - entry.totalDue) * 100) / 100
+  if (over > 0)
+    return (
+      <span className={cn('font-semibold tabular-nums text-accent-blue', className)}>Pagou a mais {formatCurrency(over)}</span>
+    )
+  return <span className={cn('font-semibold text-accent-green-deep', className)}>Pago</span>
 }
 
 function ActionButton({

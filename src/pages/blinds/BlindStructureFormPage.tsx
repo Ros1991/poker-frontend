@@ -7,6 +7,8 @@ import * as blindStructuresApi from '../../api/blindStructures.api'
 import * as homeGamesApi from '../../api/homeGames.api'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
+import { PixKeyInput } from '../../components/pix/PixKeyInput'
+import { checkPixKey, toPixKeyPayload, type PixKeyType } from '../../utils/pix'
 import { LoadingSpinner } from '../../components/common/LoadingSpinner'
 import { AccessDeniedState } from '../../components/common/AccessDeniedState'
 import { PlanLock, requiredPlanFor } from '../../components/plan'
@@ -54,8 +56,10 @@ interface CostRow {
   amount: string
   beneficiary: string
   pixKey: string
-  /** Sem campo na tela: só repassado do que já estava gravado */
-  pixKeyType: string | null
+  /** Tipo escolhido no campo da chave (null = automático) — SPEC-20261023-1218 */
+  pixType: PixKeyType | null
+  /** Chave já gravada neste custo (edição): enquanto o texto for igual, vale o tipo dela */
+  savedPixKey: string | null
 }
 
 /** Mesmo teto do backend (BlindStructuresController.MaxDefaultCosts). */
@@ -67,7 +71,8 @@ const emptyCostRow = (): CostRow => ({
   amount: '',
   beneficiary: '',
   pixKey: '',
-  pixKeyType: null,
+  pixType: null,
+  savedPixKey: null,
 })
 
 const isBlankCost = (c: CostRow) =>
@@ -164,7 +169,8 @@ export function BlindStructureFormPage() {
             amount: String(c.amount),
             beneficiary: c.beneficiary ?? '',
             pixKey: c.pixKey ?? '',
-            pixKeyType: c.pixKeyType ?? null,
+            pixType: null,
+            savedPixKey: c.pixKey ?? null,
           })),
       )
       setHasDealer(existing.defaultHasDealer ?? false)
@@ -226,13 +232,17 @@ export function BlindStructureFormPage() {
           ? {
               defaultCosts: costs
                 .filter((c) => !isBlankCost(c))
-                .map((c) => ({
-                  description: c.description.trim(),
-                  amount: Number(c.amount),
-                  beneficiary: c.beneficiary.trim() || null,
-                  pixKey: c.pixKey.trim() || null,
-                  pixKeyType: c.pixKeyType,
-                })),
+                .map((c) => {
+                  // Chave no formato dos bancos + o tipo dela (a API normaliza e confere de novo)
+                  const pix = toPixKeyPayload(c.pixKey, c.pixType, c.savedPixKey)
+                  return {
+                    description: c.description.trim(),
+                    amount: Number(c.amount),
+                    beneficiary: c.beneficiary.trim() || null,
+                    pixKey: pix.key,
+                    pixKeyType: pix.type,
+                  }
+                }),
               defaultHasDealer: hasDealer,
               defaultDealerFee: hasDealer ? Number(dealerFee) : null,
             }
@@ -323,6 +333,10 @@ export function BlindStructureFormPage() {
     setCosts(costs.map((c) => (c.key === key ? { ...c, [field]: value } : c)))
   }
 
+  function updateCostPixType(key: number, pixType: PixKeyType | null) {
+    setCosts(costs.map((c) => (c.key === key ? { ...c, pixType } : c)))
+  }
+
   const filledCosts = costs.filter((c) => !isBlankCost(c))
   const costsTotal = filledCosts.reduce((sum, c) => sum + (Number(c.amount) || 0), 0)
 
@@ -341,6 +355,15 @@ export function BlindStructureFormPage() {
       if (invalid) {
         toast.error('Preencha descrição e valor de cada custo padrão.')
         return
+      }
+      // Chave PIX de cada custo no formato dos bancos (SPEC-20261023-1218): inválida ou ambígua não deixa salvar
+      for (const c of filledCosts) {
+        const pixError = checkPixKey(c.pixKey, c.pixType, c.savedPixKey).error
+        if (pixError) {
+          toast.error(`Chave PIX de "${c.description.trim() || 'custo padrão'}": ${pixError}`)
+          document.getElementById(`custo-${c.key}-pix`)?.focus()
+          return
+        }
       }
       if (filledCosts.length > MAX_DEFAULT_COSTS) {
         toast.error(`Uma estrutura pode ter no máximo ${MAX_DEFAULT_COSTS} custos padrão.`)
@@ -603,7 +626,7 @@ export function BlindStructureFormPage() {
                   {costs.map((c, i) => (
                     <div
                       key={c.key}
-                      className="grid grid-cols-1 gap-3 rounded-lg border border-border-default bg-bg-primary p-3 sm:grid-cols-[2fr_1fr_1.5fr_1.5fr_auto] sm:items-end"
+                      className="grid grid-cols-1 gap-3 rounded-lg border border-border-default bg-bg-primary p-3 sm:grid-cols-[2fr_1fr_1.5fr_auto] sm:items-end"
                     >
                       <Input
                         id={`custo-${c.key}-descricao`}
@@ -635,20 +658,24 @@ export function BlindStructureFormPage() {
                         maxLength={200}
                         disabled={!canEditCosts}
                       />
-                      <Input
-                        id={`custo-${c.key}-pix`}
-                        label="Chave PIX (opcional)"
-                        value={c.pixKey}
-                        onChange={(e) => updateCost(c.key, 'pixKey', e.target.value)}
-                        placeholder="CPF, e-mail, telefone..."
-                        maxLength={200}
-                        disabled={!canEditCosts}
-                      />
+                      {/* Chave PIX numa linha própria (a detecção/escolha do tipo aparece embaixo do campo) */}
+                      <div className="sm:col-span-3 sm:col-start-1 sm:row-start-2">
+                        <PixKeyInput
+                          id={`custo-${c.key}-pix`}
+                          label="Chave PIX (opcional)"
+                          value={c.pixKey}
+                          onChange={(v) => updateCost(c.key, 'pixKey', v)}
+                          type={c.pixType}
+                          onTypeChange={(t) => updateCostPixType(c.key, t)}
+                          savedKey={c.savedPixKey}
+                          disabled={!canEditCosts}
+                        />
+                      </div>
                       <button
                         type="button"
                         onClick={() => removeCost(c.key)}
                         disabled={!canEditCosts}
-                        className="flex min-h-[44px] min-w-[44px] items-center justify-center gap-2 justify-self-end rounded-lg text-sm text-text-secondary transition-colors hover:bg-accent-red-soft hover:text-accent-red disabled:cursor-not-allowed"
+                        className="flex min-h-[44px] min-w-[44px] items-center justify-center gap-2 justify-self-end rounded-lg text-sm text-text-secondary transition-colors hover:bg-accent-red-soft hover:text-accent-red disabled:cursor-not-allowed sm:col-start-4 sm:row-start-1"
                         title="Remover custo"
                         aria-label={`Remover custo ${c.description.trim() || i + 1}`}
                       >

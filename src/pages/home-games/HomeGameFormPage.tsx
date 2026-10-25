@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useForm, type Resolver } from 'react-hook-form'
+import { useForm, useWatch, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { ArrowLeft, Loader2 } from 'lucide-react'
@@ -11,6 +10,16 @@ import * as homeGameLogoApi from '../../api/homeGameLogo.api'
 import { isPlanLimitError } from '../../api/client'
 import { MY_PLAN_QUERY_KEY } from '../../hooks/usePlan'
 import { Input } from '../../components/ui/Input'
+import { PixKeyInput } from '../../components/pix/PixKeyInput'
+import type { PixKeyType } from '../../utils/pix'
+import {
+  buildHomeGameRequest,
+  homeGameFormValues,
+  homeGamePixError,
+  homeGameSchema,
+  useHomeGamePixVisible,
+  type HomeGameFormData,
+} from './homeGameForm'
 import { Textarea } from '../../components/ui/Textarea'
 import { Button } from '../../components/ui/Button'
 import { LogoPicker } from '../../components/photo/LogoPicker'
@@ -18,30 +27,6 @@ import { ROUTES, homeGameDetailPath } from '../../constants/routes'
 import { useHomeGame } from '../../hooks/useHomeGame'
 import { AccessDeniedState } from '../../components/common/AccessDeniedState'
 import { isForbiddenError } from '../../utils/httpErrors'
-
-const homeGameSchema = z.object({
-  name: z
-    .string()
-    .min(1, 'Nome é obrigatório')
-    .max(100, 'Máximo de 100 caracteres'),
-  description: z
-    .string()
-    .max(500, 'Máximo de 500 caracteres')
-    .optional()
-    .or(z.literal('')),
-  location: z
-    .string()
-    .max(200, 'Máximo de 200 caracteres')
-    .optional()
-    .or(z.literal('')),
-  pixKey: z.string().max(100).optional().or(z.literal('')),
-  pixBeneficiario: z.string().max(100).optional().or(z.literal('')),
-  defaultBuyIn: z.coerce.number().min(0, 'Valor inválido').optional(),
-  defaultRebuy: z.coerce.number().min(0, 'Valor inválido').optional(),
-  defaultAddon: z.coerce.number().min(0, 'Valor inválido').optional(),
-})
-
-type HomeGameFormData = z.infer<typeof homeGameSchema>
 
 /**
  * Envia a logo escolhida (ou remove a marcada) depois de salvar o home game (SPEC-20261023-1213). Falha na logo não
@@ -82,43 +67,30 @@ export function HomeGameFormPage() {
     register,
     handleSubmit,
     reset,
+    control,
+    setValue,
+    setError,
+    clearErrors,
     formState: { errors },
   } = useForm<HomeGameFormData>({
     resolver: zodResolver(homeGameSchema) as Resolver<HomeGameFormData>,
-    defaultValues: {
-      name: '',
-      description: '',
-      location: '',
-      pixKey: '',
-      pixBeneficiario: '',
-      defaultBuyIn: undefined,
-      defaultRebuy: undefined,
-      defaultAddon: undefined,
-    },
+    defaultValues: homeGameFormValues(null),
   })
+  // Chave PIX (SPEC-20261023-1218): tipo escolhido no campo (null = automático); seção só com pagamentos no plano
+  const [pixType, setPixType] = useState<PixKeyType | null>(null)
+  const pixKeyValue = useWatch({ control, name: 'pixKey' }) ?? ''
+  const showPix = useHomeGamePixVisible(homeGame, isEditing)
 
   useEffect(() => {
     if (homeGame) {
-      reset({
-        name: homeGame.name,
-        description: homeGame.description ?? '',
-        location: homeGame.location ?? '',
-        pixKey: '',
-        pixBeneficiario: '',
-        defaultBuyIn: undefined,
-        defaultRebuy: undefined,
-        defaultAddon: undefined,
-      })
+      // Edição carrega tudo o que o PUT regrava (PIX, beneficiário e valores padrão), senão salvar apagaria
+      reset(homeGameFormValues(homeGame))
     }
   }, [homeGame, reset])
 
   const createMutation = useMutation({
     mutationFn: async (data: HomeGameFormData) => {
-      const created = await homeGamesApi.create({
-        name: data.name,
-        description: data.description || undefined,
-        location: data.location || undefined,
-      })
+      const created = await homeGamesApi.create(buildHomeGameRequest(data, pixType, null, showPix))
       await saveLogo(created.id, logo, false)
       return created
     },
@@ -133,17 +105,14 @@ export function HomeGameFormPage() {
     onError: (err: unknown) => {
       // 402 (limite de home games do plano): o UpgradeModal já abriu sozinho com o motivo
       if (isPlanLimitError(err)) return
-      toast.error('Erro ao criar home game. Tente novamente.')
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+      toast.error(msg || 'Erro ao criar home game. Tente novamente.')
     },
   })
 
   const updateMutation = useMutation({
     mutationFn: async (data: HomeGameFormData) => {
-      const updated = await homeGamesApi.update(id!, {
-        name: data.name,
-        description: data.description || undefined,
-        location: data.location || undefined,
-      })
+      const updated = await homeGamesApi.update(id!, buildHomeGameRequest(data, pixType, homeGame, showPix))
       await saveLogo(updated.id, logo, logoRemoved && !!homeGame?.logoUrl)
       return updated
     },
@@ -153,14 +122,20 @@ export function HomeGameFormPage() {
       queryClient.invalidateQueries({ queryKey: ['homeGames'] })
       navigate(homeGameDetailPath(id!))
     },
-    onError: () => {
-      toast.error('Erro ao atualizar home game. Tente novamente.')
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+      toast.error(msg || 'Erro ao atualizar home game. Tente novamente.')
     },
   })
 
   const isSubmitting = createMutation.isPending || updateMutation.isPending
 
   function onSubmit(data: HomeGameFormData) {
+    const pixError = homeGamePixError(data, pixType, homeGame, showPix)
+    if (pixError) {
+      setError('pixKey', { message: pixError }, { shouldFocus: true })
+      return
+    }
     if (isEditing) {
       updateMutation.mutate(data)
     } else {
@@ -252,25 +227,40 @@ export function HomeGameFormPage() {
           disabled={isSubmitting}
         />
 
-        <div className="border-t border-border-default pt-4">
-          <h3 className="text-sm font-medium text-text-secondary mb-3">
-            Dados PIX (para pagamentos)
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input
-              label="Chave PIX"
-              placeholder="CPF, e-mail, telefone ou chave aleatória"
-              error={errors.pixKey?.message}
-              {...register('pixKey')}
-            />
-            <Input
-              label="Beneficiário PIX"
-              placeholder="Nome do beneficiário"
-              error={errors.pixBeneficiario?.message}
-              {...register('pixBeneficiario')}
-            />
+        {/* Dados PIX só com pagamentos no plano (SPEC-20261023-1218); a chave aceita do jeito que a pessoa digita */}
+        {showPix && (
+          <div className="border-t border-border-default pt-4">
+            <h3 className="text-sm font-medium text-text-secondary mb-3">
+              Dados PIX (para pagamentos)
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:items-start">
+              <PixKeyInput
+                id="home-game-page-pix-key"
+                label="Chave PIX"
+                value={pixKeyValue}
+                onChange={(v) => {
+                  setValue('pixKey', v, { shouldDirty: true })
+                  clearErrors('pixKey')
+                }}
+                type={pixType}
+                onTypeChange={(t) => {
+                  setPixType(t)
+                  clearErrors('pixKey')
+                }}
+                savedKey={homeGame?.pixKey ?? null}
+                error={errors.pixKey?.message}
+                disabled={isSubmitting}
+              />
+              <Input
+                id="home-game-page-pix-beneficiary"
+                label="Beneficiário PIX"
+                placeholder="Nome do beneficiário"
+                error={errors.pixBeneficiary?.message}
+                {...register('pixBeneficiary')}
+              />
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="border-t border-border-default pt-4">
           <h3 className="text-sm font-medium text-text-secondary mb-3">

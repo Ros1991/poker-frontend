@@ -5,9 +5,13 @@ import * as historyApi from '../../api/history.api'
 import { Button } from '../ui/Button'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { LoadingSpinner } from '../common/LoadingSpinner'
+import { usePlanCatalog } from '../../hooks/usePlanCatalog'
+import { requiredPlanFor } from '../plan/planUtils'
 import { cn } from '../../utils/cn'
-import type { HistoryItem } from '../../types/history.types'
+import type { HistoryItem, HistoryKind } from '../../types/history.types'
 import { formatTime, normalizeText } from './terminalFormat'
+
+const PAYMENT_KINDS: HistoryKind[] = ['Payment', 'Settlement']
 
 interface HistoryListProps {
   tournamentId: string
@@ -17,12 +21,30 @@ interface HistoryListProps {
   search?: string
   /** Desfaz o item (já confirmado); a lista é invalidada por quem chama */
   onUndo: (item: HistoryItem) => Promise<void>
+  /**
+   * Plano do dono sem Payments (SPEC-20261023-1217, L11 — painel e terminal): pagamentos e abatimentos ficam sem
+   * "Desfazer", com o motivo do plano (o plano que libera vem do catálogo, nunca digitado)
+   */
+  paymentsLocked?: boolean
+}
+
+/** Texto da confirmação: o aviso do organizador (`undoWarning`, SPEC-20261023-1217 L4) vem antes da pergunta */
+function confirmMessage(item: HistoryItem): string {
+  const what = item.playerName ? `${item.description} de ${item.playerName}` : item.description
+  return item.undoWarning ? `${item.undoWarning} Desfazer ${what} mesmo assim?` : `Desfazer ${what}?`
 }
 
 /** Histórico do mais recente para o mais antigo; desfeito fica riscado */
-export function HistoryList({ tournamentId, entryId, search, onUndo }: HistoryListProps) {
+export function HistoryList({ tournamentId, entryId, search, onUndo, paymentsLocked = false }: HistoryListProps) {
   const [confirmItem, setConfirmItem] = useState<HistoryItem | null>(null)
   const [undoing, setUndoing] = useState(false)
+  // Catálogo público (GET public/plans, nunca 402): só para dizer qual plano libera os pagamentos
+  const { plans } = usePlanCatalog({ enabled: paymentsLocked })
+  const requiredPlan = requiredPlanFor('Payments', plans)
+  const paymentsLockedReason = `Pagamentos estão disponíveis ${
+    requiredPlan ? `a partir do plano ${requiredPlan}` : 'nos planos pagos'
+  }.`
+  const isLockedPayment = (item: HistoryItem) => paymentsLocked && PAYMENT_KINDS.includes(item.kind)
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['history', tournamentId, entryId ?? 'all'],
@@ -58,48 +80,54 @@ export function HistoryList({ tournamentId, entryId, search, onUndo }: HistoryLi
 
   return (
     <>
-      <ul className="flex flex-col gap-1.5">
-        {items.map((item) => (
-          <li key={item.id} className="flex gap-2.5 rounded-lg border border-border-default bg-bg-secondary p-2.5">
-            <span className="w-11 shrink-0 pt-0.5 font-mono text-xs tabular-nums text-text-secondary">{formatTime(item.at)}</span>
-            <div className="min-w-0 flex-1">
-              <p
-                className={cn(
-                  'text-sm text-text-primary',
-                  item.undone && 'text-text-muted line-through',
-                )}
-              >
-                {item.description}
-              </p>
-              <p className="mt-0.5 text-xs text-text-secondary">
-                {!entryId && item.playerName && (
-                  <span className="font-medium text-text-primary">{item.playerName}</span>
-                )}
-                {!entryId && item.playerName && item.by && ' · '}
-                {item.by && `por ${item.by}`}
-              </p>
-              {item.undone && (
-                <p className="mt-0.5 text-xs text-accent-gold-deep">
-                  desfeito{item.undoneAt ? ` às ${formatTime(item.undoneAt)}` : ''}
-                  {item.undoneBy ? ` por ${item.undoneBy}` : ''}
+      <ul className="flex flex-col gap-1.5" data-history-list>
+        {items.map((item) => {
+          const locked = isLockedPayment(item)
+          return (
+            <li key={item.id} className="flex gap-2.5 rounded-lg border border-border-default bg-bg-secondary p-2.5" data-history-item>
+              <span className="w-11 shrink-0 pt-0.5 font-mono text-xs tabular-nums text-text-secondary">{formatTime(item.at)}</span>
+              <div className="min-w-0 flex-1">
+                <p
+                  className={cn(
+                    'text-sm text-text-primary',
+                    item.undone && 'text-text-muted line-through',
+                  )}
+                >
+                  {item.description}
                 </p>
+                <p className="mt-0.5 text-xs text-text-secondary">
+                  {!entryId && item.playerName && (
+                    <span className="font-medium text-text-primary">{item.playerName}</span>
+                  )}
+                  {!entryId && item.playerName && item.by && ' · '}
+                  {item.by && `por ${item.by}`}
+                </p>
+                {item.undone && (
+                  <p className="mt-0.5 text-xs text-accent-gold-deep">
+                    desfeito{item.undoneAt ? ` às ${formatTime(item.undoneAt)}` : ''}
+                    {item.undoneBy ? ` por ${item.undoneBy}` : ''}
+                  </p>
+                )}
+                {!item.undone && locked && (
+                  <p className="mt-0.5 text-[11px] text-text-secondary">{paymentsLockedReason}</p>
+                )}
+                {!item.undone && !locked && !item.canUndo && item.undoBlockedReason && (
+                  <p className="mt-0.5 text-[11px] text-text-secondary">{item.undoBlockedReason}</p>
+                )}
+              </div>
+              {item.canUndo && !locked && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="shrink-0 self-center px-2.5"
+                  onClick={() => setConfirmItem(item)}
+                >
+                  <Undo2 className="h-4 w-4" /> Desfazer
+                </Button>
               )}
-              {!item.undone && !item.canUndo && item.undoBlockedReason && (
-                <p className="mt-0.5 text-[11px] text-text-secondary">{item.undoBlockedReason}</p>
-              )}
-            </div>
-            {item.canUndo && (
-              <Button
-                variant="secondary"
-                size="sm"
-                className="shrink-0 self-center px-2.5"
-                onClick={() => setConfirmItem(item)}
-              >
-                <Undo2 className="h-4 w-4" /> Desfazer
-              </Button>
-            )}
-          </li>
-        ))}
+            </li>
+          )
+        })}
       </ul>
 
       <ConfirmDialog
@@ -107,13 +135,7 @@ export function HistoryList({ tournamentId, entryId, search, onUndo }: HistoryLi
         onClose={() => !undoing && setConfirmItem(null)}
         onConfirm={() => void handleConfirm()}
         title="Desfazer"
-        message={
-          confirmItem
-            ? confirmItem.playerName
-              ? `Desfazer ${confirmItem.description} de ${confirmItem.playerName}?`
-              : `Desfazer ${confirmItem.description}?`
-            : ''
-        }
+        message={confirmItem ? confirmMessage(confirmItem) : ''}
         confirmLabel="Desfazer"
         variant="warning"
         loading={undoing}

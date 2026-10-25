@@ -50,6 +50,9 @@ import { MyPlanPage } from './pages/plan/MyPlanPage'
 // Meu perfil
 import { MyProfilePage } from './pages/profile/MyProfilePage'
 
+// Boas-vindas do primeiro acesso
+import { WelcomePage } from './pages/onboarding/WelcomePage'
+
 // Users (Admin)
 import { UserListPage } from './pages/users/UserListPage'
 import { UserFormPage } from './pages/users/UserFormPage'
@@ -152,6 +155,16 @@ export function Router() {
           }
         />
       </Route>
+
+      {/* Boas-vindas do primeiro acesso (SPEC-20261023-1212): logado, sem sidebar; depois volta para a origem */}
+      <Route
+        path={ROUTES.WELCOME}
+        element={
+          <ProtectedRoute skipOnboarding>
+            <WelcomePage />
+          </ProtectedRoute>
+        }
+      />
 
       {/* Celular lendo o QR da TV: login e volta para escolher o torneio */}
       <Route

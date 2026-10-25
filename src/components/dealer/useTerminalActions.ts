@@ -58,7 +58,7 @@ interface TerminalActionsOptions {
 }
 
 /**
- * Mutações do terminal + "Desfazer" logo após cada ação. O toast fica amarrado
+ * Mutações do terminal (e da aba Jogadores do painel — SPEC-20261023-1217) + "Desfazer" logo após cada ação. O toast fica amarrado
  * ao item exato criado pela ação (achado no histórico comparando com o que
  * havia antes); nunca desfaz "o mais recente" na hora do toque.
  */
@@ -181,10 +181,12 @@ export function useTerminalActions(
     },
     onSuccess: ({ result, before }, { entry }) => {
       invalidateAll()
+      // "· na premiação" quando o servidor diz que a posição paga (SPEC-20261023-1217, L10 — painel e terminal)
+      const itm = result?.isInTheMoney ? ' · na premiação' : ''
       void showUndoToast(
         result?.position
-          ? `${playerName(entry)} saiu em ${result.position}º lugar`
-          : `${playerName(entry)} saiu do torneio`,
+          ? `${playerName(entry)} saiu em ${result.position}º lugar${itm}`
+          : `${playerName(entry)} saiu do torneio${itm}`,
         entry.id,
         ['Elimination'],
         before,

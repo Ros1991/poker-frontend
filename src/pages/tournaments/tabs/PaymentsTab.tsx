@@ -1,14 +1,24 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { CreditCard, AlertCircle, Smartphone, Banknote, Receipt, Pencil, QrCode } from 'lucide-react'
+import { QRCodeSVG } from 'qrcode.react'
+import { CreditCard, AlertCircle, Smartphone, Banknote, Receipt, Pencil, QrCode, Copy } from 'lucide-react'
 import * as paymentsApi from '../../../api/payments.api'
 import * as tournamentsApi from '../../../api/tournaments.api'
 import { Button } from '../../../components/ui/Button'
 import { Badge } from '../../../components/ui/Badge'
 import { Modal } from '../../../components/ui/Modal'
-import { Input } from '../../../components/ui/Input'
+import { PixKeyInput } from '../../../components/pix/PixKeyInput'
 import { LoadingSpinner } from '../../../components/common/LoadingSpinner'
+import { copyToClipboard } from '../../../utils/clipboard'
+import {
+  buildPixPayload,
+  checkPixKey,
+  normalizePixKey,
+  PIX_KEY_TYPE_LABELS,
+  toPixKeyPayload,
+  type PixKeyType,
+} from '../../../utils/pix'
 import { PaymentModal } from '../../../components/tournament/PaymentModal'
 import { PAYMENT_STATUS_COLORS, PAYMENT_STATUS_LABELS } from '../../../constants/statuses'
 import type { Tournament } from '../../../types/tournament.types'
@@ -31,10 +41,23 @@ export function PaymentsTab({ tournament, entries }: PaymentsTabProps) {
   const [paymentEntry, setPaymentEntry] = useState<TournamentEntry | null>(null)
   const [showPixModal, setShowPixModal] = useState(false)
   const [pixKeyDraft, setPixKeyDraft] = useState('')
+  const [pixTypeDraft, setPixTypeDraft] = useState<PixKeyType | null>(null)
+  const [showQr, setShowQr] = useState(false)
+
+  // Chave do dia gravada (SPEC-20261023-1218): exibição, tipo, aviso de formato e o mesmo QR do telão
+  const savedPix = tournament.responsiblePixKey ?? null
+  const pix = normalizePixKey(savedPix)
+  const pixDisplay = pix.ok && pix.key ? pix.display : null
+  const pixTypeLabel = pix.ok && pix.type ? PIX_KEY_TYPE_LABELS[pix.type] : null
+  const pixAmbiguous = pix.ok && pix.alternatives.length > 0
+  const pixPayload = buildPixPayload(savedPix)
+  const draftCheck = checkPixKey(pixKeyDraft, pixTypeDraft, savedPix)
 
   const pixKeyMutation = useMutation({
-    mutationFn: (pixKey: string) =>
-      tournamentsApi.updatePixKey(tournament.id, pixKey.trim() || null),
+    mutationFn: () => {
+      const payload = toPixKeyPayload(pixKeyDraft, pixTypeDraft, savedPix)
+      return tournamentsApi.updatePixKey(tournament.id, payload.key, payload.type)
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tournament', tournament.id] })
       toast.success('Chave PIX atualizada!')
@@ -70,29 +93,76 @@ export function PaymentsTab({ tournament, entries }: PaymentsTabProps) {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Chave PIX do dia (editável em qualquer fase; aparece no telão com QR) */}
-      <div className="flex items-center justify-between gap-3 rounded-lg border border-border-default bg-bg-primary p-4">
-        <div className="flex min-w-0 items-center gap-3">
-          <QrCode className="h-5 w-5 shrink-0 text-accent-blue" />
-          <div className="min-w-0">
-            <p className="text-xs text-text-secondary">Chave PIX do dia</p>
-            <p className="truncate text-sm font-semibold text-text-primary">
-              {tournament.responsiblePixKey || 'Não definida'}
-            </p>
+      {/* Chave PIX do dia (editável em qualquer fase; aparece no telão com QR) — SPEC-20261023-1218: chave
+          formatada e o tipo, aviso de formato não aceito, prévia do mesmo QR do telão e o copia e cola */}
+      <div className="rounded-lg border border-border-default bg-bg-primary p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <QrCode className="h-5 w-5 shrink-0 text-accent-blue" />
+            <div className="min-w-0">
+              <p className="text-xs text-text-secondary">
+                Chave PIX do dia{pixTypeLabel ? ` · ${pixTypeLabel}` : ''}
+              </p>
+              <p className="wrap-anywhere text-sm font-semibold text-text-primary">
+                {pixDisplay ?? (savedPix || 'Não definida')}
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {pixPayload && (
+              <>
+                <Button variant="secondary" onClick={() => setShowQr((v) => !v)} aria-expanded={showQr}>
+                  <QrCode className="h-4 w-4" />
+                  {showQr ? 'Esconder QR' : 'Ver QR'}
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={async () => {
+                    if (await copyToClipboard(pixPayload)) toast.success('Código PIX copiado')
+                    else toast.error('Não foi possível copiar o código PIX.')
+                  }}
+                >
+                  <Copy className="h-4 w-4" />
+                  Copiar código PIX
+                </Button>
+              </>
+            )}
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setPixKeyDraft(savedPix ?? '')
+                setPixTypeDraft(null)
+                setShowPixModal(true)
+              }}
+              title="Editar chave PIX"
+            >
+              <Pencil className="h-4 w-4" />
+              Editar
+            </Button>
           </div>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => {
-            setPixKeyDraft(tournament.responsiblePixKey ?? '')
-            setShowPixModal(true)
-          }}
-          title="Editar chave PIX"
-        >
-          <Pencil className="h-4 w-4" />
-          Editar
-        </Button>
+
+        {savedPix && !pixDisplay && (
+          <p role="alert" className="mt-3 rounded-lg bg-accent-red-soft p-3 text-sm text-accent-red-deep">
+            Esta chave não está num formato aceito pelos bancos — o QR não aparece no telão. Corrija.
+          </p>
+        )}
+        {pixAmbiguous && (
+          <p className="mt-3 rounded-lg bg-accent-gold-soft p-3 text-sm text-text-primary">
+            Detectada como CPF — se for celular, edite e escolha Celular.
+          </p>
+        )}
+
+        {showQr && pixPayload && (
+          <div className="mt-4 flex flex-col items-center gap-3 sm:flex-row">
+            <div className="shrink-0 rounded-lg bg-white p-2">
+              <QRCodeSVG value={pixPayload} size={160} />
+            </div>
+            <p className="text-sm text-text-secondary">
+              Confira com o app do seu banco antes do torneio: deve aparecer o nome do recebedor.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Summary cards */}
@@ -246,8 +316,9 @@ export function PaymentsTab({ tournament, entries }: PaymentsTabProps) {
               Cancelar
             </Button>
             <Button
-              onClick={() => pixKeyMutation.mutate(pixKeyDraft)}
+              onClick={() => pixKeyMutation.mutate()}
               loading={pixKeyMutation.isPending}
+              disabled={draftCheck.error !== null}
             >
               Salvar
             </Button>
@@ -255,16 +326,18 @@ export function PaymentsTab({ tournament, entries }: PaymentsTabProps) {
         }
       >
         <p className="mb-4 text-sm text-text-secondary">
-          Aparece no telão com QR Code. Chave de telefone deve incluir o
-          +55 (ex.: +5511999999999). Deixe vazio para remover.
+          Aparece no telão com QR Code. Pode digitar o celular só com DDD (ex.: 61 99999-9999) — o sistema
+          completa o +55. Deixe vazio para remover.
         </p>
-        <Input
+        <PixKeyInput
           id="pix-key-draft"
-          aria-label="Chave PIX do dia"
-          type="text"
+          label="Chave PIX do dia"
           value={pixKeyDraft}
-          onChange={(e) => setPixKeyDraft(e.target.value)}
-          placeholder="CPF, e-mail, +55 telefone ou chave aleatória"
+          onChange={setPixKeyDraft}
+          type={pixTypeDraft}
+          onTypeChange={setPixTypeDraft}
+          savedKey={savedPix}
+          disabled={pixKeyMutation.isPending}
         />
       </Modal>
     </div>

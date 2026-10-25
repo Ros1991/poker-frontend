@@ -1,4 +1,5 @@
 import type { PlanName } from './plan.types'
+import type { PixKeyType } from '../utils/pix'
 
 export type TournamentStatus =
   | 'Draft'
@@ -70,7 +71,9 @@ export interface CreateTournamentRequest {
   addonDoubleAllowed?: boolean
   blindStructureId?: string
   seatsPerTable?: number
-  responsiblePixKey?: string
+  responsiblePixKey?: string | null
+  /** Tipo escolhido da chave do dia (SPEC-20261023-1218); null = a API detecta */
+  responsiblePixKeyType?: PixKeyType | null
   staffAmount?: number
   rankingContribMode?: 'PerPlayer' | 'Percent'
   rankingContribValue?: number

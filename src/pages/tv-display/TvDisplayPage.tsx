@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
 import { Users, Trophy, Clock, Skull, Coins, Hourglass, LayoutGrid, ArrowLeft } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
-import { buildPixPayload } from '../../utils/pix'
+import { buildPixPayload, normalizePixKey, PIX_KEY_TYPE_LABELS } from '../../utils/pix'
 import * as publicDisplayApi from '../../api/publicDisplay.api'
 import { useBlindTimer } from '../../hooks/useBlindTimer'
 import { pairDisplayPath } from '../../constants/routes'
@@ -188,6 +188,13 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
   const clubLogoSrc =
     tournament && !tournament.showBadge ? resolveMediaUrl(tournament.clubLogoUrl) : null
   const currentView = tablesViewAllowed ? view : 'clock'
+  // Card PIX (SPEC-20261023-1218): só com chave que normaliza e gera BR Code; "PIX · Celular" + chave formatada
+  const pixNormalized = normalizePixKey(tournament?.responsiblePixKey)
+  const pixPayload = buildPixPayload(tournament?.responsiblePixKey)
+  const pixCard =
+    pixNormalized.ok && pixNormalized.key && pixNormalized.type && pixPayload
+      ? { payload: pixPayload, display: pixNormalized.display, typeLabel: PIX_KEY_TYPE_LABELS[pixNormalized.type] }
+      : null
 
   const { timerState, syncFromServer, formattedTime, progressPercentage } =
     useBlindTimer(() => {
@@ -712,21 +719,23 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
                     </div>
                   )}
 
-                  {/* PIX do dia: QR (copia e cola estático) + chave */}
-                  {showMoney && tournament?.responsiblePixKey && (
+                  {/* PIX do dia: QR (copia e cola estático) + chave formatada e o tipo (SPEC-20261023-1218). A chave
+                      passa pelo normalizador (até uma chave antiga sem +55 sai certa no QR); chave inválida → sem
+                      card (QR errado é pior que nenhum) */}
+                  {showMoney && pixCard && (
                     <div className="mt-4 flex items-center gap-5 rounded-xl border border-border-default bg-bg-card px-6 py-4">
                       <div className="shrink-0 rounded-lg bg-white p-2">
                         <QRCodeSVG
-                          value={buildPixPayload(tournament.responsiblePixKey)}
+                          value={pixCard.payload}
                           size={140}
                         />
                       </div>
                       <div className="flex min-w-0 flex-col">
                         <span className="text-lg font-semibold uppercase tracking-[0.2em] text-accent-green-deep">
-                          PIX
+                          PIX · {pixCard.typeLabel}
                         </span>
                         <span className="max-w-md break-all text-3xl font-bold text-text-primary">
-                          {tournament.responsiblePixKey}
+                          {pixCard.display}
                         </span>
                       </div>
                     </div>

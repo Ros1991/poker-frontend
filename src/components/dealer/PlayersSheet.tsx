@@ -8,7 +8,7 @@ import type { Table } from '../../api/tables.api'
 import type { TournamentEntry } from '../../types/entry.types'
 import { DueLabel } from './PlayerCard'
 import { Sheet } from './Sheet'
-import { isActiveStatus, normalizeText, playerName, seatLabel, statusLabel } from './terminalFormat'
+import { isActiveStatus, matchesPlayerSearch, playerName, seatLabel, statusLabel } from './terminalFormat'
 
 interface PlayersSheetProps {
   isOpen: boolean
@@ -37,14 +37,9 @@ export function PlayersSheet({
   const [search, setSearch] = useState('')
 
   const list = useMemo(() => {
-    const term = normalizeText(search.trim())
+    // Mesma busca da aba Jogadores do painel (nome e apelido, sem acento — SPEC-20261023-1217)
     return entries
-      .filter(
-        (e) =>
-          !term ||
-          normalizeText(e.person.fullName).includes(term) ||
-          (e.person.nickname && normalizeText(e.person.nickname).includes(term)),
-      )
+      .filter((e) => matchesPlayerSearch(e, search))
       .sort((a, b) => {
         const aa = isActiveStatus(a.status) ? 0 : 1
         const bb = isActiveStatus(b.status) ? 0 : 1

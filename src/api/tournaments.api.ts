@@ -4,6 +4,7 @@ import type {
   Tournament,
   CreateTournamentRequest,
 } from '../types/tournament.types'
+import type { PixKeyType } from '../utils/pix'
 
 export async function getAll(
   homeGameId: string,
@@ -60,12 +61,18 @@ export async function remove(homeGameId: string, id: string): Promise<void> {
   await apiClient.delete(`/home-games/${homeGameId}/Tournaments/${id}`)
 }
 
+/**
+ * PIX do dia (SPEC-20261023-1218): mande a chave já normalizada e o tipo (`toPixKeyPayload` de utils/pix.ts). A API
+ * grava no formato do DICT; fora de formato → 400 com a mensagem; 11 dígitos que podem ser CPF ou celular exigem o tipo.
+ */
 export async function updatePixKey(
   id: string,
   pixKey: string | null,
+  pixKeyType: PixKeyType | null = null,
 ): Promise<Tournament> {
   const response = await apiClient.put<Tournament>(`/tournaments/${id}/pix-key`, {
     pixKey,
+    pixKeyType,
   })
   return response.data
 }

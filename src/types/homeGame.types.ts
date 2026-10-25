@@ -1,4 +1,5 @@
 import type { PlanName } from './plan.types'
+import type { PixKeyType } from '../utils/pix'
 
 export interface HomeGame {
   id: string
@@ -51,12 +52,14 @@ export interface CreateHomeGameRequest {
   description?: string
   location?: string
   logoUrl?: string
-  pixKey?: string
-  pixBeneficiary?: string
+  pixKey?: string | null
+  /** Tipo escolhido da chave (SPEC-20261023-1218); null = a API detecta */
+  pixKeyType?: PixKeyType | null
+  pixBeneficiary?: string | null
   timezone?: string
-  defaultBuyIn?: number
-  defaultRebuy?: number
-  defaultAddon?: number
+  defaultBuyIn?: number | null
+  defaultRebuy?: number | null
+  defaultAddon?: number | null
 }
 
 export type UpdateHomeGameRequest = Partial<CreateHomeGameRequest>

@@ -8,6 +8,7 @@ import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
 import type { TournamentEntry } from '../../types/entry.types'
 import type { PixSuggestion } from '../../types/costExtra.types'
+import { formatPixKey } from '../../utils/pix'
 
 interface PaymentModalProps {
   isOpen: boolean
@@ -426,7 +427,7 @@ export function PaymentModal({
                         )}
                         {suggestion.pixKey && (
                           <p className="text-xs text-accent-blue truncate">
-                            {suggestion.pixKey}
+                            {formatPixKey(suggestion.pixKey)}
                           </p>
                         )}
                       </div>

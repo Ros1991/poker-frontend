@@ -9,10 +9,12 @@ interface HistorySheetProps {
   onClose: () => void
   tournamentId: string
   onUndo: (item: HistoryItem) => Promise<void>
+  /** Plano do dono sem Payments: pagamentos sem "Desfazer" (SPEC-20261023-1217, L11) */
+  paymentsLocked?: boolean
 }
 
 /** Tudo que foi feito no torneio, com busca por jogador */
-export function HistorySheet({ isOpen, onClose, tournamentId, onUndo }: HistorySheetProps) {
+export function HistorySheet({ isOpen, onClose, tournamentId, onUndo, paymentsLocked = false }: HistorySheetProps) {
   const [search, setSearch] = useState('')
   return (
     <Sheet
@@ -21,7 +23,7 @@ export function HistorySheet({ isOpen, onClose, tournamentId, onUndo }: HistoryS
       title="Histórico"
       toolbar={<SearchInput value={search} onChange={setSearch} placeholder="Buscar jogador" debounceMs={150} />}
     >
-      <HistoryList tournamentId={tournamentId} search={search} onUndo={onUndo} />
+      <HistoryList tournamentId={tournamentId} search={search} onUndo={onUndo} paymentsLocked={paymentsLocked} />
     </Sheet>
   )
 }

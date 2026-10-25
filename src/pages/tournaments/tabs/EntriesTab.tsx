@@ -1,40 +1,40 @@
-import { useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMemo, useState } from 'react'
+import type { ReactNode } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import {
-  UserPlus,
-  RotateCcw,
-  PlusCircle,
-  XCircle,
-  CreditCard,
-  Phone,
-  Trash2,
-  Undo2,
-  MinusCircle,
-  AlarmClock,
-} from 'lucide-react'
+import { AlarmClock, History, Pencil, Phone, Trash2, UserPlus, Users } from 'lucide-react'
 import * as entriesApi from '../../../api/entries.api'
+import * as personsApi from '../../../api/persons.api'
+import * as tablesApi from '../../../api/tables.api'
 import * as tournamentsApi from '../../../api/tournaments.api'
 import { hasFeature } from '../../../hooks/usePlan'
 import { Button } from '../../../components/ui/Button'
-import { Badge } from '../../../components/ui/Badge'
-import { EditablePhotoAvatar } from '../../../components/photo/EditablePhotoAvatar'
-import * as personsApi from '../../../api/persons.api'
-import * as tournamentPlayersApi from '../../../api/tournamentPlayers.api'
-import { SearchInput } from '../../../components/ui/SearchInput'
 import { ConfirmDialog } from '../../../components/ui/ConfirmDialog'
-import { Modal } from '../../../components/ui/Modal'
 import { Input } from '../../../components/ui/Input'
+import { Modal } from '../../../components/ui/Modal'
+import { SearchInput } from '../../../components/ui/SearchInput'
 import { AddPlayerModal } from '../../../components/tournament/AddPlayerModal'
-import { PaymentModal } from '../../../components/tournament/PaymentModal'
-import { EliminationModal } from '../../../components/tournament/EliminationModal'
+import { PlayerFormDialog } from '../../../components/players/PlayerFormDialog'
+import { EliminatedPlayerRow } from '../../../components/dealer/EliminatedPlayerRow'
+import { HistoryList } from '../../../components/dealer/HistoryList'
+import { MovePlayerDialog } from '../../../components/dealer/MovePlayerDialog'
+import { usePlayerActionDialogs } from '../../../components/dealer/PlayerActionDialogs'
+import { PlayerCard } from '../../../components/dealer/PlayerCard'
+import { PlayerDetails } from '../../../components/dealer/PlayerDetails'
+import { useTerminalActions } from '../../../components/dealer/useTerminalActions'
 import {
-  ENTRY_STATUS_COLORS,
-  ENTRY_STATUS_LABELS,
-  PAYMENT_STATUS_COLORS,
-  PAYMENT_STATUS_LABELS,
-} from '../../../constants/statuses'
-import type { TournamentEntry, EntryStatus, PaymentStatus } from '../../../types/entry.types'
+  amountDue,
+  apiErrorMessage,
+  formatCurrency,
+  groupActiveByTable,
+  isActiveStatus,
+  matchesPlayerSearch,
+  playerActionRules,
+  playerName,
+} from '../../../components/dealer/terminalFormat'
+import { cn } from '../../../utils/cn'
+import type { TournamentEntry } from '../../../types/entry.types'
+import type { Person } from '../../../types/person.types'
 import type { Tournament } from '../../../types/tournament.types'
 
 interface EntriesTabProps {
@@ -42,185 +42,283 @@ interface EntriesTabProps {
   entries: TournamentEntry[]
 }
 
-function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-  }).format(value)
+type View = 'players' | 'history'
+type Filter = 'all' | 'playing' | 'eliminated' | 'owing'
+
+/** Intervalo do terminal: o painel vê o que o dealer faz (L12) */
+const LIVE_REFETCH_MS = 8000
+
+// Cards e linhas numa grade que se ajusta à largura que a sidebar deixa (L7): 1 coluna no celular, 2 no tablet,
+// 3 em tela larga; o `min(…, 100%)` impede rolagem horizontal quando a área é menor que 20rem
+const GRID = 'grid grid-cols-[repeat(auto-fill,minmax(min(20rem,100%),1fr))] gap-2'
+
+function SectionTitle({ children }: { children: ReactNode }) {
+  return <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">{children}</h3>
 }
 
+/**
+ * Aba Jogadores do painel do torneio (SPEC-20261023-1217): montada com as mesmas peças do terminal do dealer —
+ * PlayerCard, a Ficha (PlayerDetails), HistoryList com "Desfazer" amarrado ao item exato e o useTerminalActions com o
+ * toast "Desfazer" — mais o que só o organizador tem (editar jogador, WhatsApp, excluir inscrição, filtros por
+ * estado, busca, bônus de pontualidade, grade de 2–3 colunas no computador). Tudo que se desfaz passa pelo histórico.
+ *
+ * Plano do dono (SPEC-20261023-1205, `tournament.planFeatures`): sem Payments não há Pagar, "Deve/Pago", filtro
+ * Devendo nem PaymentModal, e os pagamentos do histórico ficam sem "Desfazer"; sem Tables não há agrupamento por mesa,
+ * lugar, "Mover" nem consulta a GET tables (402 abriria o modal de upgrade sozinho).
+ */
 export function EntriesTab({ tournament, entries }: EntriesTabProps) {
   const queryClient = useQueryClient()
-  // SPEC-20261023-1205 (D3): sem Payments no plano do dono não há pagamento algum na lista —
-  // some o botão Pagar/Ver pagamentos, o badge de pagamento, as colunas Pago/Saldo e o PaymentModal
+  const tid = tournament.id
   const canPay = hasFeature(tournament.planFeatures, 'Payments')
+  const canTables = hasFeature(tournament.planFeatures, 'Tables')
+  const live = tournament.status !== 'Finished' && tournament.status !== 'Cancelled'
+  const gameActionsLocked = !!tournament.settlementClosed
+  const isInProgress =
+    tournament.status === 'Draft' || tournament.status === 'OpenForRegistration' || tournament.status === 'InProgress'
+
+  const [view, setView] = useState<View>('players')
+  const [filter, setFilter] = useState<Filter>('all')
   const [search, setSearch] = useState('')
-  const [showAddPlayer, setShowAddPlayer] = useState(false)
-  const [paymentEntry, setPaymentEntry] = useState<TournamentEntry | null>(null)
-  const [eliminateEntry, setEliminateEntry] = useState<TournamentEntry | null>(null)
-  const [rebuyConfirm, setRebuyConfirm] = useState<TournamentEntry | null>(null)
-  const [addonConfirm, setAddonConfirm] = useState<TournamentEntry | null>(null)
+  const [historySearch, setHistorySearch] = useState('')
+  const [fichaEntryId, setFichaEntryId] = useState<string | null>(null)
   const [removeConfirm, setRemoveConfirm] = useState<TournamentEntry | null>(null)
+  const [editPerson, setEditPerson] = useState<Person | null>(null)
+  const [moveEntry, setMoveEntry] = useState<TournamentEntry | null>(null)
+  const [showAddPlayer, setShowAddPlayer] = useState(false)
   const [showBonusModal, setShowBonusModal] = useState(false)
   const [bonusCount, setBonusCount] = useState('')
   const [bonusChips, setBonusChips] = useState('')
-  const [successMessage, setSuccessMessage] = useState<{
-    entry: TournamentEntry
-    action: string
-  } | null>(null)
 
-  const rebuyMutation = useMutation({
-    mutationFn: ({ entryId }: { entryId: string }) =>
-      entriesApi.rebuy(tournament.id, entryId),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['entries', tournament.id] })
-      queryClient.invalidateQueries({ queryKey: ['tournament', tournament.id] })
-      const entry = entries.find((e) => e.id === variables.entryId)
-      if (entry) {
-        setSuccessMessage({ entry, action: 'Rebuy' })
-      }
-      toast.success('Rebuy registrado!')
-      setRebuyConfirm(null)
-    },
-    onError: () => {
-      toast.error('Erro ao registrar rebuy.')
-    },
+  // L12: inscrições e torneio a cada 8 s enquanto o torneio não terminou (o EntriesController não avisa por
+  // SignalR). Mesmas chaves do dashboard: os dados chegam pelas props.
+  useQuery({
+    queryKey: ['entries', tid],
+    queryFn: () => entriesApi.getAll(tid),
+    refetchInterval: live ? LIVE_REFETCH_MS : false,
   })
-
-  const addonMutation = useMutation({
-    mutationFn: ({ entryId, isDouble }: { entryId: string; isDouble?: boolean }) =>
-      entriesApi.addon(tournament.id, entryId, { isDouble }),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['entries', tournament.id] })
-      queryClient.invalidateQueries({ queryKey: ['tournament', tournament.id] })
-      const entry = entries.find((e) => e.id === variables.entryId)
-      if (entry) {
-        setSuccessMessage({ entry, action: variables.isDouble ? 'Add-on Duplo' : 'Add-on' })
-      }
-      toast.success(variables.isDouble ? 'Add-on duplo registrado!' : 'Add-on registrado!')
-      setAddonConfirm(null)
-    },
-    onError: () => {
-      toast.error('Erro ao registrar add-on.')
-    },
+  useQuery({
+    queryKey: ['tournament', tid],
+    queryFn: () => tournamentsApi.getById(tid),
+    refetchInterval: live ? LIVE_REFETCH_MS : false,
   })
-
-  const removeRebuyMutation = useMutation({
-    mutationFn: (entryId: string) =>
-      entriesApi.removeRebuy(tournament.id, entryId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['entries', tournament.id] })
-      queryClient.invalidateQueries({ queryKey: ['tournament', tournament.id] })
-      toast.success('Rebuy removido!')
-    },
-    onError: (err: unknown) => {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
-      toast.error(msg || 'Erro ao remover rebuy.')
-    },
+  // Só com Tables no plano (L11): sem ele a consulta nem sai
+  const { data: tables } = useQuery({
+    queryKey: ['tables', tid],
+    queryFn: () => tablesApi.getAll(tid),
+    enabled: canTables,
+    refetchInterval: live ? LIVE_REFETCH_MS : false,
   })
+  const allTables = useMemo(() => (canTables ? tables ?? [] : []), [canTables, tables])
 
-  const removeAddonMutation = useMutation({
-    mutationFn: (entryId: string) =>
-      entriesApi.removeAddon(tournament.id, entryId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['entries', tournament.id] })
-      queryClient.invalidateQueries({ queryKey: ['tournament', tournament.id] })
-      toast.success('Addon removido!')
-    },
-    onError: (err: unknown) => {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
-      toast.error(msg || 'Erro ao remover addon.')
-    },
-  })
+  const actions = useTerminalActions(tid, tournament)
+  const activeEntries = useMemo(() => entries.filter((e) => isActiveStatus(e.status)), [entries])
 
-  const undoEliminationMutation = useMutation({
-    mutationFn: (entryId: string) =>
-      entriesApi.undoElimination(tournament.id, entryId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['entries', tournament.id] })
-      queryClient.invalidateQueries({ queryKey: ['tournament', tournament.id] })
-      queryClient.invalidateQueries({ queryKey: ['tables', tournament.id] })
-      toast.success('Eliminação desfeita!')
-    },
-    onError: (err: unknown) => {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
-      toast.error(msg || 'Erro ao desfazer eliminação.')
-    },
+  /** "Quem eliminou?": companheiros de mesa; sem mesa (ou sem Tables no plano), todos os outros ativos por nome (L10) */
+  function candidatesFor(entry: TournamentEntry): TournamentEntry[] {
+    const others = activeEntries.filter((e) => e.id !== entry.id)
+    if (canTables && entry.tableId) {
+      const mates = others
+        .filter((e) => e.tableId === entry.tableId)
+        .sort((a, b) => (a.seatNumber ?? 0) - (b.seatNumber ?? 0))
+      if (mates.length > 0) return mates
+    }
+    return [...others].sort((a, b) => playerName(a).localeCompare(playerName(b), 'pt-BR'))
+  }
+
+  // Depois de eliminar o painel não abre quebra/equilíbrio de mesa (o aviso fica na aba Mesas — L10)
+  const flows = usePlayerActionDialogs({
+    tournamentId: tid,
+    tournament,
+    actions,
+    showPayment: canPay,
+    candidatesFor,
   })
 
   const bonusMutation = useMutation({
     mutationFn: ({ count, chips }: { count: number; chips: number }) =>
-      tournamentsApi.updatePunctualityBonus(tournament.id, count, chips),
+      tournamentsApi.updatePunctualityBonus(tid, count, chips),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tournament', tournament.id] })
+      void queryClient.invalidateQueries({ queryKey: ['tournament', tid] })
       toast.success('Bônus de pontualidade salvo!')
       setShowBonusModal(false)
     },
-    onError: (err: unknown) => {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
-      toast.error(msg || 'Erro ao salvar bônus.')
-    },
+    onError: (err) => toast.error(apiErrorMessage(err, 'Erro ao salvar bônus.')),
   })
 
+  // Excluir inscrição (L5): só na Ficha, só para quem joga; deixa "Inscrição excluída" no histórico
   const removeMutation = useMutation({
-    mutationFn: (entryId: string) => entriesApi.remove(tournament.id, entryId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['entries', tournament.id] })
-      queryClient.invalidateQueries({ queryKey: ['tournament', tournament.id] })
-      toast.success('Jogador removido do torneio!')
+    mutationFn: (entry: TournamentEntry) => entriesApi.remove(tid, entry.id),
+    onSuccess: (_data, entry) => {
       setRemoveConfirm(null)
+      setFichaEntryId(null)
+      actions.invalidateAll()
+      toast.success(`Inscrição de ${playerName(entry)} excluída`)
     },
-    onError: (err: unknown) => {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
-      toast.error(msg || 'Erro ao remover jogador.')
-    },
+    onError: (err) => toast.error(apiErrorMessage(err, 'Erro ao excluir a inscrição.')),
   })
 
-  const filtered = entries
-    .filter((e) => {
-      if (!search) return true
-      const name = (e.person.nickname ?? e.person.fullName).toLowerCase()
-      return name.includes(search.toLowerCase())
-    })
-    .slice()
-    .sort((a, b) => {
-      const finishedStatuses = ['Eliminated', 'Awarded', 'PaidOut']
-      const aFinished = finishedStatuses.includes(a.status)
-      const bFinished = finishedStatuses.includes(b.status)
-      // Ativos vem primeiro; ao terminar, sobram so finalizados (1º no topo)
-      if (aFinished !== bFinished) return aFinished ? 1 : -1
-      // Entre finalizados: por posicao final crescente (1º, 2º, 3º...)
-      if (aFinished && bFinished) {
-        return (a.finalPosition ?? 9999) - (b.finalPosition ?? 9999)
-      }
-      // Entre ativos: ordem original
-      return 0
-    })
+  // ── Lista ──────────────────────────────────────────────────────────
+  const effectiveFilter: Filter = !canPay && filter === 'owing' ? 'all' : filter
+  const searched = useMemo(() => entries.filter((e) => matchesPlayerSearch(e, search)), [entries, search])
+  const counts = useMemo(
+    () => ({
+      all: searched.length,
+      playing: searched.filter((e) => isActiveStatus(e.status)).length,
+      eliminated: searched.filter((e) => !isActiveStatus(e.status)).length,
+      owing: searched.filter((e) => amountDue(e) > 0).length,
+    }),
+    [searched],
+  )
+  const visible = useMemo(() => {
+    switch (effectiveFilter) {
+      case 'playing':
+        return searched.filter((e) => isActiveStatus(e.status))
+      case 'eliminated':
+        return searched.filter((e) => !isActiveStatus(e.status))
+      case 'owing':
+        // Inclui quem saiu e ainda deve
+        return searched.filter((e) => amountDue(e) > 0)
+      default:
+        return searched
+    }
+  }, [searched, effectiveFilter])
 
-  const activeEntries = entries.filter((e) => (e.status === 'Active' || e.status === 'Registered'))
-  const isSettlement = tournament.settlementClosed
-  const isInProgress =
-    tournament.status === 'Draft' ||
-    tournament.status === 'OpenForRegistration' ||
-    tournament.status === 'InProgress'
+  const playing = useMemo(() => visible.filter((e) => isActiveStatus(e.status)), [visible])
+  const eliminated = useMemo(
+    () =>
+      visible
+        .filter((e) => !isActiveStatus(e.status))
+        .sort((a, b) => (a.finalPosition ?? 9999) - (b.finalPosition ?? 9999)),
+    [visible],
+  )
+  // Por mesa só com Tables no plano e mesa ativa; senão uma lista só, por nome
+  const grouped = canTables && allTables.length > 0
+  const groups = useMemo(() => (grouped ? groupActiveByTable(playing, allTables) : []), [grouped, playing, allTables])
+  const playingByName = useMemo(
+    () => [...playing].sort((a, b) => playerName(a).localeCompare(playerName(b), 'pt-BR')),
+    [playing],
+  )
 
-  function getRowBorderColor(entry: TournamentEntry): string {
-    if (canPay && entry.paymentStatus === 'Paid') return 'border-accent-green/30 bg-accent-green-soft'
-    if (canPay && entry.paymentStatus === 'PartiallyPaid') return 'border-accent-yellow/40 bg-accent-yellow-soft'
-    // Eliminado: sem opacidade (derrubava o texto abaixo de AA); o estado vem do fundo vermelho-claro e do nome em text-secondary
-    if (entry.status === 'Eliminated') return 'border-accent-red/30 bg-accent-red-soft'
-    return 'border-border-default bg-bg-primary'
+  const fichaEntry = entries.find((e) => e.id === fichaEntryId) ?? null
+
+  const filters: { key: Filter; label: string }[] = [
+    { key: 'all', label: 'Todos' },
+    { key: 'playing', label: 'Jogando' },
+    { key: 'eliminated', label: 'Eliminados' },
+    ...(canPay ? [{ key: 'owing' as const, label: 'Devendo' }] : []),
+  ]
+
+  function renderPlaying(entry: TournamentEntry) {
+    // Caixa fechado (L16): quem ainda joga vira linha compacta, sem botoeira
+    if (gameActionsLocked)
+      return (
+        <EliminatedPlayerRow
+          key={entry.id}
+          entry={entry}
+          onOpen={() => setFichaEntryId(entry.id)}
+          showDue={canPay}
+        />
+      )
+    return (
+      <PlayerCard
+        key={entry.id}
+        entry={entry}
+        rules={playerActionRules(tournament, entry)}
+        onOpen={() => setFichaEntryId(entry.id)}
+        onRebuy={() => flows.askRebuy(entry)}
+        onAddon={() => flows.askAddon(entry)}
+        onPay={() => flows.openPayment(entry)}
+        onEliminate={() => flows.askEliminate(entry)}
+        showPayment={canPay}
+        showSeat={canTables}
+      />
+    )
+  }
+
+  function prizeText(entry: TournamentEntry): string | null {
+    if (!entry.prizeAmount || entry.prizeAmount <= 0) return null
+    const paid = entry.prizePaid || entry.status === 'PaidOut'
+    return `${formatCurrency(entry.prizeAmount)}${paid ? ' · pago' : ''}`
+  }
+
+  const showPlayingSection = effectiveFilter !== 'eliminated' && playing.length > 0
+  const showEliminatedSection = effectiveFilter !== 'playing' && eliminated.length > 0
+
+  // ── Ficha: o que só o organizador tem (L8) ────────────────────────
+  function organizerActions(entry: TournamentEntry) {
+    const whatsapp = entry.person.whatsapp?.replace(/\D/g, '')
+    const canRemove = isActiveStatus(entry.status) && !gameActionsLocked
+    return (
+      <div className="flex flex-col gap-3">
+        {/* Uma coluna no celular (o rótulo "Editar jogador" não cabe pela metade da Ficha), duas do sm em diante */}
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <Button
+            variant="secondary"
+            className={whatsapp ? undefined : 'sm:col-span-2'}
+            onClick={() => setEditPerson(entry.person)}
+          >
+            <Pencil className="h-4 w-4" /> Editar jogador
+          </Button>
+          {whatsapp && (
+            <a
+              href={`https://wa.me/${whatsapp}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-lg border border-border-input bg-bg-card px-4 py-2.5 text-sm font-medium text-text-primary transition-colors hover:bg-bg-tertiary"
+            >
+              <Phone className="h-4 w-4 text-accent-green-deep" /> WhatsApp
+            </a>
+          )}
+        </div>
+        {canRemove && (
+          <div className="rounded-lg border border-accent-red/30 bg-accent-red-soft p-3" data-remove-entry-area>
+            <p className="mb-2 text-xs text-text-secondary">
+              Tira {playerName(entry)} do torneio e apaga {canPay ? 'os pagamentos, rebuys e add-on' : 'os rebuys e o add-on'}{' '}
+              dele. Fica registrado no histórico.
+            </p>
+            <Button variant="danger" className="w-full" onClick={() => setRemoveConfirm(entry)}>
+              <Trash2 className="h-4 w-4" /> Excluir inscrição
+            </Button>
+          </div>
+        )}
+      </div>
+    )
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* Header — no celular cada item numa linha própria com largura total;
-          do sm em diante, título à esquerda e controles numa linha à direita */}
+    <div className="flex flex-col gap-4" data-entries-tab>
+      {/* Cabeçalho — no celular cada item numa linha própria com largura total; do sm em diante, título à esquerda e
+          controles numa linha à direita */}
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-        <h2 className="text-lg font-semibold text-text-primary">
-          Jogadores ({entries.length})
-        </h2>
+        <h2 className="text-lg font-semibold text-text-primary">Jogadores ({entries.length})</h2>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div
+            role="tablist"
+            aria-label="O que ver"
+            className="grid grid-cols-2 rounded-lg border border-border-input bg-bg-card p-0.5"
+          >
+            {(
+              [
+                { key: 'players', label: 'Jogadores', icon: Users },
+                { key: 'history', label: 'Histórico', icon: History },
+              ] as const
+            ).map(({ key, label, icon: Icon }) => (
+              <button
+                key={key}
+                type="button"
+                role="tab"
+                aria-selected={view === key}
+                onClick={() => setView(key)}
+                className={cn(
+                  'flex min-h-[40px] items-center justify-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors',
+                  view === key ? 'bg-accent-blue text-white' : 'text-text-secondary hover:text-text-primary',
+                )}
+              >
+                <Icon className="h-4 w-4" />
+                {label}
+              </button>
+            ))}
+          </div>
           <button
             type="button"
             onClick={() => {
@@ -228,25 +326,14 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
               setBonusChips(String(tournament.punctualityBonusChips ?? 0))
               setShowBonusModal(true)
             }}
-            className="flex w-full min-h-[44px] items-center justify-center gap-1.5 rounded-lg border border-border-default bg-bg-tertiary px-2.5 py-1.5 text-xs text-text-secondary tabular-nums hover:text-text-primary hover:border-accent-blue/50 transition-colors sm:w-auto sm:min-h-0 sm:justify-start"
+            className="flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-lg border border-border-default bg-bg-tertiary px-2.5 py-1.5 text-xs text-text-secondary tabular-nums transition-colors hover:border-accent-blue/50 hover:text-text-primary sm:w-auto sm:justify-start"
             title="Bônus de pontualidade (fichas extras)"
           >
             <AlarmClock className="h-3.5 w-3.5 text-accent-gold-deep" />
-            Bônus: {tournament.punctualityBonusCount ?? 0} ×{' '}
-            {(tournament.punctualityBonusChips ?? 0).toLocaleString('pt-BR')}
+            Bônus: {tournament.punctualityBonusCount ?? 0} × {(tournament.punctualityBonusChips ?? 0).toLocaleString('pt-BR')}
           </button>
-          <SearchInput
-            value={search}
-            onChange={setSearch}
-            placeholder="Buscar jogador..."
-            className="w-full sm:w-48"
-          />
           {isInProgress && (
-            <Button
-              size="sm"
-              onClick={() => setShowAddPlayer(true)}
-              className="w-full min-h-[44px] sm:w-auto sm:min-h-[36px]"
-            >
+            <Button size="sm" onClick={() => setShowAddPlayer(true)} className="min-h-[44px] w-full sm:w-auto">
               <UserPlus className="h-4 w-4" />
               Adicionar
             </Button>
@@ -254,317 +341,188 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
         </div>
       </div>
 
-      {/* Success toast with WhatsApp link */}
-      {successMessage && successMessage.entry.person.whatsapp && (
-        <div className="flex items-center justify-between rounded-lg bg-accent-green-soft border border-accent-green/30 p-3">
-          <p className="text-sm text-text-primary">
-            {successMessage.action} registrado para{' '}
-            {successMessage.entry.person.nickname ??
-              successMessage.entry.person.fullName}
-          </p>
-          <div className="flex items-center gap-2">
-            <a
-              href={`https://wa.me/${successMessage.entry.person.whatsapp.replace(/\D/g, '')}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1 rounded-lg bg-accent-green-deep px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-green-hover transition-colors"
-            >
-              <Phone className="h-3 w-3" />
-              WhatsApp
-            </a>
-            <button
-              onClick={() => setSuccessMessage(null)}
-              className="text-text-secondary hover:text-text-primary text-xs"
-            >
-              Fechar
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Empty state */}
-      {entries.length === 0 && (
-        <div className="text-center py-12">
-          <UserPlus className="mx-auto h-10 w-10 text-text-muted mb-3" />
+      {view === 'history' ? (
+        <section className="flex flex-col gap-3" data-entries-history>
+          <SearchInput
+            value={historySearch}
+            onChange={setHistorySearch}
+            placeholder="Buscar jogador"
+            debounceMs={150}
+            className="w-full sm:max-w-sm"
+          />
+          <HistoryList
+            tournamentId={tid}
+            search={historySearch}
+            onUndo={actions.undoItem}
+            paymentsLocked={!canPay}
+          />
+        </section>
+      ) : entries.length === 0 ? (
+        <div className="py-12 text-center">
+          <UserPlus className="mx-auto mb-3 h-10 w-10 text-text-muted" />
           <p className="text-text-secondary">Nenhum jogador inscrito ainda.</p>
           {isInProgress && (
-            <Button
-              size="sm"
-              className="mt-3"
-              onClick={() => setShowAddPlayer(true)}
-            >
+            <Button size="sm" className="mt-3 min-h-[44px]" onClick={() => setShowAddPlayer(true)}>
               <UserPlus className="h-4 w-4" />
-              Adicionar Primeiro Jogador
+              Adicionar primeiro jogador
             </Button>
           )}
         </div>
-      )}
-
-      {/* Entries list */}
-      {filtered.length > 0 && (
-        <div className="flex flex-col gap-2">
-          {filtered.map((entry) => (
-            <div
-              key={entry.id}
-              className={`flex flex-col gap-3 rounded-lg border p-3 sm:flex-row sm:flex-wrap sm:items-center ${getRowBorderColor(entry)}`}
-            >
-              {/* Player info */}
-              <div className="flex items-center gap-3 w-full sm:flex-1 sm:min-w-[200px]">
-                {/* Tocar no avatar põe/troca a foto (SPEC-20261023-1213, F20); o organizador também remove */}
-                <EditablePhotoAvatar
-                  src={entry.person.photoUrl}
-                  name={entry.person.nickname ?? entry.person.fullName}
-                  size="md"
-                  upload={(blob) => tournamentPlayersApi.uploadPhoto(tournament.id, entry.personId, blob)}
-                  remove={() => personsApi.removePhoto(entry.personId)}
-                  onDone={() => {
-                    void queryClient.invalidateQueries({ queryKey: ['entries', tournament.id] })
-                    void queryClient.invalidateQueries({ queryKey: ['persons', tournament.homeGameId] })
-                  }}
-                />
-                <div className="min-w-0">
-                  <p
-                    className={`text-sm font-medium truncate ${
-                      entry.status === 'Eliminated' ? 'text-text-secondary' : 'text-text-primary'
-                    }`}
+      ) : (
+        <>
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+            <SearchInput
+              value={search}
+              onChange={setSearch}
+              placeholder="Buscar jogador..."
+              debounceMs={150}
+              className="w-full sm:w-64"
+            />
+            <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filtrar jogadores">
+              {filters.map((f) => {
+                const active = effectiveFilter === f.key
+                return (
+                  <button
+                    key={f.key}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => setFilter(f.key)}
+                    className={cn(
+                      'flex min-h-[44px] items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-colors',
+                      active
+                        ? 'border-accent-blue bg-accent-blue-soft text-accent-blue'
+                        : 'border-border-input bg-bg-card text-text-secondary hover:text-text-primary',
+                    )}
+                    data-filter={f.key}
                   >
-                    {entry.person.nickname ?? entry.person.fullName}
-                  </p>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <Badge
-                      color={ENTRY_STATUS_COLORS[entry.status as EntryStatus]}
-                    >
-                      {ENTRY_STATUS_LABELS[entry.status as EntryStatus] ??
-                        entry.status}
-                      {entry.finalPosition
-                        ? ` ${entry.finalPosition}º`
-                        : ''}
-                      {(entry.status === 'Awarded' ||
-                        entry.status === 'PaidOut') &&
-                      entry.prizeAmount
-                        ? ` · ${formatCurrency(entry.prizeAmount)}`
-                        : ''}
-                    </Badge>
-                    {canPay && (
-                      <Badge
-                        color={PAYMENT_STATUS_COLORS[entry.paymentStatus as PaymentStatus]}
-                      >
-                        {PAYMENT_STATUS_LABELS[
-                          entry.paymentStatus as PaymentStatus
-                        ] ?? entry.paymentStatus}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Financial info */}
-              <div
-                className={`grid gap-2 w-full text-xs text-text-secondary tabular-nums sm:flex sm:w-auto sm:items-center sm:gap-4 ${
-                  canPay ? 'grid-cols-3' : 'grid-cols-4'
-                }`}
-              >
-                <div className="text-center">
-                  <p>Buy-in</p>
-                  <p className="font-semibold text-text-primary">
-                    {formatCurrency(entry.buyInAmount)}
-                  </p>
-                </div>
-                <div className="text-center">
-                  <p>Rebuys</p>
-                  <div className="flex items-center justify-center gap-1">
-                    <p className="font-semibold text-text-primary">
-                      {entry.rebuyCount}
-                    </p>
-                    {entry.rebuyCount > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => removeRebuyMutation.mutate(entry.id)}
-                        className="rounded p-0.5 text-text-secondary hover:text-accent-red hover:bg-accent-red-soft transition-colors"
-                        title="Remover 1 rebuy"
-                      >
-                        <MinusCircle className="h-3.5 w-3.5" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-                <div className="text-center">
-                  <p>Add-on</p>
-                  <div className="flex items-center justify-center gap-1">
-                    <p className="font-semibold text-text-primary">
-                      {entry.addonPurchased
-                        ? entry.addonDouble
-                          ? 'Duplo'
-                          : 'Sim'
-                        : '-'}
-                    </p>
-                    {entry.addonPurchased && (
-                      <button
-                        type="button"
-                        onClick={() => removeAddonMutation.mutate(entry.id)}
-                        className="rounded p-0.5 text-text-secondary hover:text-accent-red hover:bg-accent-red-soft transition-colors"
-                        title="Remover addon"
-                      >
-                        <MinusCircle className="h-3.5 w-3.5" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-                <div className="text-center">
-                  <p>Total</p>
-                  <p className="font-semibold text-text-primary">
-                    {formatCurrency(entry.totalDue)}
-                  </p>
-                </div>
-                {canPay && (
-                  <>
-                    <div className="text-center">
-                      <p>Pago</p>
-                      <p className="font-semibold text-accent-green-deep">
-                        {formatCurrency(entry.totalPaid)}
-                      </p>
-                    </div>
-                    <div className="text-center">
-                      <p>Saldo</p>
-                      <p
-                        className={`font-semibold ${entry.balance > 0 ? 'text-accent-red-deep' : entry.balance < 0 ? 'text-accent-blue' : 'text-accent-green-deep'}`}
-                      >
-                        {formatCurrency(entry.balance)}
-                      </p>
-                    </div>
-                  </>
-                )}
-              </div>
-
-              {/* Action buttons */}
-              <div className="flex items-center gap-1 w-full justify-end sm:w-auto sm:flex-shrink-0">
-                {/* Campeão (nunca eliminado, eliminatedAt nulo) não tem eliminação a desfazer */}
-                {(entry.status === 'Eliminated' || entry.status === 'Awarded') && entry.eliminatedAt && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => undoEliminationMutation.mutate(entry.id)}
-                    title="Desfazer eliminação"
-                    className="text-accent-blue hover:text-accent-blue-hover hover:bg-accent-blue-soft"
-                    loading={undoEliminationMutation.isPending}
-                  >
-                    <Undo2 className="h-4 w-4" />
-                  </Button>
-                )}
-                {!isSettlement && (entry.status === 'Active' || entry.status === 'Registered') && (
-                  <>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setRebuyConfirm(entry)}
-                      title="Rebuy"
-                    >
-                      <RotateCcw className="h-4 w-4" />
-                    </Button>
-                    {tournament.addonAllowed && !entry.addonPurchased && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setAddonConfirm(entry)}
-                        title="Add-on"
-                      >
-                        <PlusCircle className="h-4 w-4" />
-                      </Button>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setEliminateEntry(entry)}
-                      title="Eliminar"
-                      className="text-accent-red hover:text-accent-red-deep hover:bg-accent-red-soft"
-                    >
-                      <XCircle className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setRemoveConfirm(entry)}
-                      title="Remover do torneio"
-                      className="text-accent-red hover:text-accent-red-deep hover:bg-accent-red-soft"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </>
-                )}
-                {canPay && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setPaymentEntry(entry)}
-                    title={entry.balance > 0 ? 'Pagar / Ver pagamentos' : 'Ver / Estornar pagamentos'}
-                    className={
-                      entry.balance > 0
-                        ? 'text-accent-green-deep hover:text-accent-green-hover hover:bg-accent-green-soft'
-                        : 'text-text-secondary hover:text-accent-blue hover:bg-accent-blue-soft'
-                    }
-                  >
-                    <CreditCard className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
+                    {f.label}
+                    <span className="tabular-nums" data-filter-count>
+                      {counts[f.key]}
+                    </span>
+                  </button>
+                )
+              })}
             </div>
-          ))}
-        </div>
+          </div>
+
+          {!showPlayingSection && !showEliminatedSection && (
+            <p className="py-8 text-center text-text-secondary">Nenhum jogador neste filtro.</p>
+          )}
+
+          {showPlayingSection && (
+            <section data-section="playing">
+              <SectionTitle>Jogando ({playing.length})</SectionTitle>
+              {grouped ? (
+                <div className="flex flex-col gap-4">
+                  {groups.map((g) => (
+                    <div key={g.key} data-table-group>
+                      <h4 className="mb-1.5 text-sm font-semibold text-text-primary">
+                        {g.title} · {g.entries.length} {g.entries.length === 1 ? 'jogador' : 'jogadores'}
+                      </h4>
+                      <div className={GRID}>{g.entries.map(renderPlaying)}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className={GRID}>{playingByName.map(renderPlaying)}</div>
+              )}
+            </section>
+          )}
+
+          {showEliminatedSection && (
+            <section data-section="eliminated">
+              <SectionTitle>Eliminados ({eliminated.length})</SectionTitle>
+              <div className={GRID}>
+                {eliminated.map((entry) => (
+                  <EliminatedPlayerRow
+                    key={entry.id}
+                    entry={entry}
+                    onOpen={() => setFichaEntryId(entry.id)}
+                    prizeText={prizeText(entry)}
+                    showDue={canPay}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+        </>
       )}
 
-      {/* Modals */}
-      <AddPlayerModal
-        isOpen={showAddPlayer}
-        onClose={() => setShowAddPlayer(false)}
-        tournamentId={tournament.id}
-        entries={entries}
-      />
+      {/* ── Ficha do jogador (o painel usa Modal; o terminal, o Sheet em tela cheia) ── */}
+      <Modal isOpen={!!fichaEntry} onClose={() => setFichaEntryId(null)} title="Ficha do jogador" size="lg">
+        {fichaEntry && (
+          <PlayerDetails
+            entry={fichaEntry}
+            tables={allTables}
+            tournamentId={tid}
+            tournament={tournament}
+            rules={playerActionRules(tournament, fichaEntry)}
+            onRebuy={() => flows.askRebuy(fichaEntry)}
+            onAddon={() => flows.askAddon(fichaEntry)}
+            onPay={() => flows.openPayment(fichaEntry)}
+            onEliminate={() => flows.askEliminate(fichaEntry)}
+            onMove={() => {
+              if (allTables.length === 0) toast.info('Sorteie as mesas antes de mover jogadores.')
+              else setMoveEntry(fichaEntry)
+            }}
+            onUndoElimination={() => flows.askUndoElimination(fichaEntry)}
+            onUndo={actions.undoItem}
+            showPayment={canPay}
+            showTables={canTables}
+            gameActionsLocked={gameActionsLocked}
+            historyPaymentsLocked={!canPay}
+            organizerActions={organizerActions(fichaEntry)}
+            removePhoto={() => personsApi.removePhoto(fichaEntry.personId)}
+            onPhotoChanged={() => void queryClient.invalidateQueries({ queryKey: ['persons', tournament.homeGameId] })}
+          />
+        )}
+      </Modal>
 
-      {canPay && (
-        <PaymentModal
-          isOpen={!!paymentEntry}
-          onClose={() => setPaymentEntry(null)}
-          entry={paymentEntry}
-          tournamentId={tournament.id}
+      {/* ── Ações do jogador (os mesmos diálogos do terminal) ── */}
+      {flows.dialogs}
+
+      {canTables && moveEntry && (
+        <MovePlayerDialog
+          tournamentId={tid}
+          entry={moveEntry}
+          tables={allTables}
+          entries={entries}
+          onClose={() => setMoveEntry(null)}
+          onMoved={actions.invalidateAll}
         />
       )}
 
-      <EliminationModal
-        isOpen={!!eliminateEntry}
-        onClose={() => setEliminateEntry(null)}
-        entry={eliminateEntry}
-        activeEntries={activeEntries}
-        tournamentId={tournament.id}
-      />
-
-      <ConfirmDialog
-        isOpen={!!rebuyConfirm}
-        onClose={() => setRebuyConfirm(null)}
-        onConfirm={() => {
-          if (rebuyConfirm) {
-            rebuyMutation.mutate({ entryId: rebuyConfirm.id })
-          }
-        }}
-        title="Confirmar Rebuy"
-        message={`Registrar rebuy de ${formatCurrency(tournament.rebuyAmount)} para ${rebuyConfirm?.person.nickname ?? rebuyConfirm?.person.fullName ?? ''}?`}
-        confirmLabel="Rebuy"
-        variant="warning"
-        loading={rebuyMutation.isPending}
+      <PlayerFormDialog
+        isOpen={!!editPerson}
+        onClose={() => setEditPerson(null)}
+        homeGameId={tournament.homeGameId}
+        person={editPerson}
+        existing={entries.map((e) => e.person)}
+        onSaved={() => actions.invalidateAll()}
       />
 
       <ConfirmDialog
         isOpen={!!removeConfirm}
-        onClose={() => setRemoveConfirm(null)}
-        onConfirm={() => {
-          if (removeConfirm) {
-            removeMutation.mutate(removeConfirm.id)
-          }
-        }}
-        title="Remover Jogador"
-        message={`Remover ${removeConfirm?.person.nickname ?? removeConfirm?.person.fullName ?? ''} do torneio? ${canPay ? 'Todos os pagamentos e rebuys serão apagados' : 'Todos os rebuys e add-ons serão apagados'}. Esta ação não pode ser desfeita.`}
-        confirmLabel="Remover"
+        onClose={() => !removeMutation.isPending && setRemoveConfirm(null)}
+        onConfirm={() => removeConfirm && removeMutation.mutate(removeConfirm)}
+        title="Excluir inscrição"
+        message={
+          removeConfirm
+            ? `Excluir a inscrição de ${playerName(removeConfirm)}? ${
+                canPay ? 'Todos os pagamentos e rebuys serão apagados' : 'Todos os rebuys e add-ons serão apagados'
+              }. Esta ação não pode ser desfeita.`
+            : ''
+        }
+        confirmLabel="Excluir"
         variant="danger"
         loading={removeMutation.isPending}
+      />
+
+      <AddPlayerModal
+        isOpen={showAddPlayer}
+        onClose={() => setShowAddPlayer(false)}
+        tournamentId={tid}
+        entries={entries}
       />
 
       {/* Bônus de Pontualidade (Modal do kit: fecha só no X/Cancelar — SPEC-20261023-1216) */}
@@ -575,11 +533,7 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
         size="sm"
         footer={
           <div className="flex justify-end gap-3">
-            <Button
-              variant="ghost"
-              onClick={() => setShowBonusModal(false)}
-              disabled={bonusMutation.isPending}
-            >
+            <Button variant="ghost" onClick={() => setShowBonusModal(false)} disabled={bonusMutation.isPending}>
               Cancelar
             </Button>
             <Button
@@ -597,8 +551,7 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
         }
       >
         <p className="mb-4 text-sm text-text-secondary">
-          Fichas extras pra quem chegou no horário. Entram no total de
-          fichas exibido no telão.
+          Fichas extras pra quem chegou no horário. Entram no total de fichas exibido no telão.
         </p>
         <div className="flex flex-col gap-3">
           <Input
@@ -619,57 +572,6 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
             onChange={(e) => setBonusChips(e.target.value)}
           />
         </div>
-      </Modal>
-
-      {/* Confirmar Add-on (Modal do kit) */}
-      <Modal
-        isOpen={!!addonConfirm}
-        onClose={() => setAddonConfirm(null)}
-        title="Confirmar Add-on"
-        size="sm"
-        footer={
-          <Button
-            variant="ghost"
-            onClick={() => setAddonConfirm(null)}
-            disabled={addonMutation.isPending}
-            className="w-full"
-          >
-            Cancelar
-          </Button>
-        }
-      >
-        {addonConfirm && (
-          <>
-            <p className="mb-4 text-sm text-text-secondary">
-              {addonConfirm.person.nickname ?? addonConfirm.person.fullName}
-            </p>
-            <div className="flex flex-col gap-2">
-              <Button
-                onClick={() =>
-                  addonMutation.mutate({ entryId: addonConfirm.id, isDouble: false })
-                }
-                loading={addonMutation.isPending}
-                className="w-full"
-              >
-                <PlusCircle className="h-4 w-4" />
-                Addon Simples &mdash; {formatCurrency(tournament.addonAmount)}
-              </Button>
-              {tournament.addonDoubleAllowed && (
-                <Button
-                  variant="secondary"
-                  onClick={() =>
-                    addonMutation.mutate({ entryId: addonConfirm.id, isDouble: true })
-                  }
-                  loading={addonMutation.isPending}
-                  className="w-full"
-                >
-                  <PlusCircle className="h-4 w-4" />
-                  Addon Duplo &mdash; {formatCurrency(tournament.addonAmount * 2)}
-                </Button>
-              )}
-            </div>
-          </>
-        )}
       </Modal>
     </div>
   )

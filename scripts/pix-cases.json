@@ -1,0 +1,839 @@
+{
+  "_sobre": "Tabela de casos da chave PIX (SPEC-20261023-1218): fonte da verdade do normalizePixKey (src/utils/pix.ts) e do PixKeyNormalizer (backend). npm run check:pix roda tudo no front; o script de verificação da SPEC roda a mesma tabela contra a API e o C#. Mudou a regra, muda dos dois lados e aqui. expect.code aponta para messages.",
+  "messages": {
+    "cpf": "CPF inválido: confira os números.",
+    "cnpj": "CNPJ inválido: confira os números.",
+    "celular": "Celular inválido: use DDD + 9 dígitos (ex.: 61 99999-9999).",
+    "sem9": "Celular precisa de 9 dígitos depois do DDD — faltou o 9 na frente?",
+    "fixo": "Telefone fixo não pode ser chave PIX. Use um celular com DDD.",
+    "estrangeiro": "Só celular do Brasil (+55) pode ser chave PIX.",
+    "email": "E-mail inválido para chave PIX.",
+    "email77": "E-mail com mais de 77 caracteres não pode ser chave PIX.",
+    "evp": "Chave aleatória inválida: são 32 letras e números no formato 8-4-4-4-12.",
+    "formato": "Não reconhecemos o formato da chave PIX. Use CPF, CNPJ, celular com DDD, e-mail ou chave aleatória.",
+    "ambigua": "Esta chave pode ser CPF ou celular. Escolha o tipo.",
+    "tipo": "Tipo de chave PIX inválido."
+  },
+  "cases": [
+    {
+      "id": 1,
+      "input": "61 99999-9999",
+      "type": null,
+      "expect": {
+        "ok": true,
+        "type": "Phone",
+        "key": "+5561999999999",
+        "display": "+55 61 99999-9999",
+        "alternatives": []
+      },
+      "note": "pedido do usuário: celular só com DDD + número"
+    },
+    {
+      "id": 2,
+      "input": "(61) 9 9999-9999",
+      "type": null,
+      "expect": {
+        "ok": true,
+        "type": "Phone",
+        "key": "+5561999999999",
+        "display": "+55 61 99999-9999",
+        "alternatives": []
+      }
+    },
+    {
+      "id": 3,
+      "input": "61999999999",
+      "type": null,
+      "expect": {
+        "ok": true,
+        "type": "Phone",
+        "key": "+5561999999999",
+        "display": "+55 61 99999-9999",
+        "alternatives": []
+      },
+      "note": "não é CPF válido → celular"
+    },
+    {
+      "id": 4,
+      "input": "+55 61 99999-9999",
+      "type": null,
+      "expect": {
+        "ok": true,
+        "type": "Phone",
+        "key": "+5561999999999",
+        "display": "+55 61 99999-9999",
+        "alternatives": []
+      }
+    },
+    {
+      "id": 5,
+      "input": "+5561999999999",
+      "type": null,
+      "expect": {
+        "ok": true,
+        "type": "Phone",
+        "key": "+5561999999999",
+        "display": "+55 61 99999-9999",
+        "alternatives": []
+      },
+      "note": "idempotente"
+    },
+    {
+      "id": 6,
+      "input": "5561999999999",
+      "type": null,
+      "expect": {
+        "ok": true,
+        "type": "Phone",
+        "key": "+5561999999999",
+        "display": "+55 61 99999-9999",
+        "alternatives": []
+      }
+    },
+    {
+      "id": 7,
+      "input": "0055 61 99999-9999",
+      "type": null,
+      "expect": {
+        "ok": true,
+        "type": "Phone",
+        "key": "+5561999999999",
+        "display": "+55 61 99999-9999",
+        "alternatives": []
+      }
+    },
+    {
+      "id": 8,
+      "input": "061 99999-9999",
+      "type": null,
+      "expect": {
+        "ok": true,
+        "type": "Phone",
+        "key": "+5561999999999",
+        "display": "+55 61 99999-9999",
+        "alternatives": []
+      },
+      "note": "0 de discagem"
+    },
+    {
+      "id": 9,
+      "input": "61 9999-9999",
+      "type": null,
+      "expect": {
+        "ok": false,
+        "code": "sem9"
+      }
+    },
+    {
+      "id": 10,
+      "input": "61 3333-4444",
+      "type": null,
+      "expect": {
+        "ok": false,
+        "code": "fixo"
+      }
+    },
+    {
+      "id": 11,
+      "input": "+55 61 9999-9999",
+      "type": null,
+      "expect": {
+        "ok": false,
+        "code": "sem9"
+      }
+    },
+    {
+      "id": 12,
+      "input": "+1 415 555 0100",
+      "type": null,
+      "expect": {
+        "ok": false,
+        "code": "estrangeiro"
+      }
+    },
+    {
+      "id": 13,
+      "input": "20 99999-9999",
+      "type": null,
+      "expect": {
+        "ok": false,
+        "code": "celular"
+      },
+      "note": "DDD 20 não existe"
+    },
+    {
+      "id": 14,
+      "input": "123.456.789-09",
+      "type": null,
+      "expect": {
+        "ok": true,
+        "type": "Cpf",
+        "key": "12345678909",
+        "display": "123.456.789-09",
+        "alternatives": []
+      }
+    },
+    {
+      "id": 15,
+      "input": "12345678909",
+      "type": null,
+      "expect": {
+        "ok": true,
+        "type": "Cpf",
+        "key": "12345678909",
+        "display": "123.456.789-09",
+        "alternatives": []
+      }
+    },
+    {
+      "id": 16,
+      "input": "123.456.789-00",
+      "type": null,
+      "expect": {
+        "ok": false,
+        "code": "cpf"
+      }
+    },
+    {
+      "id": 17,
+      "input": "111.111.111-11",
+      "type": null,
+      "expect": {
+        "ok": false,
+        "code": "cpf"
+      }
+    },
+    {
+      "id": 18,
+      "input": "61999999916",
+      "type": null,
+      "expect": {
+        "ok": true,
+        "type": "Cpf",
+        "key": "61999999916",
+        "display": "619.999.999-16",
+        "alternatives": [
+          "Phone"
+        ]
+      },
+      "note": "CPF válido e celular plausível: tela exige escolher; API sem tipo → ambigua"
+    },
+    {
+      "id": 19,
+      "input": "61999999916",
+      "type": "Phone",
+      "expect": {
+        "ok": true,
+        "type": "Phone",
+        "key": "+5561999999916",
+        "display": "+55 61 99999-9916",
+        "alternatives": []
+      }
+    },
+    {
+      "id": 20,
+      "input": "61999999916",
+      "type": "Cpf",
+      "expect": {
+        "ok": true,
+        "type": "Cpf",
+        "key": "61999999916",
+        "display": "619.999.999-16",
+        "alternatives": []
+      }
+    },
+    {
+      "id": 21,
+      "input": "(61) 99999-9916",
+      "type": null,
+      "expect": {
+        "ok": true,
+        "type": "Phone",
+        "key": "+5561999999916",
+        "display": "+55 61 99999-9916",
+        "alternatives": []
+      },
+      "note": "os parênteses desempatam, mesmo sendo CPF válido"
+    },
+    {
+      "id": 22,
+      "input": "12345678909",
+      "type": "Phone",
+      "expect": {
+        "ok": false,
+        "code": "celular"
+      }
+    },
+    {
+      "id": 23,
+      "input": "61999999999",
+      "type": "Cpf",
+      "expect": {
+        "ok": false,
+        "code": "cpf"
+      }
+    },
+    {
+      "id": 24,
+      "input": "61999999999",
+      "type": "Email",
+      "expect": {
+        "ok": false,
+        "code": "email"
+      }
+    },
+    {
+      "id": 25,
+      "input": "12.345.678/0001-95",
+      "type": null,
+      "expect": {
+        "ok": true,
+        "type": "Cnpj",
+        "key": "12345678000195",
+        "display": "12.345.678/0001-95",
+        "alternatives": []
+      }
+    },
+    {
+      "id": 26,
+      "input": "12345678000195",
+      "type": null,
+      "expect": {
+        "ok": true,
+        "type": "Cnpj",
+        "key": "12345678000195",
+        "display": "12.345.678/0001-95",
+        "alternatives": []
+      }
+    },
+    {
+      "id": 27,
+      "input": "12.345.678/0001-90",
+      "type": null,
+      "expect": {
+        "ok": false,
+        "code": "cnpj"
+      },
+      "note": "exemplo do pedido; o correto seria /0001-95"
+    },
+    {
+      "id": 28,
+      "input": "00.000.000/0000-00",
+      "type": null,
+      "expect": {
+        "ok": false,
+        "code": "cnpj"
+      }
+    },
+    {
+      "id": 29,
+      "input": "12.abc.345/01de-35",
+      "type": null,
+      "expect": {
+        "ok": true,
+        "type": "Cnpj",
+        "key": "12ABC34501DE35",
+        "display": "12.ABC.345/01DE-35",
+        "alternatives": []
+      },
+      "note": "CNPJ alfanumérico"
+    },
+    {
+      "id": 30,
+      "input": "Fulano@Gmail.com ",
+      "type": null,
+      "expect": {
+        "ok": true,
+        "type": "Email",
+        "key": "fulano@gmail.com",
+        "display": "fulano@gmail.com",
+        "alternatives": []
+      }
+    },
+    {
+      "id": 31,
+      "input": "  FULANO.TAL+POKER@GMAIL.COM",
+      "type": null,
+      "expect": {
+        "ok": true,
+        "type": "Email",
+        "key": "fulano.tal+poker@gmail.com",
+        "display": "fulano.tal+poker@gmail.com",
+        "alternatives": []
+      }
+    },
+    {
+      "id": 32,
+      "input": "joão@gmail.com",
+      "type": null,
+      "expect": {
+        "ok": false,
+        "code": "email"
+      }
+    },
+    {
+      "id": 33,
+      "input": "fulano@",
+      "type": null,
+      "expect": {
+        "ok": false,
+        "code": "email"
+      }
+    },
+    {
+      "id": 34,
+      "input": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@exemplo.com",
+      "type": null,
+      "expect": {
+        "ok": true,
+        "type": "Email",
+        "key": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@exemplo.com",
+        "display": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@exemplo.com",
+        "alternatives": []
+      },
+      "note": "e-mail de 77 caracteres: campo 26 fica com 99"
+    },
+    {
+      "id": 35,
+      "input": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@exemplo.com",
+      "type": null,
+      "expect": {
+        "ok": false,
+        "code": "email77"
+      }
+    },
+    {
+      "id": 36,
+      "input": "123E4567-E89B-12D3-A456-426655440000",
+      "type": null,
+      "expect": {
+        "ok": true,
+        "type": "Evp",
+        "key": "123e4567-e89b-12d3-a456-426655440000",
+        "display": "123e4567-e89b-12d3-a456-426655440000",
+        "alternatives": []
+      }
+    },
+    {
+      "id": 37,
+      "input": "123e4567e89b12d3a456426655440000",
+      "type": null,
+      "expect": {
+        "ok": true,
+        "type": "Evp",
+        "key": "123e4567-e89b-12d3-a456-426655440000",
+        "display": "123e4567-e89b-12d3-a456-426655440000",
+        "alternatives": []
+      }
+    },
+    {
+      "id": 38,
+      "input": "{123e4567-e89b-12d3-a456-426655440000}",
+      "type": null,
+      "expect": {
+        "ok": true,
+        "type": "Evp",
+        "key": "123e4567-e89b-12d3-a456-426655440000",
+        "display": "123e4567-e89b-12d3-a456-426655440000",
+        "alternatives": []
+      }
+    },
+    {
+      "id": 39,
+      "input": "123e4567-e89b-12d3-a456-42665544000",
+      "type": null,
+      "expect": {
+        "ok": false,
+        "code": "evp"
+      }
+    },
+    {
+      "id": 40,
+      "input": "abc",
+      "type": null,
+      "expect": {
+        "ok": false,
+        "code": "formato"
+      }
+    },
+    {
+      "id": 41,
+      "input": "   ",
+      "type": null,
+      "expect": {
+        "ok": true,
+        "type": null,
+        "key": null,
+        "display": null,
+        "alternatives": []
+      },
+      "note": "vazio → remove a chave"
+    },
+    {
+      "id": 42,
+      "input": "12345678900",
+      "type": null,
+      "expect": {
+        "ok": false,
+        "code": "cpf"
+      },
+      "note": "sem formatação; não é CPF válido e o 3º dígito não é 9"
+    },
+    {
+      "id": 43,
+      "input": "20999999999",
+      "type": null,
+      "expect": {
+        "ok": false,
+        "code": "celular"
+      },
+      "note": "3º dígito 9, DDD 20 não existe, não é CPF válido"
+    },
+    {
+      "id": 44,
+      "input": "556199999999",
+      "type": null,
+      "expect": {
+        "ok": false,
+        "code": "sem9"
+      },
+      "note": "12 dígitos com 55 na frente"
+    },
+    {
+      "id": 45,
+      "input": "61999999999",
+      "type": "Xpto",
+      "expect": {
+        "ok": false,
+        "code": "tipo"
+      },
+      "note": "tipo que não existe"
+    },
+    {
+      "id": 46,
+      "input": "61999999916",
+      "type": "phone",
+      "expect": {
+        "ok": true,
+        "type": "Phone",
+        "key": "+5561999999916",
+        "display": "+55 61 99999-9916",
+        "alternatives": []
+      },
+      "note": "nome do tipo sem diferenciar maiúsculas"
+    },
+    {
+      "id": 47,
+      "input": "61-99999-9999",
+      "type": null,
+      "expect": {
+        "ok": true,
+        "type": "Phone",
+        "key": "+5561999999999",
+        "display": "+55 61 99999-9999",
+        "alternatives": []
+      },
+      "note": "hífen logo depois do DDD"
+    },
+    {
+      "id": 48,
+      "input": "+55 (61) 99999-9999",
+      "type": null,
+      "expect": {
+        "ok": true,
+        "type": "Phone",
+        "key": "+5561999999999",
+        "display": "+55 61 99999-9999",
+        "alternatives": []
+      }
+    },
+    {
+      "id": 49,
+      "input": "12abc34501de35",
+      "type": null,
+      "expect": {
+        "ok": true,
+        "type": "Cnpj",
+        "key": "12ABC34501DE35",
+        "display": "12.ABC.345/01DE-35",
+        "alternatives": []
+      },
+      "note": "CNPJ alfanumérico sem máscara"
+    },
+    {
+      "id": 50,
+      "input": "fulano@gmail.com",
+      "type": "Cpf",
+      "expect": {
+        "ok": false,
+        "code": "cpf"
+      },
+      "note": "escolheu CPF e digitou e-mail"
+    },
+    {
+      "id": 51,
+      "input": "  ",
+      "type": "Phone",
+      "expect": {
+        "ok": true,
+        "type": null,
+        "key": null,
+        "display": null,
+        "alternatives": []
+      },
+      "note": "vazio com tipo também remove"
+    },
+    {
+      "id": 52,
+      "input": "+55 61 99999-9999",
+      "type": "Cnpj",
+      "expect": {
+        "ok": false,
+        "code": "cnpj"
+      }
+    },
+    {
+      "id": 53,
+      "input": "1234567890123456",
+      "type": null,
+      "expect": {
+        "ok": false,
+        "code": "formato"
+      },
+      "note": "16 dígitos"
+    },
+    {
+      "id": 54,
+      "input": "55 61 99999-9999",
+      "type": null,
+      "expect": {
+        "ok": true,
+        "type": "Phone",
+        "key": "+5561999999999",
+        "display": "+55 61 99999-9999",
+        "alternatives": []
+      },
+      "note": "13 dígitos começando com 55"
+    },
+    {
+      "id": 55,
+      "input": "123E4567E89B12D3A456426655440000",
+      "type": "Evp",
+      "expect": {
+        "ok": true,
+        "type": "Evp",
+        "key": "123e4567-e89b-12d3-a456-426655440000",
+        "display": "123e4567-e89b-12d3-a456-426655440000",
+        "alternatives": []
+      }
+    },
+    {
+      "id": 56,
+      "input": "fulano @gmail.com",
+      "type": null,
+      "expect": {
+        "ok": false,
+        "code": "email"
+      },
+      "note": "espaço no meio"
+    },
+    {
+      "id": 57,
+      "input": "61 89999-9999",
+      "type": null,
+      "expect": {
+        "ok": false,
+        "code": "celular"
+      },
+      "note": "11 dígitos com 3º dígito 8"
+    },
+    {
+      "id": 58,
+      "input": "11 2345-6789",
+      "type": null,
+      "expect": {
+        "ok": false,
+        "code": "fixo"
+      }
+    },
+    {
+      "id": 59,
+      "input": "+55 20 99999-9999",
+      "type": null,
+      "expect": {
+        "ok": false,
+        "code": "celular"
+      }
+    },
+    {
+      "id": 60,
+      "input": "6199999-9999",
+      "type": null,
+      "expect": {
+        "ok": true,
+        "type": "Phone",
+        "key": "+5561999999999",
+        "display": "+55 61 99999-9999",
+        "alternatives": []
+      },
+      "note": "separador fora do DDD: regra sem formatação (não é CPF válido → celular)"
+    },
+    {
+      "id": 61,
+      "input": "619.999.999-16",
+      "type": null,
+      "expect": {
+        "ok": true,
+        "type": "Cpf",
+        "key": "61999999916",
+        "display": "619.999.999-16",
+        "alternatives": []
+      },
+      "note": "máscara de CPF desempata: sem alternativa"
+    },
+    {
+      "id": 62,
+      "input": "61 99999-9916",
+      "type": null,
+      "expect": {
+        "ok": true,
+        "type": "Phone",
+        "key": "+5561999999916",
+        "display": "+55 61 99999-9916",
+        "alternatives": []
+      },
+      "note": "espaço depois do DDD desempata: sem alternativa"
+    },
+    {
+      "id": 63,
+      "input": "FULANO@GMAIL.COM",
+      "type": "Email",
+      "expect": {
+        "ok": true,
+        "type": "Email",
+        "key": "fulano@gmail.com",
+        "display": "fulano@gmail.com",
+        "alternatives": []
+      }
+    },
+    {
+      "id": 64,
+      "input": "12.345.678/0001-95",
+      "type": "Cpf",
+      "expect": {
+        "ok": false,
+        "code": "cpf"
+      }
+    },
+    {
+      "id": 65,
+      "input": "61 9999-9999",
+      "type": "Phone",
+      "expect": {
+        "ok": false,
+        "code": "sem9"
+      }
+    },
+    {
+      "id": 66,
+      "input": "+5561999999916",
+      "type": "Cpf",
+      "expect": {
+        "ok": false,
+        "code": "cpf"
+      }
+    }
+  ],
+  "brcode": {
+    "name": "POKER DA GALERA",
+    "city": "SAO PAULO",
+    "crc": [
+      {
+        "input": "123456789",
+        "crc": "29B1",
+        "note": "vetor de conferência do CRC-16/CCITT-FALSE"
+      },
+      {
+        "input": "00020126580014br.gov.bcb.pix0136123e4567-e12b-12d1-a456-4266554400005204000053039865802BR5913Fulano de Tal6008BRASILIA62070503***6304",
+        "crc": "1D3D",
+        "note": "exemplo oficial do manual do BR Code"
+      }
+    ],
+    "vectors": [
+      {
+        "key": "+5561999999999",
+        "payload": "00020126360014br.gov.bcb.pix0114+55619999999995204000053039865802BR5915POKER DA GALERA6009SAO PAULO62070503***63043505"
+      },
+      {
+        "key": "12345678909",
+        "payload": "00020126330014br.gov.bcb.pix0111123456789095204000053039865802BR5915POKER DA GALERA6009SAO PAULO62070503***6304C587"
+      },
+      {
+        "key": "12345678000195",
+        "payload": "00020126360014br.gov.bcb.pix0114123456780001955204000053039865802BR5915POKER DA GALERA6009SAO PAULO62070503***6304FC1A"
+      },
+      {
+        "key": "12ABC34501DE35",
+        "payload": "00020126360014br.gov.bcb.pix011412ABC34501DE355204000053039865802BR5915POKER DA GALERA6009SAO PAULO62070503***6304269A"
+      },
+      {
+        "key": "fulano@gmail.com",
+        "payload": "00020126380014br.gov.bcb.pix0116fulano@gmail.com5204000053039865802BR5915POKER DA GALERA6009SAO PAULO62070503***63047630"
+      },
+      {
+        "key": "123e4567-e89b-12d3-a456-426655440000",
+        "payload": "00020126580014br.gov.bcb.pix0136123e4567-e89b-12d3-a456-4266554400005204000053039865802BR5915POKER DA GALERA6009SAO PAULO62070503***630477BC"
+      }
+    ],
+    "build": [
+      {
+        "key": "61 99999-9999",
+        "sameAs": "+5561999999999",
+        "note": "normaliza antes (o pedido do usuário)"
+      },
+      {
+        "key": "61999999999",
+        "sameAs": "+5561999999999",
+        "note": "chave antiga sem +55 já sai certa no QR"
+      },
+      {
+        "key": "Fulano@Gmail.com ",
+        "sameAs": "fulano@gmail.com"
+      },
+      {
+        "key": "abc",
+        "payload": null,
+        "note": "chave inválida → sem QR"
+      },
+      {
+        "key": "61 9999-9999",
+        "payload": null
+      },
+      {
+        "key": "",
+        "payload": null
+      },
+      {
+        "key": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@exemplo.com",
+        "field26Length": 99,
+        "note": "e-mail de 77 caracteres cabe no campo 26 (99)"
+      },
+      {
+        "key": "+5561999999999",
+        "name": "Poker do João",
+        "nameField": "POKER DO JOAO"
+      },
+      {
+        "key": "+5561999999999",
+        "name": "Associação dos Jogadores de Pôquer",
+        "nameField": "ASSOCIACAO DOS JOGADORES",
+        "note": "corta em 25 e tira o espaço do fim"
+      },
+      {
+        "key": "+5561999999999",
+        "city": "São José dos Campos",
+        "cityField": "SAO JOSE DOS CA"
+      }
+    ]
+  }
+}

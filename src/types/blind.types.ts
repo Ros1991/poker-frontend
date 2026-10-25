@@ -1,3 +1,5 @@
+import type { PixKeyType } from '../utils/pix'
+
 /**
  * Custo padrão de valor fixo por torneio guardado na estrutura (SPEC-20261023-1215): todo torneio criado com a
  * estrutura já nasce com ele na aba Custos (CostType "Default"). Ex.: Churrasqueiro — R$ 330.
@@ -9,8 +11,8 @@ export interface BlindStructureDefaultCost {
   /** "Para quem" (opcional) */
   beneficiary?: string | null
   pixKey?: string | null
-  /** Sem campo na tela; só repassado */
-  pixKeyType?: string | null
+  /** Na resposta: tipo da chave gravada (derivado pela API); no pedido: o tipo escolhido na tela (null = detectar) */
+  pixKeyType?: PixKeyType | null
   sortOrder?: number
 }
 

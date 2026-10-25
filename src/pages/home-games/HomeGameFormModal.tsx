@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
-import { useForm, type Resolver } from 'react-hook-form'
+import { useForm, useWatch, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import * as homeGamesApi from '../../api/homeGames.api'
@@ -10,23 +9,20 @@ import { isPlanLimitError } from '../../api/client'
 import { MY_PLAN_QUERY_KEY } from '../../hooks/usePlan'
 import { Modal } from '../../components/ui/Modal'
 import { Input } from '../../components/ui/Input'
+import { PixKeyInput } from '../../components/pix/PixKeyInput'
+import type { PixKeyType } from '../../utils/pix'
+import {
+  buildHomeGameRequest,
+  homeGameFormValues,
+  homeGamePixError,
+  homeGameSchema,
+  useHomeGamePixVisible,
+  type HomeGameFormData,
+} from './homeGameForm'
 import { Textarea } from '../../components/ui/Textarea'
 import { Button } from '../../components/ui/Button'
 import { LogoPicker } from '../../components/photo/LogoPicker'
 import type { HomeGame } from '../../types/homeGame.types'
-
-const homeGameSchema = z.object({
-  name: z.string().min(1, 'Nome é obrigatório').max(100, 'Máximo de 100 caracteres'),
-  description: z.string().max(500, 'Máximo de 500 caracteres').optional().or(z.literal('')),
-  location: z.string().max(200, 'Máximo de 200 caracteres').optional().or(z.literal('')),
-  pixKey: z.string().max(100).optional().or(z.literal('')),
-  pixBeneficiario: z.string().max(100).optional().or(z.literal('')),
-  defaultBuyIn: z.coerce.number().min(0, 'Valor inválido').optional(),
-  defaultRebuy: z.coerce.number().min(0, 'Valor inválido').optional(),
-  defaultAddon: z.coerce.number().min(0, 'Valor inválido').optional(),
-})
-
-type HomeGameFormData = z.infer<typeof homeGameSchema>
 
 /**
  * Envia a logo escolhida (ou remove a marcada) depois de salvar o home game (SPEC-20261023-1213). Falha na logo não
@@ -59,72 +55,46 @@ export function HomeGameFormModal({
   // Logo do clube: escolhida aqui e enviada ao salvar (endpoint próprio)
   const [logo, setLogo] = useState<Blob | null>(null)
   const [logoRemoved, setLogoRemoved] = useState(false)
-  // Abriu de novo: começa sem logo escolhida (ajuste de estado durante o render, sem efeito)
+  // Chave PIX (SPEC-20261023-1218): tipo escolhido no campo (null = automático)
+  const [pixType, setPixType] = useState<PixKeyType | null>(null)
+  // Abriu de novo: começa sem logo escolhida e com o tipo da chave automático (ajuste de estado durante o render)
   const [wasOpen, setWasOpen] = useState(isOpen)
   if (wasOpen !== isOpen) {
     setWasOpen(isOpen)
     if (isOpen) {
       setLogo(null)
       setLogoRemoved(false)
+      setPixType(null)
     }
   }
+  // Dados PIX só com pagamentos no plano (do dono na edição; da própria conta na criação)
+  const showPix = useHomeGamePixVisible(homeGame, isEditing)
 
   const {
     register,
     handleSubmit,
     reset,
+    control,
+    setValue,
+    setError,
+    clearErrors,
     formState: { errors },
   } = useForm<HomeGameFormData>({
     resolver: zodResolver(homeGameSchema) as Resolver<HomeGameFormData>,
-    defaultValues: {
-      name: '',
-      description: '',
-      location: '',
-      pixKey: '',
-      pixBeneficiario: '',
-      defaultBuyIn: undefined,
-      defaultRebuy: undefined,
-      defaultAddon: undefined,
-    },
+    defaultValues: homeGameFormValues(null),
   })
+  const pixKeyValue = useWatch({ control, name: 'pixKey' }) ?? ''
 
   useEffect(() => {
-    if (isOpen) {
-      if (homeGame) {
-        reset({
-          name: homeGame.name,
-          description: homeGame.description ?? '',
-          location: homeGame.location ?? '',
-          pixKey: '',
-          pixBeneficiario: '',
-          defaultBuyIn: undefined,
-          defaultRebuy: undefined,
-          defaultAddon: undefined,
-        })
-      } else {
-        reset({
-          name: '',
-          description: '',
-          location: '',
-          pixKey: '',
-          pixBeneficiario: '',
-          defaultBuyIn: undefined,
-          defaultRebuy: undefined,
-          defaultAddon: undefined,
-        })
-      }
-    }
+    // Edição carrega tudo o que o PUT regrava (PIX, beneficiário e valores padrão), senão salvar apagaria
+    if (isOpen) reset(homeGameFormValues(homeGame))
   }, [isOpen, homeGame, reset])
 
   const queryClient = useQueryClient()
 
   const createMutation = useMutation({
     mutationFn: async (data: HomeGameFormData) => {
-      const created = await homeGamesApi.create({
-        name: data.name,
-        description: data.description || undefined,
-        location: data.location || undefined,
-      })
+      const created = await homeGamesApi.create(buildHomeGameRequest(data, pixType, null, showPix))
       await saveLogo(created.id, logo, false)
       return created
     },
@@ -140,17 +110,14 @@ export function HomeGameFormModal({
         onClose()
         return
       }
-      toast.error('Erro ao criar home game. Tente novamente.')
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+      toast.error(msg || 'Erro ao criar home game. Tente novamente.')
     },
   })
 
   const updateMutation = useMutation({
     mutationFn: async (data: HomeGameFormData) => {
-      const updated = await homeGamesApi.update(homeGame!.id, {
-        name: data.name,
-        description: data.description || undefined,
-        location: data.location || undefined,
-      })
+      const updated = await homeGamesApi.update(homeGame!.id, buildHomeGameRequest(data, pixType, homeGame, showPix))
       await saveLogo(updated.id, logo, logoRemoved && !!homeGame?.logoUrl)
       return updated
     },
@@ -158,14 +125,20 @@ export function HomeGameFormModal({
       toast.success('Home game atualizado com sucesso!')
       onSuccess()
     },
-    onError: () => {
-      toast.error('Erro ao atualizar home game. Tente novamente.')
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+      toast.error(msg || 'Erro ao atualizar home game. Tente novamente.')
     },
   })
 
   const isSubmitting = createMutation.isPending || updateMutation.isPending
 
   function onSubmit(data: HomeGameFormData) {
+    const pixError = homeGamePixError(data, pixType, homeGame, showPix)
+    if (pixError) {
+      setError('pixKey', { message: pixError }, { shouldFocus: true })
+      return
+    }
     if (isEditing) {
       updateMutation.mutate(data)
     } else {
@@ -226,25 +199,40 @@ export function HomeGameFormModal({
           disabled={isSubmitting}
         />
 
-        <div className="border-t border-border-default pt-4">
-          <h3 className="text-sm font-medium text-text-secondary mb-3">
-            Dados PIX (para pagamentos)
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input
-              label="Chave PIX"
-              placeholder="CPF, e-mail, telefone ou chave aleatória"
-              error={errors.pixKey?.message}
-              {...register('pixKey')}
-            />
-            <Input
-              label="Beneficiário PIX"
-              placeholder="Nome do beneficiário"
-              error={errors.pixBeneficiario?.message}
-              {...register('pixBeneficiario')}
-            />
+        {/* Dados PIX só com pagamentos no plano (SPEC-20261023-1218); a chave aceita do jeito que a pessoa digita */}
+        {showPix && (
+          <div className="border-t border-border-default pt-4">
+            <h3 className="text-sm font-medium text-text-secondary mb-3">
+              Dados PIX (para pagamentos)
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:items-start">
+              <PixKeyInput
+                id="home-game-modal-pix-key"
+                label="Chave PIX"
+                value={pixKeyValue}
+                onChange={(v) => {
+                  setValue('pixKey', v, { shouldDirty: true })
+                  clearErrors('pixKey')
+                }}
+                type={pixType}
+                onTypeChange={(t) => {
+                  setPixType(t)
+                  clearErrors('pixKey')
+                }}
+                savedKey={homeGame?.pixKey ?? null}
+                error={errors.pixKey?.message}
+                disabled={isSubmitting}
+              />
+              <Input
+                id="home-game-modal-pix-beneficiary"
+                label="Beneficiário PIX"
+                placeholder="Nome do beneficiário"
+                error={errors.pixBeneficiary?.message}
+                {...register('pixBeneficiary')}
+              />
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="border-t border-border-default pt-4">
           <h3 className="text-sm font-medium text-text-secondary mb-3">

@@ -1,11 +1,114 @@
-// Formatação compartilhada pelos componentes do terminal do dealer
+// Formatação compartilhada pelos componentes do terminal do dealer (e da aba Jogadores do painel — SPEC-20261023-1217)
 import type { TournamentEntry } from '../../types/entry.types'
+import type { Tournament } from '../../types/tournament.types'
 import type { Table } from '../../api/tables.api'
+import type { PlayerActionRules } from './PlayerCard'
 import { tableLabel } from '../../utils/tableBalance'
+import { normalizeText } from '../../utils/text'
 
 export { isActiveStatus, tableLabel } from '../../utils/tableBalance'
 // Busca sem acento: utilitário único em utils/text.ts (SPEC-20261023-1213)
 export { normalizeText } from '../../utils/text'
+
+/** Rebuy até o limite do torneio (0 = sem limite); add-on só se o torneio tem e o jogador ainda não comprou */
+export function playerActionRules(
+  tournament: Pick<Tournament, 'maxRebuys' | 'addonAllowed'> | undefined,
+  entry: Pick<TournamentEntry, 'rebuyCount' | 'addonPurchased'>,
+): PlayerActionRules {
+  const maxRebuys = tournament?.maxRebuys ?? 0
+  return {
+    canRebuy: !(maxRebuys > 0 && entry.rebuyCount >= maxRebuys),
+    canAddon: !entry.addonPurchased && (tournament?.addonAllowed ?? false),
+  }
+}
+
+/** Busca por nome completo e apelido, sem acento e sem diferença de maiúsculas ("jose" acha "José") */
+export function matchesPlayerSearch(entry: Pick<TournamentEntry, 'person'>, term: string): boolean {
+  const t = normalizeText(term.trim())
+  if (!t) return true
+  return (
+    normalizeText(entry.person.fullName).includes(t) ||
+    (!!entry.person.nickname && normalizeText(entry.person.nickname).includes(t))
+  )
+}
+
+export interface TableGroup {
+  /** id da mesa ou "sem-mesa" */
+  key: string
+  table: Table | null
+  title: string
+  entries: TournamentEntry[]
+}
+
+/**
+ * Quem está jogando agrupado por mesa: mesas em ordem de número (só as que têm alguém), jogadores pela ordem do
+ * lugar; quem não tem mesa (ou está numa mesa que não veio na lista) fica em "Sem mesa", por nome, por último.
+ */
+export function groupActiveByTable(entries: TournamentEntry[], tables: Table[]): TableGroup[] {
+  const byTable = new Map<string, TournamentEntry[]>()
+  const unseated: TournamentEntry[] = []
+  const known = new Set(tables.map((t) => t.id))
+  for (const e of entries) {
+    if (e.tableId && known.has(e.tableId)) {
+      const list = byTable.get(e.tableId) ?? []
+      list.push(e)
+      byTable.set(e.tableId, list)
+    } else {
+      unseated.push(e)
+    }
+  }
+  const groups: TableGroup[] = [...tables]
+    .sort((a, b) => a.tableNumber - b.tableNumber)
+    .filter((t) => (byTable.get(t.id)?.length ?? 0) > 0)
+    .map((t) => ({
+      key: t.id,
+      table: t,
+      title: tableLabel(t),
+      entries: [...(byTable.get(t.id) ?? [])].sort((a, b) => (a.seatNumber ?? 999) - (b.seatNumber ?? 999)),
+    }))
+  if (unseated.length > 0)
+    groups.push({
+      key: 'sem-mesa',
+      table: null,
+      title: 'Sem mesa',
+      entries: [...unseated].sort((a, b) => playerName(a).localeCompare(playerName(b), 'pt-BR')),
+    })
+  return groups
+}
+
+/**
+ * Composição do total do jogador: "buy-in R$ 100,00 + 2 rebuys R$ 200,00 + add-on R$ 50,00". O que o torneio cobra
+ * por jogador além do buy-in (staff e ranking fixo) entra com o próprio nome; sobra que não fecha com eles vira "outros".
+ */
+export function entryTotalBreakdown(
+  entry: Pick<
+    TournamentEntry,
+    'buyInAmount' | 'rebuyCount' | 'rebuyTotal' | 'addonPurchased' | 'addonDouble' | 'addonAmount' | 'totalDue'
+  >,
+  tournament: Pick<Tournament, 'staffAmount' | 'rankingContribMode' | 'rankingContribValue'> | undefined,
+): string {
+  const parts = [`buy-in ${formatCurrency(entry.buyInAmount)}`]
+  const addonPart = entry.addonPurchased ? entry.addonAmount : 0
+  const other = Math.round((entry.totalDue - entry.buyInAmount - entry.rebuyTotal - addonPart) * 100) / 100
+  if (other > 0) {
+    const staff = tournament?.staffAmount ?? 0
+    const ranking = tournament?.rankingContribMode === 'PerPlayer' ? (tournament.rankingContribValue ?? 0) : 0
+    const close = (a: number, b: number) => Math.abs(a - b) < 0.005
+    if (staff > 0 && ranking > 0 && close(staff + ranking, other)) {
+      parts.push(`staff ${formatCurrency(staff)}`, `ranking ${formatCurrency(ranking)}`)
+    } else if (staff > 0 && close(staff, other)) {
+      parts.push(`staff ${formatCurrency(staff)}`)
+    } else if (ranking > 0 && close(ranking, other)) {
+      parts.push(`ranking ${formatCurrency(ranking)}`)
+    } else {
+      parts.push(`outros ${formatCurrency(other)}`)
+    }
+  }
+  if (entry.rebuyCount > 0)
+    parts.push(`${entry.rebuyCount} rebuy${entry.rebuyCount > 1 ? 's' : ''} ${formatCurrency(entry.rebuyTotal)}`)
+  if (entry.addonPurchased) parts.push(`${entry.addonDouble ? 'add-on duplo' : 'add-on'} ${formatCurrency(entry.addonAmount)}`)
+  return parts.join(' + ')
+}
 
 export function formatCurrency(value: number): string {
   return new Intl.NumberFormat('pt-BR', {

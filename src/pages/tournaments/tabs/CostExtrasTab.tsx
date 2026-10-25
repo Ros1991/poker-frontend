@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useForm, type Resolver } from 'react-hook-form'
+import { useForm, useWatch, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
@@ -12,6 +12,8 @@ import { Modal } from '../../../components/ui/Modal'
 import { Badge } from '../../../components/ui/Badge'
 import { ConfirmDialog } from '../../../components/ui/ConfirmDialog'
 import { LoadingSpinner } from '../../../components/common/LoadingSpinner'
+import { PixKeyInput } from '../../../components/pix/PixKeyInput'
+import { checkPixKey, formatPixKey, toPixKeyPayload, type PixKeyType } from '../../../utils/pix'
 import type { Tournament } from '../../../types/tournament.types'
 import { COST_TYPE_DEFAULT, type CostExtra } from '../../../types/costExtra.types'
 
@@ -42,6 +44,10 @@ const EMPTY_FORM: CostExtraFormData = {
   pixKey: '',
 }
 
+/** Mensagem do 400 da API (ex.: chave PIX fora de formato) ou a genérica. */
+const apiMessage = (err: unknown, fallback: string) =>
+  (err as { response?: { data?: { message?: string } } })?.response?.data?.message || fallback
+
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
@@ -54,11 +60,17 @@ export function CostExtrasTab({ tournament }: CostExtrasTabProps) {
   const [showForm, setShowForm] = useState(false)
   const [editingCost, setEditingCost] = useState<CostExtra | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<CostExtra | null>(null)
+  // Tipo escolhido no campo da chave PIX (null = automático) — SPEC-20261023-1218
+  const [pixType, setPixType] = useState<PixKeyType | null>(null)
 
   const {
     register,
     handleSubmit,
     reset,
+    control,
+    setValue,
+    setError,
+    clearErrors,
     formState: { errors },
   } = useForm<CostExtraFormData>({
     resolver: zodResolver(costExtraSchema) as Resolver<CostExtraFormData>,
@@ -70,14 +82,19 @@ export function CostExtrasTab({ tournament }: CostExtrasTabProps) {
     queryFn: () => costExtrasApi.getAll(tournament.id),
   })
 
+  const pixKeyValue = useWatch({ control, name: 'pixKey' }) ?? ''
+
   const createMutation = useMutation({
-    mutationFn: (data: CostExtraFormData) =>
-      costExtrasApi.create(tournament.id, {
+    mutationFn: (data: CostExtraFormData) => {
+      const pix = toPixKeyPayload(data.pixKey, pixType)
+      return costExtrasApi.create(tournament.id, {
         description: data.description,
         amount: data.amount,
         beneficiary: orNull(data.beneficiary),
-        pixKey: orNull(data.pixKey),
-      }),
+        pixKey: pix.key,
+        pixKeyType: pix.type,
+      })
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['costExtras', tournament.id] })
       queryClient.invalidateQueries({ queryKey: ['tournament', tournament.id] })
@@ -85,8 +102,8 @@ export function CostExtrasTab({ tournament }: CostExtrasTabProps) {
       setShowForm(false)
       reset(EMPTY_FORM)
     },
-    onError: () => {
-      toast.error('Erro ao adicionar custo.')
+    onError: (err: unknown) => {
+      toast.error(apiMessage(err, 'Erro ao adicionar custo.'))
     },
   })
 
@@ -130,17 +147,20 @@ export function CostExtrasTab({ tournament }: CostExtrasTabProps) {
 
   // Edição manda TODOS os campos do custo (o PUT copia o pedido inteiro): sem isso a primeira edição
   // apagaria beneficiário e chave PIX (ex.: churrasqueiro vindo da estrutura, Staff com a chave do home game).
-  // Tipo da chave e Caixa não aparecem na tela: vão como estavam.
+  // A chave vai normalizada com o tipo do campo (escolhido, ou o da chave gravada enquanto o texto não mudar);
+  // o Caixa não aparece na tela e vai como estava.
   const editMutation = useMutation({
-    mutationFn: (vars: { cost: CostExtra; data: CostExtraFormData }) =>
-      costExtrasApi.update(tournament.id, vars.cost.id, {
+    mutationFn: (vars: { cost: CostExtra; data: CostExtraFormData }) => {
+      const pix = toPixKeyPayload(vars.data.pixKey, pixType, vars.cost.pixKey ?? null)
+      return costExtrasApi.update(tournament.id, vars.cost.id, {
         description: vars.data.description,
         amount: vars.data.amount,
         beneficiary: orNull(vars.data.beneficiary),
-        pixKey: orNull(vars.data.pixKey),
-        pixKeyType: vars.cost.pixKeyType ?? null,
+        pixKey: pix.key,
+        pixKeyType: pix.type,
         isCashBox: vars.cost.isCashBox ?? false,
-      }),
+      })
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['costExtras', tournament.id] })
       queryClient.invalidateQueries({ queryKey: ['tournament', tournament.id] })
@@ -149,11 +169,12 @@ export function CostExtrasTab({ tournament }: CostExtrasTabProps) {
       setEditingCost(null)
       reset(EMPTY_FORM)
     },
-    onError: () => toast.error('Erro ao atualizar custo.'),
+    onError: (err: unknown) => toast.error(apiMessage(err, 'Erro ao atualizar custo.')),
   })
 
   function openEdit(cost: CostExtra) {
     setEditingCost(cost)
+    setPixType(null)
     reset({
       description: cost.description,
       amount: cost.amount,
@@ -185,6 +206,7 @@ export function CostExtrasTab({ tournament }: CostExtrasTabProps) {
           size="sm"
           onClick={() => {
             setEditingCost(null)
+            setPixType(null)
             reset(EMPTY_FORM)
             setShowForm(true)
           }}
@@ -234,7 +256,7 @@ export function CostExtrasTab({ tournament }: CostExtrasTabProps) {
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5 text-xs text-text-secondary sm:flex-nowrap">
                       {cost.beneficiary && <span>Para: {cost.beneficiary}</span>}
                       {cost.pixKey && !cost.isCashBox && (
-                        <span className="wrap-anywhere">PIX: {cost.pixKey}</span>
+                        <span className="wrap-anywhere">PIX: {formatPixKey(cost.pixKey)}</span>
                       )}
                       {isPaid && cost.paymentMethod && (
                         <span className="text-accent-green-deep">
@@ -363,6 +385,12 @@ export function CostExtrasTab({ tournament }: CostExtrasTabProps) {
         <form
           id="cost-extra-form"
           onSubmit={handleSubmit((data) => {
+            // Chave PIX no formato dos bancos (SPEC-20261023-1218): inválida ou ambígua não deixa salvar
+            const pixError = checkPixKey(data.pixKey, pixType, editingCost?.pixKey ?? null).error
+            if (pixError) {
+              setError('pixKey', { message: pixError })
+              return
+            }
             if (editingCost) editMutation.mutate({ cost: editingCost, data })
             else createMutation.mutate(data)
           })}
@@ -388,11 +416,21 @@ export function CostExtrasTab({ tournament }: CostExtrasTabProps) {
             error={errors.beneficiary?.message}
             placeholder="Ex.: Zé do churrasco"
           />
-          <Input
+          <PixKeyInput
+            id="cost-extra-pix-key"
             label="Chave PIX (opcional)"
-            {...register('pixKey')}
+            value={pixKeyValue}
+            onChange={(v) => {
+              setValue('pixKey', v, { shouldDirty: true })
+              clearErrors('pixKey')
+            }}
+            type={pixType}
+            onTypeChange={(t) => {
+              setPixType(t)
+              clearErrors('pixKey')
+            }}
+            savedKey={editingCost?.pixKey ?? null}
             error={errors.pixKey?.message}
-            placeholder="CPF, e-mail, telefone ou chave aleatória"
           />
         </form>
       </Modal>

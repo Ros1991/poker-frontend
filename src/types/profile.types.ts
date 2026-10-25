@@ -23,6 +23,15 @@ export interface Profile {
   /** Home games dos quais a conta é dona (com algum, excluir a conta fica bloqueado) */
   ownedHomeGames: number
   effectivePlan: PlanName
+  // Boas-vindas (SPEC-20261023-1212). Opcionais para não quebrar quem monta Profile à mão.
+  /** Verdadeiro = a conta ainda não passou pelas boas-vindas: o site leva a /boas-vindas */
+  needsOnboarding?: boolean
+  onboardedAt?: string | null
+  /** A foto atual veio do Google (não foi enviada pelo site): as boas-vindas perguntam se fica */
+  photoFromProvider?: boolean
+  /** Plano pago pedido (Clube/Liga) — o plano só muda pelo Admin */
+  requestedPlan?: PlanName | null
+  requestedPlanAt?: string | null
 }
 
 export interface UpdateProfileRequest {

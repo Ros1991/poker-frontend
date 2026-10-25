@@ -44,4 +44,10 @@ export interface HistoryItem {
   undoneBy: string | null
   canUndo: boolean
   undoBlockedReason: string | null
+  /**
+   * Aviso para quem pode desfazer mesmo assim (SPEC-20261023-1217, L4): o organizador (token de usuário) desfaz rebuy,
+   * add-on e inscrição com o torneio encerrado/cancelado ou prêmio pago; a confirmação mostra o aviso antes da pergunta.
+   * Para o dealer vem sempre null (lá o item continua bloqueado, com `undoBlockedReason`).
+   */
+  undoWarning: string | null
 }

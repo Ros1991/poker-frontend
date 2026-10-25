@@ -1,3 +1,5 @@
+import type { PixKeyType } from '../utils/pix'
+
 export interface CostExtra {
   id: string
   tournamentId?: string
@@ -6,7 +8,8 @@ export interface CostExtra {
   costType?: string
   beneficiary?: string | null
   pixKey?: string | null
-  pixKeyType?: string | null
+  /** Tipo da chave gravada (Cpf, Cnpj, Phone, Email, Evp), derivado pela API — SPEC-20261023-1218 */
+  pixKeyType?: PixKeyType | null
   isCashBox?: boolean
   paidAmount?: number
   paymentStatus?: string
@@ -32,7 +35,8 @@ export interface CreateCostExtraRequest {
   amount: number
   beneficiary?: string | null
   pixKey?: string | null
-  pixKeyType?: string | null
+  /** Tipo ESCOLHIDO na tela (null = a API detecta); o gravado é sempre o da chave normalizada */
+  pixKeyType?: PixKeyType | null
   isCashBox?: boolean
 }
 
