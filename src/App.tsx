@@ -5,6 +5,7 @@ import { Toaster } from 'sonner'
 import { AuthProvider } from './contexts/AuthContext'
 import { HomeGameProvider } from './contexts/HomeGameContext'
 import { Router } from './Router'
+import { useToasterPlacement } from './hooks/useToasterPlacement'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -37,6 +38,24 @@ const toasterStyle = {
   '--error-text': 'var(--color-accent-red-deep)',
 } as CSSProperties
 
+/**
+ * Toaster do app. Posição pelo useToasterPlacement: no celular embaixo (o "Desfazer" ao alcance do polegar, sem
+ * cobrir o relógio do terminal) e no topo enquanto houver modal/tela cheia aberta (nunca por cima do rodapé dela);
+ * no computador, canto superior direito. Componente próprio: mudar a posição não re-renderiza o app inteiro.
+ */
+function AppToaster() {
+  const placement = useToasterPlacement()
+  return (
+    <Toaster
+      {...placement}
+      richColors
+      // Tema único (D8): não segue o modo escuro do SO
+      theme="light"
+      style={toasterStyle}
+    />
+  )
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -44,14 +63,7 @@ function App() {
         <AuthProvider>
           <HomeGameProvider>
             <Router />
-            <Toaster
-              // No celular embaixo: o "Desfazer" fica ao alcance do polegar e não cobre o relógio do terminal
-              position={window.matchMedia('(max-width: 639px)').matches ? 'bottom-center' : 'top-right'}
-              richColors
-              // Tema único (D8): não segue o modo escuro do SO
-              theme="light"
-              style={toasterStyle}
-            />
+            <AppToaster />
           </HomeGameProvider>
         </AuthProvider>
       </BrowserRouter>

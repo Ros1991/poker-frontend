@@ -50,4 +50,8 @@ export interface HistoryItem {
    * Para o dealer vem sempre null (lá o item continua bloqueado, com `undoBlockedReason`).
    */
   undoWarning: string | null
+  /** Só na eliminação: posição em que saiu (null fora dela) */
+  position?: number | null
+  /** Só na eliminação: quem eliminou (apelido, senão nome; null se não informado) */
+  eliminatedByName?: string | null
 }

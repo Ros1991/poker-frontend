@@ -10,7 +10,7 @@ interface LandingFooterProps {
 }
 
 const LINK =
-  'inline-flex min-h-[44px] items-center rounded-sm text-sm font-semibold text-text-primary underline-offset-4 hover:text-accent-blue hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue'
+  'inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-sm text-sm font-semibold text-text-primary underline-offset-4 hover:text-accent-blue hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue'
 
 /** Seção 7 (parte 2) — rodapé: Entrar · Telão · Planos · Termos · Privacidade · Contato e os domínios curtos do telão. */
 export function LandingFooter({ onLanding = false }: LandingFooterProps) {

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import * as meApi from '../../api/me.api'
 import { EditablePhotoAvatar } from '../../components/photo/EditablePhotoAvatar'
+import { photoHint } from '../../components/photo/photoHint'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import type { Profile } from '../../types/profile.types'
@@ -93,9 +94,7 @@ export function ProfileStep({ profile, initial, serverErrors, onContinue, onSkip
             </label>
           ) : (
             <p className="text-center text-sm text-text-secondary">
-              {profile.photoUrl
-                ? 'Toque ou clique na foto para trocar ou remover.'
-                : 'Toque ou clique no círculo para pôr uma foto: tire na hora ou escolha uma imagem.'}
+              {photoHint(!!profile.photoUrl)}
             </p>
           )}
         </div>

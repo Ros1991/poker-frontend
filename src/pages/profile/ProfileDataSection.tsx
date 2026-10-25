@@ -5,6 +5,7 @@ import { Copy, Mail, UserRound } from 'lucide-react'
 import { toast } from 'sonner'
 import * as meApi from '../../api/me.api'
 import { EditablePhotoAvatar } from '../../components/photo/EditablePhotoAvatar'
+import { photoHint } from '../../components/photo/photoHint'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { useAuth } from '../../hooks/useAuth'
@@ -112,8 +113,7 @@ export function ProfileDataSection({ profile }: { profile: Profile }) {
             remove={profile.photoUrl ? async () => applyProfile(await meApi.removePhoto()) : undefined}
           />
           <p className="text-center text-sm text-text-secondary sm:text-left">
-            Clique na foto para {profile.photoUrl ? 'trocar ou remover' : 'pôr uma foto'}: tire na hora ou escolha uma
-            imagem e enquadre no círculo.
+            {photoHint(!!profile.photoUrl)}
           </p>
         </div>
 

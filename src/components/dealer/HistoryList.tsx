@@ -28,9 +28,25 @@ interface HistoryListProps {
   paymentsLocked?: boolean
 }
 
+/**
+ * O que será desfeito, em frase natural. Eliminação (revisão geral do programa, ondas 7–9): o jogador primeiro e os
+ * detalhes entre parênteses — "a eliminação de Duda (10º lugar, quem eliminou foi Beto)", texto neutro (serve para
+ * jogador e jogadora). Os demais itens: "Rebuy 2 de Duda".
+ */
+function undoTarget(item: HistoryItem): string {
+  if (item.kind === 'Elimination' && item.playerName) {
+    const details = [
+      item.position ? `${item.position}º lugar` : null,
+      item.eliminatedByName ? `quem eliminou foi ${item.eliminatedByName}` : null,
+    ].filter(Boolean)
+    return `a eliminação de ${item.playerName}${details.length ? ` (${details.join(', ')})` : ''}`
+  }
+  return item.playerName ? `${item.description} de ${item.playerName}` : item.description
+}
+
 /** Texto da confirmação: o aviso do organizador (`undoWarning`, SPEC-20261023-1217 L4) vem antes da pergunta */
 function confirmMessage(item: HistoryItem): string {
-  const what = item.playerName ? `${item.description} de ${item.playerName}` : item.description
+  const what = undoTarget(item)
   return item.undoWarning ? `${item.undoWarning} Desfazer ${what} mesmo assim?` : `Desfazer ${what}?`
 }
 

@@ -55,7 +55,7 @@ function OpenSheet({ onClose, title, children, toolbar, elevated, scrollable = t
       aria-modal="true"
       aria-label={title}
     >
-      <header className="shrink-0 border-b border-border-default bg-bg-secondary px-2 py-2">
+      <header data-dialog-header className="shrink-0 border-b border-border-default bg-bg-secondary px-2 py-2">
         <div className="flex items-center gap-1">
           <button
             type="button"

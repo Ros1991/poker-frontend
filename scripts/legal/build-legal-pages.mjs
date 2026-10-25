@@ -93,7 +93,7 @@ footer{background:${C.card};border-top:1px solid ${C.border}}
 .foot{max-width:72rem;padding-top:2rem;padding-bottom:2rem;display:flex;flex-direction:column;gap:1rem}
 .foot ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;column-gap:1.25rem}
 .foot li{margin:0}
-.foot ul a{display:inline-flex;min-height:44px;align-items:center;font-size:.875rem;font-weight:600;color:${C.text};text-decoration:none}
+.foot ul a{display:inline-flex;min-height:44px;min-width:44px;align-items:center;justify-content:center;font-size:.875rem;font-weight:600;color:${C.text};text-decoration:none}
 .foot ul a:hover{color:${C.blue};text-decoration:underline}
 .foot p{margin:0;font-size:.875rem;color:${C.textSecondary}}
 .foot strong{color:${C.text}}

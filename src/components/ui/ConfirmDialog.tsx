@@ -45,7 +45,8 @@ export function ConfirmDialog({
         </div>
       }
     >
-      <p className="text-sm text-text-secondary">{message}</p>
+      {/* Texto inteiro, quebrando a linha (inclusive nome comprido sem espaço) */}
+      <p className="text-sm break-words text-text-secondary">{message}</p>
     </Modal>
   )
 }

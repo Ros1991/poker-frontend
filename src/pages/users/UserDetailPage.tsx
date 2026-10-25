@@ -340,10 +340,13 @@ export function UserDetailPage() {
               {user.ownedHomeGames.length === 0 ? (
                 <p className="text-sm text-text-secondary">Nenhum.</p>
               ) : (
-                <ul className="flex flex-col gap-2">
+                <ul className="flex flex-col">
                   {user.ownedHomeGames.map((hg) => (
-                    <li key={hg.id} className="flex flex-wrap items-baseline justify-between gap-x-3 text-sm">
-                      <Link to={homeGameDetailPath(hg.id)} className="font-medium text-accent-blue hover:underline">
+                    <li key={hg.id} className="flex flex-wrap items-center justify-between gap-x-3 text-sm">
+                      <Link
+                        to={homeGameDetailPath(hg.id)}
+                        className="inline-flex min-h-[44px] items-center font-medium text-accent-blue hover:underline"
+                      >
                         {hg.name}
                       </Link>
                       <span className="text-text-secondary">
@@ -359,10 +362,13 @@ export function UserDetailPage() {
               {user.memberships.length === 0 ? (
                 <p className="text-sm text-text-secondary">Nenhum.</p>
               ) : (
-                <ul className="flex flex-col gap-2">
+                <ul className="flex flex-col">
                   {user.memberships.map((m) => (
-                    <li key={m.homeGameId} className="flex flex-wrap items-baseline justify-between gap-x-3 text-sm">
-                      <Link to={homeGameDetailPath(m.homeGameId)} className="font-medium text-accent-blue hover:underline">
+                    <li key={m.homeGameId} className="flex flex-wrap items-center justify-between gap-x-3 text-sm">
+                      <Link
+                        to={homeGameDetailPath(m.homeGameId)}
+                        className="inline-flex min-h-[44px] items-center font-medium text-accent-blue hover:underline"
+                      >
                         {m.name}
                       </Link>
                       <span className="flex items-center gap-2 text-text-secondary">

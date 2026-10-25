@@ -310,7 +310,7 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
                 aria-selected={view === key}
                 onClick={() => setView(key)}
                 className={cn(
-                  'flex min-h-[40px] items-center justify-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors',
+                  'flex min-h-[44px] items-center justify-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors',
                   view === key ? 'bg-accent-blue text-white' : 'text-text-secondary hover:text-text-primary',
                 )}
               >

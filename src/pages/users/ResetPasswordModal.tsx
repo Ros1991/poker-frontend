@@ -212,6 +212,7 @@ function ResetPasswordContent({ onClose, user }: Omit<ResetPasswordModalProps, '
               <Button
                 variant="secondary"
                 size="sm"
+                className="min-h-[44px]"
                 disabled={done}
                 onClick={() => {
                   setPassword(generateTemporaryPassword())
@@ -224,6 +225,7 @@ function ResetPasswordContent({ onClose, user }: Omit<ResetPasswordModalProps, '
               <Button
                 variant="secondary"
                 size="sm"
+                className="min-h-[44px]"
                 disabled={!password}
                 onClick={() => void copy(password, 'Senha')}
               >

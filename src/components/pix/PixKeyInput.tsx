@@ -143,7 +143,7 @@ export function PixKeyInput({
                   type="button"
                   onClick={() => setChooserOpen((o) => !o)}
                   aria-expanded={chooserOpen}
-                  className="inline-flex min-h-[44px] items-center px-1 font-medium text-accent-blue underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
+                  className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center px-2 font-medium text-accent-blue underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
                 >
                   trocar
                 </button>

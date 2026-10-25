@@ -181,3 +181,26 @@ select {
     scrollbar-color: var(--color-text-muted) var(--color-bg-tertiary);
   }
 }
+
+/* Toasts (revisão geral do programa, ondas 7–9): só a área do próprio toast recebe toque/clique — a faixa do <ol> do
+   sonner não rouba o toque do que está embaixo (rodapé de modal, botões do terminal). Toast invisível ou saindo não
+   recebe nada (seletores mais específicos que o "auto" acima). */
+[data-sonner-toaster] {
+  pointer-events: none;
+}
+
+[data-sonner-toaster] [data-sonner-toast] {
+  pointer-events: auto;
+}
+
+[data-sonner-toaster] [data-sonner-toast][data-visible='false'],
+[data-sonner-toaster] [data-sonner-toast][data-removed='true'] {
+  pointer-events: none;
+}
+
+/* No celular (sem hover) a ponte invisível entre toasts empilhados também não recebe toque */
+@media (max-width: 639px) {
+  [data-sonner-toaster] [data-sonner-toast]::after {
+    pointer-events: none;
+  }
+}

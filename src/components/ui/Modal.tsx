@@ -70,7 +70,10 @@ function OpenModal({ onClose, title, children, footer, className, size = 'md', f
         aria-modal="true"
         aria-labelledby={titleId}
       >
-        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border-default px-4 py-3 sm:px-6 sm:py-4">
+        <div
+          data-dialog-header
+          className="flex shrink-0 items-center justify-between gap-2 border-b border-border-default px-4 py-3 sm:px-6 sm:py-4"
+        >
           <h2 id={titleId} className="min-w-0 truncate text-lg font-semibold text-text-primary">
             {title}
           </h2>

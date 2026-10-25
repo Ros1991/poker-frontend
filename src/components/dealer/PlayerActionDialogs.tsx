@@ -111,7 +111,7 @@ export function usePlayerActionDialogs({
           actions.undoEliminationMutation.mutate(undoElimEntry, { onSettled: () => setUndoElimEntry(null) })
         }
         title="Desfazer eliminação"
-        message={undoElimEntry ? `Desfazer a eliminação de ${playerName(undoElimEntry)}? Ele volta a jogar.` : ''}
+        message={undoElimEntry ? `Desfazer a eliminação de ${playerName(undoElimEntry)}? O jogador volta para o torneio.` : ''}
         confirmLabel="Desfazer"
         variant="warning"
         loading={actions.undoEliminationMutation.isPending}
