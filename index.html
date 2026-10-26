@@ -29,6 +29,12 @@
   </head>
   <body>
     <div id="root"></div>
+    <!-- Links legais no HTML puro: a verificação da marca no Google confere, sem JavaScript, se a página inicial
+         leva à política de privacidade (as páginas /privacidade e /termos também são estáticas). -->
+    <noscript>
+      <p>O Poker da Galera precisa de JavaScript ligado para funcionar.</p>
+      <p><a href="/privacidade">Política de privacidade</a> · <a href="/termos">Termos de uso</a></p>
+    </noscript>
     <!-- SPEC-20261023-1207: boot decide entre a landing sozinha (visitante novo em /) e o app completo (src/main.tsx) -->
     <script type="module" src="/src/pages/landing/boot.tsx"></script>
   </body>
