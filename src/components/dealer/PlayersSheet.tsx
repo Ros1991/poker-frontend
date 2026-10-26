@@ -6,7 +6,7 @@ import { SearchInput } from '../ui/SearchInput'
 import { cn } from '../../utils/cn'
 import type { Table } from '../../api/tables.api'
 import type { TournamentEntry } from '../../types/entry.types'
-import { DueLabel } from './PlayerCard'
+import { DueLabel, EliminationsLabel } from './PlayerCard'
 import { Sheet } from './Sheet'
 import { isActiveStatus, matchesPlayerSearch, playerName, seatLabel, statusLabel } from './terminalFormat'
 
@@ -84,6 +84,8 @@ export function PlayersSheet({
                     <span className="block truncate text-xs text-text-secondary">
                       {active && showTables ? seatLabel(e, tables) : statusLabel(e)}
                     </span>
+                    {/* Quantas pessoas eliminou (SPEC-20261026-1908) — só quando já eliminou alguém */}
+                    <EliminationsLabel entry={e} className="flex text-xs" />
                   </span>
                   {showPayments && <DueLabel entry={e} className="shrink-0 text-xs" />}
                   <ChevronRight className="h-4 w-4 shrink-0 text-text-muted" />

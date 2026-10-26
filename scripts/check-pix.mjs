@@ -8,7 +8,10 @@
  * idempotente e que formatPixKey(chave) = exibição; que as mensagens do JSON são as do pix.ts. No BR Code: os vetores
  * de CRC (123456789 → 29B1, exemplo oficial → 1D3D), os 6 payloads da tabela e os casos de montagem (normaliza antes,
  * chave inválida → null, nome/cidade ASCII cortados em 25/15). Cada payload é revalidado de forma independente
- * (parse TLV, tamanhos, só ASCII e CRC recalculado aqui com tabela própria). Sai com código 1 e lista o que falhou.
+ * (parse TLV, tamanhos, só ASCII e CRC recalculado aqui com tabela própria). QR com valor (SPEC-20261026-1906): os
+ * payloads de `brcode.amounts` (montados à mão), o campo 54 no lugar certo (entre 53 e 58, "0.00", até 13), que sem o
+ * 54 sobra o QR sem valor, e os valores que não servem (zero, negativo, NaN, infinito, 14 caracteres) → null.
+ * Sai com código 1 e lista o que falhou.
  */
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
@@ -53,13 +56,39 @@ function parseTlv(text) {
   return { fields }
 }
 
-function validatePayload(label, payload, expectedKey) {
+/** Campos do payload na ordem em que aparecem no texto: [[id, valor], …] */
+function tlvList(text) {
+  const out = []
+  let i = 0
+  while (i + 4 <= text.length) {
+    const id = text.slice(i, i + 2)
+    const len = Number(text.slice(i + 2, i + 4))
+    if (!/^\d{2}$/.test(id) || !Number.isInteger(len)) break
+    out.push([id, text.slice(i + 4, i + 4 + len)])
+    i += 4 + len
+  }
+  return out
+}
+const tlvIds = (text) => tlvList(text).map(([id]) => id)
+
+/** expectedAmount: undefined = QR sem valor (sem campo 54); texto = valor esperado no campo 54 (SPEC-20261026-1906) */
+function validatePayload(label, payload, expectedKey, expectedAmount) {
   check(`${label}: só ASCII imprimível`, /^[\x20-\x7e]+$/.test(payload))
   const { fields, error } = parseTlv(payload)
   check(`${label}: TLV válido`, !error, error)
   if (!fields) return null
   check(`${label}: 00 = 01`, fields['00'] === '01')
-  check(`${label}: sem campo 01 (QR estático) e sem valor (54)`, !('01' in fields) && !('54' in fields))
+  check(`${label}: sem campo 01 (QR estático)`, !('01' in fields))
+  if (expectedAmount === undefined) {
+    check(`${label}: sem valor (54)`, !('54' in fields))
+  } else {
+    // QR com valor: 54 = reais com ponto e 2 casas, até 13 caracteres, logo depois da moeda (53) e antes do país (58)
+    check(`${label}: 54 = ${expectedAmount}`, fields['54'] === expectedAmount, String(fields['54']))
+    check(`${label}: 54 no formato 0.00 com até 13`, /^[0-9]+\.[0-9]{2}$/.test(fields['54'] ?? '') && fields['54'].length <= 13)
+    // Ordem real no texto (as chaves "26", "53"… de um objeto JS saem em ordem numérica, não na do payload)
+    const ids = tlvIds(payload)
+    check(`${label}: 54 entre 53 e 58`, ids.indexOf('54') === ids.indexOf('53') + 1 && ids.indexOf('58') === ids.indexOf('54') + 1, ids.join(','))
+  }
   check(`${label}: 52 = 0000, 53 = 986, 58 = BR`, fields['52'] === '0000' && fields['53'] === '986' && fields['58'] === 'BR')
   check(`${label}: 59 com 1–25 e 60 com 1–15`, fields['59']?.length >= 1 && fields['59'].length <= 25 && fields['60']?.length >= 1 && fields['60'].length <= 15)
   check(`${label}: 62 = txid ***`, fields['62'] === '0503***')
@@ -133,9 +162,46 @@ for (const b of table.brcode.build) {
   if (b.cityField) check(`${label}: campo 60 = ${b.cityField}`, parsed?.fields['60'] === b.cityField, parsed?.fields['60'])
 }
 
+// 6. QR com valor (SPEC-20261026-1906): payloads montados à mão (sem o pix.ts) e montagem com valores que não servem
+const amountOf = (a) => (a === 'NaN' ? NaN : a === 'Infinity' ? Infinity : a)
+const amounts = table.brcode.amounts ?? []
+check('tabela com pelo menos 5 payloads com valor', amounts.length >= 5, String(amounts.length))
+for (const v of amounts) {
+  const label = `payload ${v.key} com R$ ${v.amount}`
+  const p = pix.buildPixPayload(v.key, undefined, undefined, v.amount)
+  check(label, p === v.payload, `\n      veio     ${p}\n      esperado ${v.payload}`)
+  check(`formatPixAmount(${v.amount}) = ${v.field54}`, pix.formatPixAmount(v.amount) === v.field54, String(pix.formatPixAmount(v.amount)))
+  validatePayload(`${label} (esperado)`, v.payload, v.key, v.field54)
+  const parsed = validatePayload(`${label} (gerado)`, p ?? '', v.key, v.field54)
+  check(`${label}: nome e cidade padrão`, parsed?.fields['59'] === table.brcode.name && parsed?.fields['60'] === table.brcode.city)
+  // Sem o campo 54 (e com o CRC refeito aqui) sobra exatamente o QR sem valor da mesma chave
+  const rest = tlvList(v.payload).filter(([id]) => id !== '54' && id !== '63').map(([id, val]) => id + String(val.length).padStart(2, '0') + val).join('') + '6304'
+  check(`${label}: sem o 54 = QR sem valor`, rest + crcIndependent(rest) === pix.buildPixPayload(v.key))
+}
+for (const b of table.brcode.amountBuild ?? []) {
+  const amount = amountOf(b.amount)
+  const label = `buildPixPayload(${j(b.key)}, valor ${String(b.amount)}${b.name ? `, ${j(b.name)}` : ''}${b.city ? `, cidade ${j(b.city)}` : ''})`
+  const p = pix.buildPixPayload(b.key, b.name ?? undefined, b.city ?? undefined, amount)
+  if ('payload' in b && b.payload === null) {
+    check(`${label} → null`, p === null, String(p))
+    continue
+  }
+  if (b.sameAs)
+    check(`${label} = payload de ${j(b.sameAs)}`, p !== null && p === pix.buildPixPayload(b.sameAs.key, undefined, undefined, b.sameAs.amount), String(p))
+  if (b.sameAsNoAmount) check(`${label} = QR sem valor de ${b.sameAsNoAmount}`, p !== null && p === pix.buildPixPayload(b.sameAsNoAmount), String(p))
+  const expected54 = b.sameAsNoAmount ? undefined : (b.field54 ?? pix.formatPixAmount(amount) ?? undefined)
+  const parsed = p ? validatePayload(label, p, undefined, expected54) : null
+  check(`${label} gerou payload`, !!parsed)
+  if (b.field54) check(`${label}: campo 54 = ${b.field54}`, parsed?.fields['54'] === b.field54, parsed?.fields['54'])
+  if (b.nameField) check(`${label}: campo 59 = ${b.nameField}`, parsed?.fields['59'] === b.nameField, parsed?.fields['59'])
+  if (b.cityField) check(`${label}: campo 60 = ${b.cityField}`, parsed?.fields['60'] === b.cityField, parsed?.fields['60'])
+}
+
 if (failures.length) {
   console.error(`check-pix: ${failures.length} falha(s) em ${checks} conferências:`)
   for (const f of failures) console.error(`  ✗ ${f}`)
   process.exit(1)
 }
-console.log(`check-pix: ${table.cases.length} casos, ${table.brcode.vectors.length} payloads, ${checks} conferências — tudo certo.`)
+console.log(
+  `check-pix: ${table.cases.length} casos, ${table.brcode.vectors.length} payloads, ${amounts.length} com valor, ${checks} conferências — tudo certo.`,
+)

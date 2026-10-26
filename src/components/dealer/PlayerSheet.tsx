@@ -25,6 +25,8 @@ interface PlayerSheetProps {
   showPayments?: boolean
   /** Plano do dono com Tables: lugar na mesa e "Mover" */
   showTables?: boolean
+  /** Inscrições do torneio: a Ficha diz quem este jogador eliminou (SPEC-20261026-1908) */
+  entries?: TournamentEntry[]
 }
 
 /**

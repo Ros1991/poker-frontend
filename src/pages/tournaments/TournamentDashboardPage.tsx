@@ -26,7 +26,7 @@ import * as costExtrasApi from '../../api/costExtras.api'
 import * as timerApi from '../../api/timer.api'
 import * as dealerAccessApi from '../../api/dealerAccess.api'
 import { useBlindTimer } from '../../hooks/useBlindTimer'
-import { hasFeature } from '../../hooks/usePlan'
+import { hasFeature, MY_PLAN_QUERY_KEY } from '../../hooks/usePlan'
 import { usePlanGate } from '../../hooks/usePlanGate'
 import { PlanLock } from '../../components/plan'
 import { useWebSocket } from '../../hooks/useWebSocket'
@@ -239,6 +239,10 @@ export function TournamentDashboardPage() {
       // RT-03: o leaderboard do ranking depende do status do torneio (Finished)
       queryClient.invalidateQueries({ queryKey: ['ranking-leaderboard'] })
       queryClient.invalidateQueries({ queryKey: ['rankings'] })
+      // SPEC-20261026-1907: cancelado sai da contagem de torneios do home game e devolve a vaga da semana do plano
+      queryClient.invalidateQueries({ queryKey: ['homeGame', vars.homeGameId] })
+      queryClient.invalidateQueries({ queryKey: ['homeGames'] })
+      void queryClient.invalidateQueries({ queryKey: MY_PLAN_QUERY_KEY })
       toast.success('Status atualizado!')
       setStatusConfirm(null)
       // Se cancelou, voltar para a lista de torneios do home game
@@ -246,8 +250,11 @@ export function TournamentDashboardPage() {
         navigate(`/home-games/${vars.homeGameId}?tab=torneios`)
       }
     },
-    onError: () => {
-      toast.error('Erro ao atualizar status.')
+    onError: (err: unknown) => {
+      // Mensagem do servidor (ex.: "Torneio finalizado não pode ser cancelado.")
+      toast.error(apiErrorMessage(err, 'Erro ao atualizar status.'))
+      // O status pode ter mudado por fora (ex.: finalizado sozinho na última eliminação): relê para as ações certas
+      queryClient.invalidateQueries({ queryKey: ['tournament', id] })
     },
   })
 
@@ -302,7 +309,7 @@ export function TournamentDashboardPage() {
           status: 'InProgress',
           icon: Play,
           variant: 'success',
-          message: 'Deseja iniciar o torneio? O timer de blinds sera iniciado. Inscricoes continuam abertas.',
+          message: 'Deseja iniciar o torneio? O timer de blinds será iniciado. Inscrições continuam abertas.',
         })
         break
       case 'OpenForRegistration':
@@ -311,7 +318,7 @@ export function TournamentDashboardPage() {
           status: 'InProgress',
           icon: Play,
           variant: 'success',
-          message: 'Deseja iniciar o torneio? O timer de blinds sera iniciado.',
+          message: 'Deseja iniciar o torneio? O timer de blinds será iniciado.',
         })
         break
       case 'InProgress':
@@ -321,7 +328,7 @@ export function TournamentDashboardPage() {
           icon: Lock,
           variant: 'primary',
           message:
-            'Deseja encerrar o periodo de rebuys/addons? Os jogadores serao notificados para acerto.',
+            'Deseja encerrar o período de rebuys/add-ons? Os jogadores serão notificados para acerto.',
         })
         actions.push({
           label: 'Finalizar',
@@ -340,29 +347,21 @@ export function TournamentDashboardPage() {
           message: finishMessage,
         })
         break
-      case 'Finished':
-        actions.push({
-          label: 'Cancelar Torneio',
-          status: 'Cancelled',
-          icon: XCircle,
-          variant: 'danger',
-          message:
-            'Este torneio esta finalizado. Cancelar ira marca-lo como cancelado e reverter o valor acumulado no ranking. Deseja continuar?',
-        })
-        break
     }
 
+    // Cancelar: em qualquer status antes de finalizar, inclusive no acerto (BreakSettlement). Finalizado não cancela
+    // (SPEC-20261026-1907: o servidor recusa com 400 — cancelado não conta no limite semanal do plano).
     if (
       tournament!.status !== 'Cancelled' &&
       tournament!.status !== 'Finished'
     ) {
       actions.push({
-        label: 'Cancelar',
+        label: 'Cancelar torneio',
         status: 'Cancelled',
         icon: XCircle,
         variant: 'danger',
         message:
-          'Deseja cancelar o torneio? Esta acao nao pode ser desfeita.',
+          'Deseja cancelar o torneio? Esta ação não pode ser desfeita.',
       })
     }
 
@@ -694,6 +693,8 @@ export function TournamentDashboardPage() {
         title={statusConfirm?.label ?? ''}
         message={statusConfirm?.message ?? ''}
         confirmLabel={statusConfirm?.label ?? 'Confirmar'}
+        // Cancelar o torneio: o botão que só fecha vira 'Voltar' (dois 'Cancelar' no mesmo diálogo confundiam)
+        cancelLabel={statusConfirm?.status === 'Cancelled' ? 'Voltar' : 'Cancelar'}
         variant={
           statusConfirm?.status === 'Cancelled' ? 'danger' : 'warning'
         }

@@ -102,6 +102,9 @@ export function HomeGameDetailPage() {
     queryKey: ['homeGame', id],
     queryFn: () => homeGamesApi.getById(id!),
     enabled: !!id,
+    // Contagens do cabeçalho (membros/torneios — SPEC-20261026-1907) sempre frescas ao abrir a página: criar,
+    // cancelar ou excluir torneio em outra tela não fica 30 s com o número antigo
+    refetchOnMount: 'always',
   })
 
   // Sincroniza o HomeGame selecionado quando a página carrega
@@ -117,6 +120,8 @@ export function HomeGameDetailPage() {
     queryFn: () =>
       tournamentsApi.getAll(id!, {
         search: tournamentSearch || undefined,
+        // Mesma lista que a contagem do cabeçalho (SPEC-20261026-1907): sem o corte padrão de 20 por página
+        pageSize: 100,
       }),
     enabled: !!id && activeTab === 'torneios',
   })

@@ -50,7 +50,12 @@ function confirmMessage(item: HistoryItem): string {
   return item.undoWarning ? `${item.undoWarning} Desfazer ${what} mesmo assim?` : `Desfazer ${what}?`
 }
 
-/** Histórico do mais recente para o mais antigo; desfeito fica riscado */
+/**
+ * Histórico do mais recente para o mais antigo; desfeito fica riscado. Hierarquia (SPEC-20261026-1908): no histórico
+ * do torneio o nome do jogador alvo do evento vem em destaque (maior, em negrito) e o texto do evento menor, por baixo —
+ * o nome de quem eliminou fica dentro desse texto, nunca maior que o de quem saiu. Na Ficha (só um jogador) vem só o
+ * texto do evento. "por <quem fez>" na última linha, menor ainda.
+ */
 export function HistoryList({ tournamentId, entryId, search, onUndo, paymentsLocked = false }: HistoryListProps) {
   const [confirmItem, setConfirmItem] = useState<HistoryItem | null>(null)
   const [undoing, setUndoing] = useState(false)
@@ -99,25 +104,40 @@ export function HistoryList({ tournamentId, entryId, search, onUndo, paymentsLoc
       <ul className="flex flex-col gap-1.5" data-history-list>
         {items.map((item) => {
           const locked = isLockedPayment(item)
+          // Na Ficha o jogador já está no topo: o item mostra só o que aconteceu
+          const showName = !entryId && !!item.playerName
           return (
             <li key={item.id} className="flex gap-2.5 rounded-lg border border-border-default bg-bg-secondary p-2.5" data-history-item>
               <span className="w-11 shrink-0 pt-0.5 font-mono text-xs tabular-nums text-text-secondary">{formatTime(item.at)}</span>
               <div className="min-w-0 flex-1">
-                <p
-                  className={cn(
-                    'text-sm text-text-primary',
-                    item.undone && 'text-text-muted line-through',
-                  )}
-                >
-                  {item.description}
-                </p>
-                <p className="mt-0.5 text-xs text-text-secondary">
-                  {!entryId && item.playerName && (
-                    <span className="font-medium text-text-primary">{item.playerName}</span>
-                  )}
-                  {!entryId && item.playerName && item.by && ' · '}
-                  {item.by && `por ${item.by}`}
-                </p>
+                {showName ? (
+                  <>
+                    {/* Alvo do evento em destaque; o que aconteceu (com quem eliminou, se for o caso) menor, por baixo */}
+                    <p
+                      className={cn(
+                        'truncate text-base font-semibold leading-snug',
+                        item.undone ? 'text-text-secondary' : 'text-text-primary',
+                      )}
+                      data-history-player
+                    >
+                      {item.playerName}
+                    </p>
+                    <p
+                      className={cn('text-sm text-text-secondary', item.undone && 'text-text-muted line-through')}
+                      data-history-description
+                    >
+                      {item.description}
+                    </p>
+                  </>
+                ) : (
+                  <p
+                    className={cn('text-sm text-text-primary', item.undone && 'text-text-muted line-through')}
+                    data-history-description
+                  >
+                    {item.description}
+                  </p>
+                )}
+                {item.by && <p className="mt-0.5 text-xs text-text-secondary">por {item.by}</p>}
                 {item.undone && (
                   <p className="mt-0.5 text-xs text-accent-gold-deep">
                     desfeito{item.undoneAt ? ` às ${formatTime(item.undoneAt)}` : ''}

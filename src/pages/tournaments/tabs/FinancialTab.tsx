@@ -1,24 +1,44 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
+  ArrowLeftRight,
+  Banknote,
   BarChart3,
+  ChevronDown,
+  ChevronRight,
+  CircleDollarSign,
   TrendingUp,
   TrendingDown,
   DollarSign,
   CreditCard,
   AlertCircle,
+  Scale,
+  Smartphone,
 } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import * as paymentsApi from '../../../api/payments.api'
 import * as costExtrasApi from '../../../api/costExtras.api'
+import { Avatar } from '../../../components/ui/Avatar'
 import { Badge } from '../../../components/ui/Badge'
+import type { BadgeColor } from '../../../components/ui/Badge'
 import { LoadingSpinner } from '../../../components/common/LoadingSpinner'
 import { PAYMENT_STATUS_COLORS, PAYMENT_STATUS_LABELS } from '../../../constants/statuses'
 import type { Tournament } from '../../../types/tournament.types'
 import type { TournamentEntry, PaymentStatus } from '../../../types/entry.types'
+import type {
+  PaymentBreakdown,
+  PaymentBreakdownMethod,
+  PaymentDestinationDetail,
+  PaymentLineMethod,
+} from '../../../types/payment.types'
 
 interface FinancialTabProps {
   tournament: Tournament
   entries: TournamentEntry[]
 }
+
+/** Meio centavo: tolerância das comparações de dinheiro */
+const EPS = 0.005
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat('pt-BR', {
@@ -27,15 +47,48 @@ function formatCurrency(value: number): string {
   }).format(value)
 }
 
+function formatTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+}
+
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
+
+const METHOD_ICONS: Record<PaymentBreakdownMethod, LucideIcon> = {
+  Pix: Smartphone,
+  Dinheiro: Banknote,
+  Transferencia: ArrowLeftRight,
+  Abatimento: Scale,
+  Outros: CircleDollarSign,
+}
+
+const LINE_METHOD_COLORS: Record<PaymentLineMethod, BadgeColor> = {
+  Pix: 'blue',
+  Dinheiro: 'green',
+  Misto: 'purple',
+  Transferencia: 'gray',
+  Abatimento: 'gold',
+  Outros: 'gray',
+}
+
 export function FinancialTab({ tournament, entries }: FinancialTabProps) {
   const { data: summary, isLoading: loadingSummary } = useQuery({
     queryKey: ['paymentSummary', tournament.id],
     queryFn: () => paymentsApi.getSummary(tournament.id),
+    // Conferência do dinheiro: sempre a leitura mais nova ao abrir a aba (pagamento ou estorno feito no terminal, em
+    // outra aba ou o "Pagar" da aba Custos não chegam por aqui)
+    refetchOnMount: 'always',
   })
 
   const { data: costs, isLoading: loadingCosts } = useQuery({
     queryKey: ['costExtras', tournament.id],
     queryFn: () => costExtrasApi.getAll(tournament.id),
+  })
+
+  // Resumo por forma de pagamento e quem pagou para quem (SPEC-20261026-1906)
+  const { data: breakdown } = useQuery({
+    queryKey: ['paymentBreakdown', tournament.id],
+    queryFn: () => paymentsApi.getBreakdown(tournament.id),
+    refetchOnMount: 'always',
   })
 
   if (loadingSummary || loadingCosts) {
@@ -161,7 +214,7 @@ export function FinancialTab({ tournament, entries }: FinancialTabProps) {
         <div className="grid grid-cols-3 gap-3 text-center">
           <div>
             <p className="text-xs text-text-secondary">Recebido</p>
-            <p className="text-sm font-bold text-accent-green-deep tabular-nums">
+            <p className="text-sm font-bold text-accent-green-deep tabular-nums" data-financial-received>
               {formatCurrency(totalPaid)}
             </p>
           </div>
@@ -179,6 +232,13 @@ export function FinancialTab({ tournament, entries }: FinancialTabProps) {
           </div>
         </div>
       </div>
+
+      {breakdown && (
+        <>
+          <MethodSummary breakdown={breakdown} />
+          <WhoPaidWhom breakdown={breakdown} />
+        </>
+      )}
 
       {/* Pending payments list */}
       {pendingEntries.length > 0 && (
@@ -231,6 +291,200 @@ export function FinancialTab({ tournament, entries }: FinancialTabProps) {
           <p className="text-text-secondary">
             Sem dados financeiros ainda.
           </p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Resumo do que foi pago por forma de pagamento (PIX, dinheiro e as demais que o sistema registra). O misto entra com
+ * a parte PIX no PIX e o resto no dinheiro; o abatimento quita a dívida contra um custo. A soma bate com o Recebido.
+ */
+function MethodSummary({ breakdown }: { breakdown: PaymentBreakdown }) {
+  const sum = breakdown.byMethod.reduce((s, m) => s + m.amount, 0)
+  // Conferência na MESMA leitura do servidor (o "pago" das inscrições do próprio detalhamento): comparar com outra
+  // consulta em cache (resumo/inscrições lidos em outra hora) acusaria diferença falsa logo depois de um estorno
+  const diff = Math.round((breakdown.totalPaidByEntries - sum) * 100) / 100
+  return (
+    <div className="rounded-xl border border-border-default bg-bg-primary p-4" data-financial-by-method>
+      <h3 className="text-sm font-semibold text-text-secondary uppercase tracking-wider mb-3">
+        Resumo por forma de pagamento
+      </h3>
+      <div className="flex flex-col">
+        {breakdown.byMethod.map((m) => {
+          const Icon = METHOD_ICONS[m.method] ?? CircleDollarSign
+          return (
+            <div
+              key={m.method}
+              className="flex items-center justify-between gap-3 py-2 border-b border-border-default"
+              data-method={m.method}
+            >
+              <span className="flex min-w-0 items-center gap-2 text-sm text-text-primary">
+                <Icon className="h-4 w-4 shrink-0 text-accent-blue" />
+                <span className="truncate">{m.label}</span>
+                <span className="shrink-0 text-xs text-text-secondary">
+                  · {plural(m.count, 'lançamento', 'lançamentos')}
+                </span>
+              </span>
+              <span className="shrink-0 text-sm font-semibold text-text-primary tabular-nums" data-method-amount>
+                {formatCurrency(m.amount)}
+              </span>
+            </div>
+          )
+        })}
+        <div className="flex items-center justify-between py-2 font-semibold">
+          <span className="text-sm text-text-primary">Total recebido</span>
+          <span className="text-sm text-accent-green-deep tabular-nums" data-method-total>
+            {formatCurrency(sum)}
+          </span>
+        </div>
+      </div>
+      {Math.abs(diff) > EPS ? (
+        <p role="alert" className="mt-2 rounded-lg bg-accent-red-soft p-3 text-sm text-accent-red-deep">
+          Diferença de {formatCurrency(Math.abs(diff))} entre as formas de pagamento e o Recebido das inscrições —
+          confira os estornos.
+        </p>
+      ) : (
+        <p className="mt-1 text-xs text-text-secondary">
+          Misto entra com a parte PIX no PIX e o resto no dinheiro. Abatimento quita a dívida contra um custo, sem
+          dinheiro trocar de mãos.
+        </p>
+      )}
+    </div>
+  )
+}
+
+/** Quem pagou para quem: o caixa e cada custo (dealer, caixinha, casa, staff…) com a lista de quem pagou */
+function WhoPaidWhom({ breakdown }: { breakdown: PaymentBreakdown }) {
+  const [open, setOpen] = useState<Set<string>>(() => new Set())
+  const keyOf = (d: PaymentDestinationDetail) => d.costExtraId ?? d.kind
+  const toggle = (k: string) =>
+    setOpen((prev) => {
+      const next = new Set(prev)
+      if (next.has(k)) next.delete(k)
+      else next.add(k)
+      return next
+    })
+  const total = breakdown.destinations.reduce((s, d) => s + d.receivedFromPlayers, 0)
+
+  return (
+    <div className="rounded-xl border border-border-default bg-bg-primary p-4" data-financial-destinations>
+      <h3 className="text-sm font-semibold text-text-secondary uppercase tracking-wider mb-1">
+        Quem pagou para quem
+      </h3>
+      <p className="mb-2 text-xs text-text-secondary">
+        Toque num destino para ver quem pagou, quanto, como e a que horas.
+      </p>
+      <div className="flex flex-col">
+        {breakdown.destinations.map((d) => (
+          <DestinationRow key={keyOf(d)} detail={d} expanded={open.has(keyOf(d))} onToggle={() => toggle(keyOf(d))} />
+        ))}
+      </div>
+      <div className="flex items-center justify-between pt-2 text-sm font-semibold">
+        <span className="text-text-primary">Total dos destinos</span>
+        <span className="text-accent-green-deep tabular-nums" data-destinations-total>
+          {formatCurrency(total)}
+        </span>
+      </div>
+    </div>
+  )
+}
+
+function DestinationRow({
+  detail: d,
+  expanded,
+  onToggle,
+}: {
+  detail: PaymentDestinationDetail
+  expanded: boolean
+  onToggle: () => void
+}) {
+  const isCost = d.kind === 'Cost'
+  const amount = d.amount ?? 0
+  const paid = d.paidAmount ?? 0
+  const over = isCost ? Math.round((paid - amount) * 100) / 100 : 0
+  const names = [...new Set(d.lines.map((l) => l.playerName))]
+  const Chevron = expanded ? ChevronDown : ChevronRight
+
+  let badge: { color: BadgeColor; text: string } | null = null
+  if (isCost) {
+    if (over > EPS) badge = { color: 'red', text: `Recebeu ${formatCurrency(over)} a mais` }
+    else if ((d.remaining ?? 0) > EPS) badge = { color: 'yellow', text: `Falta ${formatCurrency(d.remaining ?? 0)}` }
+    else badge = { color: 'green', text: 'Quitado' }
+  } else if (d.kind === 'Removed') {
+    badge = { color: 'gray', text: 'Excluído' }
+  }
+
+  return (
+    <div className="border-b border-border-default last:border-0" data-destination-detail={d.costExtraId ?? d.kind}>
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={expanded}
+        className="flex min-h-[44px] w-full items-center gap-2 py-2.5 text-left"
+      >
+        <Chevron className="h-4 w-4 shrink-0 text-text-muted" />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium text-text-primary">{d.description}</p>
+          {d.beneficiary && <p className="truncate text-xs text-text-secondary">{d.beneficiary}</p>}
+          <p className="truncate text-xs text-text-secondary" data-destination-payers>
+            {names.length > 0 ? `Quem pagou: ${names.join(', ')}` : 'Nenhum jogador pagou direto ainda'}
+          </p>
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          <p className="text-sm font-semibold text-text-primary tabular-nums" data-destination-received>
+            {formatCurrency(d.receivedFromPlayers)}
+            {isCost && (
+              <span className="text-xs font-normal text-text-secondary"> de {formatCurrency(amount)}</span>
+            )}
+          </p>
+          {badge && <Badge color={badge.color}>{badge.text}</Badge>}
+        </div>
+      </button>
+
+      {expanded && (
+        <div className="pb-3 pl-6" data-destination-lines>
+          {d.lines.length === 0 ? (
+            <p className="py-1 text-xs text-text-secondary">Nenhum jogador pagou direto para este destino.</p>
+          ) : (
+            <ul className="flex flex-col">
+              {d.lines.map((l) => (
+                <li
+                  key={`${l.transactionId}-${l.method}`}
+                  className="flex items-center gap-2 py-1.5"
+                  data-destination-line
+                >
+                  <Avatar src={l.photoUrl} name={l.playerName} size="sm" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm text-text-primary">{l.playerName}</p>
+                    <p className="flex flex-wrap items-center gap-1.5 text-xs text-text-secondary">
+                      <span className="tabular-nums">{formatTime(l.createdAt)}</span>
+                      <Badge color={LINE_METHOD_COLORS[l.method] ?? 'gray'} className="px-2 py-0">
+                        {l.methodLabel}
+                      </Badge>
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-sm font-semibold text-text-primary tabular-nums">
+                    {formatCurrency(l.amount)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {isCost && (
+            <p className="mt-2 flex flex-wrap gap-x-3 gap-y-1 border-t border-border-default pt-2 text-xs text-text-secondary tabular-nums">
+              <span>Dos jogadores: {formatCurrency(d.receivedFromPlayers)}</span>
+              {d.settledAmount > EPS && <span>(abatimentos: {formatCurrency(d.settledAmount)})</span>}
+              {d.paidByCashBox > EPS && <span>Pago pelo caixa: {formatCurrency(d.paidByCashBox)}</span>}
+              <span>Falta: {formatCurrency(d.remaining ?? 0)}</span>
+            </p>
+          )}
+          {d.kind === 'CashBox' && (
+            <p className="mt-2 border-t border-border-default pt-2 text-xs text-text-secondary">
+              PIX na chave do dia, dinheiro e a parte em dinheiro dos pagamentos mistos.
+            </p>
+          )}
         </div>
       )}
     </div>

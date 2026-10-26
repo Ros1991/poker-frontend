@@ -6,9 +6,7 @@ import { seatedByTable } from '../../utils/tableBalance'
 import { Sheet } from './Sheet'
 import { isActiveStatus, playerName, tableLabel } from './terminalFormat'
 
-interface TablesSheetProps {
-  isOpen: boolean
-  onClose: () => void
+interface TablesOverviewProps {
   tables: Table[]
   entries: TournamentEntry[]
   canBreak: boolean
@@ -17,17 +15,26 @@ interface TablesSheetProps {
   onBreak: () => void
 }
 
-/** Todas as mesas com os lugares; tocar num jogador abre o "Mover" */
-export function TablesSheet({
-  isOpen,
-  onClose,
-  tables,
-  entries,
-  canBreak,
-  onMovePlayer,
-  onDraw,
-  onBreak,
-}: TablesSheetProps) {
+interface TablesSheetProps extends TablesOverviewProps {
+  isOpen: boolean
+  onClose: () => void
+}
+
+/** Todas as mesas com os lugares, na tela cheia do terminal; tocar num jogador abre o "Mover" */
+export function TablesSheet({ isOpen, onClose, ...rest }: TablesSheetProps) {
+  return (
+    <Sheet isOpen={isOpen} onClose={onClose} title="Mesas">
+      <TablesOverview {...rest} />
+    </Sheet>
+  )
+}
+
+/**
+ * Conteúdo da tela Mesas: sortear (de novo), quebrar mesa e cada mesa com os lugares (tocar num jogador abre o
+ * "Mover"). O terminal mostra no `Sheet` (TablesSheet); o painel, numa `Modal` ("Escolher eu mesmo" do sorteio de
+ * equilíbrio e os avisos de mesa da aba Jogadores — SPEC-20261026-1908).
+ */
+export function TablesOverview({ tables, entries, canBreak, onMovePlayer, onDraw, onBreak }: TablesOverviewProps) {
   const seated = seatedByTable(tables, entries)
   const tableIds = new Set(tables.map((t) => t.id))
   const unseated = entries.filter(
@@ -35,7 +42,7 @@ export function TablesSheet({
   )
 
   return (
-    <Sheet isOpen={isOpen} onClose={onClose} title="Mesas">
+    <div data-tables-overview>
       <div className="mb-3 flex flex-col gap-2">
         <Button variant={tables.length === 0 ? 'primary' : 'secondary'} className="w-full" onClick={onDraw}>
           <Shuffle className="h-4 w-4" />
@@ -123,6 +130,6 @@ export function TablesSheet({
           <p className="py-8 text-center text-sm text-text-secondary">Nenhum jogador no torneio ainda.</p>
         )}
       </div>
-    </Sheet>
+    </div>
   )
 }

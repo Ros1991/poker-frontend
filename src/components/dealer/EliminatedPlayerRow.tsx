@@ -2,7 +2,7 @@ import { ChevronRight } from 'lucide-react'
 import { Avatar } from '../ui/Avatar'
 import { cn } from '../../utils/cn'
 import type { TournamentEntry } from '../../types/entry.types'
-import { DueLabel } from './PlayerCard'
+import { DueLabel, EliminationsLabel } from './PlayerCard'
 import { isActiveStatus, playerName, statusLabel } from './terminalFormat'
 
 interface EliminatedPlayerRowProps {
@@ -20,10 +20,11 @@ interface EliminatedPlayerRowProps {
  * redonda, nome, situação ("Saiu em 5º") e chevron; tocar abre a Ficha. Sem `prizeText`/`showDue` fica igual à do
  * terminal. Também serve para quem ainda joga quando o caixa está fechado (sem botoeira, L16).
  * Fundo zebra e nome em text-secondary para quem saiu, sem opacidade (que derrubava o texto abaixo de AA).
+ * "Eliminou N jogadores" na linha de detalhe quando eliminou alguém (SPEC-20261026-1908, painel e terminal).
  */
 export function EliminatedPlayerRow({ entry, onOpen, prizeText, showDue = false }: EliminatedPlayerRowProps) {
   const active = isActiveStatus(entry.status)
-  const hasDetail = !!prizeText || showDue
+  const hasDetail = !!prizeText || showDue || (entry.eliminationsCount ?? 0) > 0
   return (
     <button
       type="button"
@@ -43,6 +44,7 @@ export function EliminatedPlayerRow({ entry, onOpen, prizeText, showDue = false 
           <span className="flex min-w-0 flex-wrap items-center gap-x-2 text-xs">
             {prizeText && <span className="font-semibold tabular-nums text-accent-gold-deep">{prizeText}</span>}
             {showDue && <DueLabel entry={entry} />}
+            <EliminationsLabel entry={entry} />
           </span>
         )}
       </span>

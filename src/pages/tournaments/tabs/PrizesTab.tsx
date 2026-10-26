@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Trophy, Calculator, Lock, Medal, Plus, Minus } from 'lucide-react'
@@ -20,6 +20,15 @@ function formatCurrency(value: number): string {
   }).format(value)
 }
 
+/** Texto do estado neutro (SPEC-20261026-1907): prize pool ≤ 0 no começo do torneio não é erro. */
+const PRIZE_POOL_WAITING_TEXT = 'A premiação aparece quando a arrecadação passar dos custos.'
+
+/**
+ * Aba Premiação. SPEC-20261026-1907: com o prize pool líquido zero ou negativo (custos maiores que a arrecadação
+ * até agora — torneio recém-criado com custos padrão) a API devolve os totais sem distribuição e a aba mostra um
+ * texto neutro no lugar da tabela, sem toast de erro; quando a arrecadação muda (inscrição, pagamento, custo), a
+ * aba recalcula sozinha e volta ao normal assim que o líquido fica positivo.
+ */
 export function PrizesTab({ tournament, entries }: PrizesTabProps) {
   const queryClient = useQueryClient()
   const [numWinners, setNumWinners] = useState(3)
@@ -30,18 +39,28 @@ export function PrizesTab({ tournament, entries }: PrizesTabProps) {
     netPrizePool: number
   } | null>(null)
 
+  // Toasts: 'user' (Recalcular, +/− posição) avisa sucesso e erro; 'open' (ao abrir a aba) só o erro; 'background'
+  // (recálculo automático do estado neutro) nenhum — prize pool ≤ 0 não é erro e não vira toast em nenhum caso
   const calculateMutation = useMutation({
-    mutationFn: (count: number) => prizesApi.calculate(tournament.id, count),
-    onSuccess: (data) => {
+    mutationFn: (vars: { count: number; mode?: 'user' | 'open' | 'background' }) =>
+      prizesApi.calculate(tournament.id, vars.count),
+    onSuccess: (data, vars) => {
       setPrizes(data.prizes)
       setCalculation({
         grossPrizePool: data.grossPrizePool,
         totalCosts: data.totalCosts,
         netPrizePool: data.netPrizePool,
       })
-      toast.success('Premiação calculada!')
+      if ((vars.mode ?? 'user') === 'user' && data.netPrizePool > 0) toast.success('Premiação calculada!')
+      // Arrecadação/custos mudaram por fora (o cálculo é a leitura mais nova): relê o torneio para o cabeçalho
+      // do painel (Jogadores, Premiação) acompanhar o que a aba mostra
+      if (data.grossPrizePool !== tournament.totalPrizePool || data.totalCosts !== tournament.totalCosts) {
+        void queryClient.invalidateQueries({ queryKey: ['tournament', tournament.id] })
+        void queryClient.invalidateQueries({ queryKey: ['entries', tournament.id] })
+      }
     },
-    onError: (err: unknown) => {
+    onError: (err: unknown, vars) => {
+      if (vars.mode === 'background') return
       const msg = (err as { response?: { data?: { message?: string } } })
         ?.response?.data?.message
       toast.error(msg || 'Erro ao calcular premiação.')
@@ -91,10 +110,36 @@ export function PrizesTab({ tournament, entries }: PrizesTabProps) {
     if (tournament.prizeConfirmed) {
       if (!savedMutation.isPending) savedMutation.mutate()
     } else if (!calculateMutation.isPending) {
-      calculateMutation.mutate(numWinners)
+      calculateMutation.mutate({ count: numWinners, mode: 'open' })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Estado neutro: prize pool líquido ≤ 0 e premiação ainda não confirmada (nada a distribuir por enquanto)
+  const currentNet = calculation?.netPrizePool ?? tournament.netPrizePool
+  const waitingPool = !tournament.prizeConfirmed && currentNet <= 0
+
+  // Arrecadação/custos mudaram (inscrição, pagamento, custo novo — o torneio é relido pelas outras abas ou ao voltar o foco):
+  // no estado neutro recalcula sozinho, e a tabela aparece assim que o líquido fica positivo.
+  const totalsKey = `${tournament.totalPrizePool}|${tournament.totalCosts}|${tournament.netPrizePool}|${tournament.totalEntries}`
+  const lastTotalsKey = useRef(totalsKey)
+  useEffect(() => {
+    if (lastTotalsKey.current === totalsKey) return
+    lastTotalsKey.current = totalsKey
+    if (waitingPool && !calculateMutation.isPending) {
+      calculateMutation.mutate({ count: numWinners, mode: 'background' })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [totalsKey])
+
+  // Inscrição/pagamento feitos em outro aparelho (terminal do dealer) não avisam esta tela: enquanto espera a
+  // arrecadação passar dos custos, a aba confere de novo a cada 10 s (para ao sair do estado neutro ou da aba)
+  const { mutate: recalculate } = calculateMutation
+  useEffect(() => {
+    if (!waitingPool) return
+    const timer = window.setInterval(() => recalculate({ count: numWinners, mode: 'background' }), 10_000)
+    return () => window.clearInterval(timer)
+  }, [waitingPool, numWinners, recalculate])
 
   function updatePrize(index: number, newAmount: number) {
     const netPool = calculation?.netPrizePool ?? 0
@@ -114,7 +159,7 @@ export function PrizesTab({ tournament, entries }: PrizesTabProps) {
   function addPrize() {
     const newCount = numWinners + 1
     setNumWinners(newCount)
-    calculateMutation.mutate(newCount)
+    calculateMutation.mutate({ count: newCount })
   }
 
   function removePrize(index: number) {
@@ -122,7 +167,7 @@ export function PrizesTab({ tournament, entries }: PrizesTabProps) {
     if (!removed) return
     const newCount = Math.max(1, numWinners - 1)
     setNumWinners(newCount)
-    calculateMutation.mutate(newCount)
+    calculateMutation.mutate({ count: newCount })
   }
 
   // Eliminados ordenados por posição
@@ -137,6 +182,8 @@ export function PrizesTab({ tournament, entries }: PrizesTabProps) {
   const totalAlloc = prizes.reduce((s, p) => s + p.amount, 0)
   const netPool = calculation?.netPrizePool ?? 0
   const diff = netPool - totalAlloc
+  // Quanto ainda falta arrecadar para cobrir os custos (só no estado neutro com líquido negativo)
+  const missingToCover = waitingPool && currentNet < 0 ? -currentNet : 0
 
   return (
     <div className="flex flex-col gap-6">
@@ -158,38 +205,58 @@ export function PrizesTab({ tournament, entries }: PrizesTabProps) {
           <p className="text-xs text-text-secondary">Premiação Líquida</p>
           {/* Valor real, mesmo negativo (custos padrão antes das inscrições, SPEC-20261023-1215): negativo em vermelho */}
           <p
-            className={`text-xl font-bold tabular-nums ${(calculation?.netPrizePool ?? tournament.netPrizePool) < 0 ? 'text-accent-red-deep' : 'text-accent-green-deep'}`}
+            className={`text-xl font-bold tabular-nums ${currentNet < 0 ? 'text-accent-red-deep' : 'text-accent-green-deep'}`}
           >
-            {formatCurrency(calculation?.netPrizePool ?? tournament.netPrizePool)}
+            {formatCurrency(currentNet)}
           </p>
         </div>
       </div>
 
-      {/* Calculo — sempre disponivel; confirmar funciona como salvar */}
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-text-secondary">
-            Quantidade de premiados
-          </label>
-          <input
-            type="number"
-            value={numWinners}
-            onChange={(e) => setNumWinners(Math.max(1, parseInt(e.target.value) || 1))}
-            min={1}
-            className="w-32 rounded-lg border border-border-input bg-bg-input px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-border-focus"
-          />
-        </div>
-        <Button
-          onClick={() => calculateMutation.mutate(numWinners)}
-          loading={calculateMutation.isPending}
+      {/* Estado neutro (SPEC-20261026-1907): texto, não erro; some sozinho quando a arrecadação passa dos custos */}
+      {waitingPool && (
+        <div
+          role="status"
+          data-premiacao-neutra=""
+          className="flex flex-col items-center gap-2 rounded-lg border border-border-default bg-bg-primary px-4 py-8 text-center"
         >
-          <Calculator className="h-4 w-4" />
-          Recalcular
-        </Button>
-      </div>
+          <Trophy className="h-10 w-10 text-text-muted" aria-hidden="true" />
+          <p className="text-text-primary">{PRIZE_POOL_WAITING_TEXT}</p>
+          {missingToCover > 0 && (
+            <p className="text-sm text-text-secondary">
+              Faltam <span className="tabular-nums">{formatCurrency(missingToCover)}</span> de arrecadação para cobrir os custos.
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Cálculo — disponível com prize pool positivo (ou premiação já confirmada); confirmar funciona como salvar */}
+      {!waitingPool && (
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="premiacao-quantidade" className="text-sm font-medium text-text-secondary">
+              Quantidade de premiados
+            </label>
+            <input
+              id="premiacao-quantidade"
+              type="number"
+              value={numWinners}
+              onChange={(e) => setNumWinners(Math.max(1, parseInt(e.target.value) || 1))}
+              min={1}
+              className="w-32 rounded-lg border border-border-input bg-bg-input px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-border-focus"
+            />
+          </div>
+          <Button
+            onClick={() => calculateMutation.mutate({ count: numWinners })}
+            loading={calculateMutation.isPending}
+          >
+            <Calculator className="h-4 w-4" />
+            Recalcular
+          </Button>
+        </div>
+      )}
 
       {/* Allocations table */}
-      {prizes.length > 0 && (
+      {!waitingPool && prizes.length > 0 && (
         <div>
           <div className="overflow-x-auto rounded-lg border border-border-default">
             <table className="w-full text-sm">
@@ -243,6 +310,7 @@ export function PrizesTab({ tournament, entries }: PrizesTabProps) {
                           type="number"
                           step="50"
                           value={prize.amount}
+                          aria-label={`Valor do ${prize.position}º lugar`}
                           onChange={(e) =>
                             updatePrize(index, parseFloat(e.target.value) || 0)
                           }
@@ -271,6 +339,7 @@ export function PrizesTab({ tournament, entries }: PrizesTabProps) {
                           onClick={() => removePrize(index)}
                           className="p-1 rounded text-text-secondary hover:text-accent-red hover:bg-accent-red-soft transition-colors"
                           title="Remover"
+                          aria-label={`Remover o ${prize.position}º lugar`}
                         >
                           <Minus className="h-4 w-4" />
                         </button>
@@ -291,7 +360,7 @@ export function PrizesTab({ tournament, entries }: PrizesTabProps) {
               onClick={addPrize}
             >
               <Plus className="h-4 w-4" />
-              Adicionar posicao
+              Adicionar posição
             </Button>
             <div className="text-text-secondary">
               Total: <strong className="text-text-primary tabular-nums">{formatCurrency(totalAlloc)}</strong>
@@ -305,7 +374,7 @@ export function PrizesTab({ tournament, entries }: PrizesTabProps) {
             </div>
           </div>
 
-          {/* Confirmar = salvar (sempre disponivel, inclusive apos confirmar) */}
+          {/* Confirmar = salvar (sempre disponível, inclusive após confirmar) */}
           <div className="flex items-center justify-between gap-3 mt-4">
             {tournament.prizeConfirmed ? (
               <span className="flex items-center gap-2 text-sm text-accent-green-deep">
@@ -328,12 +397,12 @@ export function PrizesTab({ tournament, entries }: PrizesTabProps) {
         </div>
       )}
 
-      {prizes.length === 0 && !calculateMutation.isPending && (
+      {!waitingPool && prizes.length === 0 && !calculateMutation.isPending && !savedMutation.isPending && (
         <div className="text-center py-8">
           <Trophy className="mx-auto h-10 w-10 text-text-muted mb-3" />
           <p className="text-text-secondary">Premiação ainda não calculada.</p>
           <p className="text-sm text-text-secondary mt-1">
-            Clique em &quot;Calcular Premiação&quot; para gerar a distribuição.
+            Clique em &quot;Recalcular&quot; para gerar a distribuição.
           </p>
         </div>
       )}

@@ -834,6 +834,119 @@
         "city": "São José dos Campos",
         "cityField": "SAO JOSE DOS CA"
       }
+    ],
+    "_sobreValor": "QR com valor (SPEC-20261026-1906): buildPixPayload(chave, nome, cidade, valor) põe o campo 54 (reais com ponto e 2 casas, até 13 caracteres) logo depois da moeda (53). Os payloads de amounts foram montados à mão, sem o pix.ts, com o CRC por tabela. Em amountBuild, amount como texto (\"NaN\", \"Infinity\") vira número no script.",
+    "amounts": [
+      {
+        "key": "+5561999999999",
+        "amount": 150,
+        "field54": "150.00",
+        "payload": "00020126360014br.gov.bcb.pix0114+55619999999995204000053039865406150.005802BR5915POKER DA GALERA6009SAO PAULO62070503***63041FCB"
+      },
+      {
+        "key": "12345678909",
+        "amount": 0.5,
+        "field54": "0.50",
+        "payload": "00020126330014br.gov.bcb.pix01111234567890952040000530398654040.505802BR5915POKER DA GALERA6009SAO PAULO62070503***6304FB46"
+      },
+      {
+        "key": "fulano@gmail.com",
+        "amount": 1234.56,
+        "field54": "1234.56",
+        "payload": "00020126380014br.gov.bcb.pix0116fulano@gmail.com52040000530398654071234.565802BR5915POKER DA GALERA6009SAO PAULO62070503***630400B1"
+      },
+      {
+        "key": "123e4567-e89b-12d3-a456-426655440000",
+        "amount": 50,
+        "field54": "50.00",
+        "payload": "00020126580014br.gov.bcb.pix0136123e4567-e89b-12d3-a456-426655440000520400005303986540550.005802BR5915POKER DA GALERA6009SAO PAULO62070503***63044A07"
+      },
+      {
+        "key": "12345678000195",
+        "amount": 9999999999.99,
+        "field54": "9999999999.99",
+        "payload": "00020126360014br.gov.bcb.pix01141234567800019552040000530398654139999999999.995802BR5915POKER DA GALERA6009SAO PAULO62070503***630414B5"
+      }
+    ],
+    "amountBuild": [
+      {
+        "key": "61 99999-9999",
+        "amount": 150,
+        "sameAs": {
+          "key": "+5561999999999",
+          "amount": 150
+        },
+        "note": "normaliza a chave antes, como no QR sem valor"
+      },
+      {
+        "key": "+5561999999999",
+        "amount": 150.004,
+        "field54": "150.00",
+        "sameAs": {
+          "key": "+5561999999999",
+          "amount": 150
+        },
+        "note": "arredonda para 2 casas"
+      },
+      {
+        "key": "+5561999999999",
+        "amount": 149.999,
+        "field54": "150.00"
+      },
+      {
+        "key": "+5561999999999",
+        "amount": null,
+        "sameAsNoAmount": "+5561999999999",
+        "note": "sem valor = o QR do telão (sem campo 54)"
+      },
+      {
+        "key": "+5561999999999",
+        "amount": 0,
+        "payload": null,
+        "note": "valor zero → sem QR"
+      },
+      {
+        "key": "+5561999999999",
+        "amount": -10,
+        "payload": null
+      },
+      {
+        "key": "+5561999999999",
+        "amount": 0.004,
+        "payload": null,
+        "note": "arredonda para 0,00 → sem QR"
+      },
+      {
+        "key": "+5561999999999",
+        "amount": "NaN",
+        "payload": null
+      },
+      {
+        "key": "+5561999999999",
+        "amount": "Infinity",
+        "payload": null
+      },
+      {
+        "key": "+5561999999999",
+        "amount": 10000000000,
+        "payload": null,
+        "note": "14 caracteres não cabem no campo 54 (13)"
+      },
+      {
+        "key": "abc",
+        "amount": 150,
+        "payload": null,
+        "note": "chave inválida → sem QR, com ou sem valor"
+      },
+      {
+        "key": "+5561999999999",
+        "amount": 10,
+        "name": "Poker do João",
+        "city": "São José dos Campos",
+        "field54": "10.00",
+        "nameField": "POKER DO JOAO",
+        "cityField": "SAO JOSE DOS CA"
+      }
     ]
   }
 }

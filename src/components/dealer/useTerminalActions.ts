@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import type { QueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import * as entriesApi from '../../api/entries.api'
 import * as historyApi from '../../api/history.api'
@@ -52,6 +53,33 @@ export function terminalFeatures(tournament: Tournament | undefined): { payments
   }
 }
 
+/**
+ * Invalida tudo que uma ação do terminal/painel pode mudar no torneio. Recursos pagos só com eles no plano do dono (sem
+ * eles as consultas nem existem e dariam 402). Usado pelo `invalidateAll` e pelas sugestões de mesa
+ * (`useTableSuggestions`), que nascem antes das ações para poder fechar o sorteio quando uma eliminação é desfeita.
+ */
+export function invalidateTerminalQueries(
+  queryClient: QueryClient,
+  tournamentId: string,
+  features: { payments: boolean; tables: boolean },
+) {
+  void queryClient.invalidateQueries({ queryKey: ['entries', tournamentId] })
+  void queryClient.invalidateQueries({ queryKey: ['tournament', tournamentId] })
+  void queryClient.invalidateQueries({ queryKey: ['history', tournamentId] })
+  void queryClient.invalidateQueries({ queryKey: ['availablePlayers', tournamentId] })
+  if (features.tables) void queryClient.invalidateQueries({ queryKey: ['tables', tournamentId] })
+  if (features.payments) {
+    void queryClient.invalidateQueries({ queryKey: ['payments', tournamentId] })
+    void queryClient.invalidateQueries({ queryKey: ['costExtras', tournamentId] })
+    void queryClient.invalidateQueries({ queryKey: ['pixSuggestions', tournamentId] })
+    // Abas Pagamentos e Financeiro do painel (resumo, cards por forma e "quem pagou para quem" — SPEC-20261026-1906):
+    // desfazer um pagamento pelo toast/Histórico não pode deixar o detalhamento velho no cache
+    void queryClient.invalidateQueries({ queryKey: ['paymentSummary', tournamentId] })
+    void queryClient.invalidateQueries({ queryKey: ['paymentTotalsByMethod', tournamentId] })
+    void queryClient.invalidateQueries({ queryKey: ['paymentBreakdown', tournamentId] })
+  }
+}
+
 interface TerminalActionsOptions {
   /** Uma eliminação foi desfeita (toast, Ficha ou Histórico): o sorteio de mesas aberto ficou velho */
   onEliminationUndone?: () => void
@@ -75,19 +103,10 @@ export function useTerminalActions(
   // Pagamentos do jogador quando o PaymentModal abriu: null = não deu para consultar; undefined = carregando
   const paymentBaseline = useRef<{ entryId: string; before: Set<string> | null | undefined } | null>(null)
 
-  const invalidateAll = useCallback(() => {
-    void queryClient.invalidateQueries({ queryKey: ['entries', tournamentId] })
-    void queryClient.invalidateQueries({ queryKey: ['tournament', tournamentId] })
-    void queryClient.invalidateQueries({ queryKey: ['history', tournamentId] })
-    void queryClient.invalidateQueries({ queryKey: ['availablePlayers', tournamentId] })
-    // Recursos pagos: sem eles no plano as consultas nem existem (dariam 402)
-    if (tablesEnabled) void queryClient.invalidateQueries({ queryKey: ['tables', tournamentId] })
-    if (paymentsEnabled) {
-      void queryClient.invalidateQueries({ queryKey: ['payments', tournamentId] })
-      void queryClient.invalidateQueries({ queryKey: ['costExtras', tournamentId] })
-      void queryClient.invalidateQueries({ queryKey: ['pixSuggestions', tournamentId] })
-    }
-  }, [queryClient, tournamentId, tablesEnabled, paymentsEnabled])
+  const invalidateAll = useCallback(
+    () => invalidateTerminalQueries(queryClient, tournamentId, { payments: paymentsEnabled, tables: tablesEnabled }),
+    [queryClient, tournamentId, tablesEnabled, paymentsEnabled],
+  )
 
   /** Desfaz um item do histórico (já confirmado pelo usuário) */
   const undoItem = useCallback(
@@ -221,6 +240,29 @@ export function useTerminalActions(
     [tournamentId, paymentsEnabled],
   )
 
+  /**
+   * Desfaz juntos os lançamentos de uma mesma ida ao PaymentModal (o atalho do limite por destino — SPEC-20261026-1906 —
+   * lança o que o destino recebe e o restante em outro destino: são dois itens no histórico, um pagamento só).
+   */
+  const undoItems = useCallback(
+    async (items: HistoryItem[], label: string) => {
+      let undone = 0
+      try {
+        for (const item of items) {
+          await undoHistoryItem(tournamentId, item)
+          undone++
+        }
+        toast.success(`Desfeito: ${label}`)
+      } catch (err) {
+        const msg = apiErrorMessage(err, 'Não foi possível desfazer.')
+        toast.error(undone > 0 ? `Só parte foi desfeita (${undone} de ${items.length}). ${msg}` : msg)
+      } finally {
+        invalidateAll()
+      }
+    },
+    [tournamentId, invalidateAll],
+  )
+
   const closePayment = useCallback(() => {
     const entry = paymentEntry
     const baseline = paymentBaseline.current
@@ -232,16 +274,27 @@ export function useTerminalActions(
     void historyApi
       .getHistory(tournamentId, entry.id)
       .then((items) => {
-        // Só um pagamento feito com o modal aberto (estornar um antigo lá dentro não oferece desfazer outro)
-        const latest = createdSince(items, PAYMENT_KINDS, before).find((i) => !i.undone && i.canUndo)
-        if (!latest) return
-        toast.success(`${latest.description} — ${playerName(entry)}`, {
+        // Só os lançamentos feitos com o modal aberto (estornar um antigo lá dentro não oferece desfazer outro)
+        const created = createdSince(items, PAYMENT_KINDS, before).filter((i) => !i.undone && i.canUndo)
+        if (created.length === 0) return
+        if (created.length === 1) {
+          const latest = created[0]
+          toast.success(`${latest.description} — ${playerName(entry)}`, {
+            duration: UNDO_TOAST_MS,
+            action: { label: 'Desfazer', onClick: () => void undoItem(latest) },
+          })
+          return
+        }
+        // Pagamento dividido entre destinos: o texto na ordem em que foram lançados; o "Desfazer" desfaz todas as
+        // partes (a mais recente primeiro)
+        const label = `${[...created].reverse().map((i) => i.description).join(' + ')} — ${playerName(entry)}`
+        toast.success(label, {
           duration: UNDO_TOAST_MS,
-          action: { label: 'Desfazer', onClick: () => void undoItem(latest) },
+          action: { label: 'Desfazer', onClick: () => void undoItems(created, label) },
         })
       })
       .catch(() => undefined)
-  }, [paymentEntry, tournamentId, invalidateAll, undoItem])
+  }, [paymentEntry, tournamentId, invalidateAll, undoItem, undoItems])
 
   return {
     paymentsEnabled,

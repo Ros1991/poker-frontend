@@ -129,6 +129,27 @@ export function playerName(entry: Pick<TournamentEntry, 'person'>): string {
   return entry.person.nickname?.trim() || entry.person.fullName
 }
 
+/** "Eliminou 1 jogador" / "Eliminou 3 jogadores" — quantas pessoas o jogador eliminou (SPEC-20261026-1908) */
+export function eliminationsText(count: number): string {
+  return `Eliminou ${count} ${count === 1 ? 'jogador' : 'jogadores'}`
+}
+
+/**
+ * Quem este jogador eliminou, na ordem em que saíram (pela lista de inscrições: `eliminatedById` aponta quem eliminou;
+ * eliminação desfeita volta a null). Usado na Ficha.
+ */
+export function eliminatedByEntry(entry: Pick<TournamentEntry, 'id'>, entries: TournamentEntry[]): TournamentEntry[] {
+  return entries
+    .filter((e) => e.eliminatedById === entry.id && e.id !== entry.id)
+    .sort((a, b) => (a.eliminatedAt ?? '').localeCompare(b.eliminatedAt ?? ''))
+}
+
+/** "Ana", "Ana e Beto", "Ana, Beto e Caio" */
+export function joinNames(names: string[]): string {
+  if (names.length <= 1) return names[0] ?? ''
+  return `${names.slice(0, -1).join(', ')} e ${names[names.length - 1]}`
+}
+
 /** Quanto falta pagar (nunca negativo) */
 export function amountDue(entry: TournamentEntry): number {
   return Math.max(0, entry.totalDue - entry.totalPaid)

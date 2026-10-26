@@ -15,12 +15,16 @@ import { Modal } from '../../../components/ui/Modal'
 import { SearchInput } from '../../../components/ui/SearchInput'
 import { AddPlayerModal } from '../../../components/tournament/AddPlayerModal'
 import { PlayerFormDialog } from '../../../components/players/PlayerFormDialog'
+import { DrawTablesDialog } from '../../../components/dealer/DrawTablesDialog'
 import { EliminatedPlayerRow } from '../../../components/dealer/EliminatedPlayerRow'
 import { HistoryList } from '../../../components/dealer/HistoryList'
 import { MovePlayerDialog } from '../../../components/dealer/MovePlayerDialog'
 import { usePlayerActionDialogs } from '../../../components/dealer/PlayerActionDialogs'
 import { PlayerCard } from '../../../components/dealer/PlayerCard'
 import { PlayerDetails } from '../../../components/dealer/PlayerDetails'
+import { TableAlerts } from '../../../components/dealer/TableAlerts'
+import { TablesOverview } from '../../../components/dealer/TablesSheet'
+import { useTableSuggestions } from '../../../components/dealer/useTableSuggestions'
 import { useTerminalActions } from '../../../components/dealer/useTerminalActions'
 import {
   amountDue,
@@ -33,6 +37,7 @@ import {
   playerName,
 } from '../../../components/dealer/terminalFormat'
 import { cn } from '../../../utils/cn'
+import { countUnseated } from '../../../utils/tableBalance'
 import type { TournamentEntry } from '../../../types/entry.types'
 import type { Person } from '../../../types/person.types'
 import type { Tournament } from '../../../types/tournament.types'
@@ -65,6 +70,11 @@ function SectionTitle({ children }: { children: ReactNode }) {
  * Plano do dono (SPEC-20261023-1205, `tournament.planFeatures`): sem Payments não há Pagar, "Deve/Pago", filtro
  * Devendo nem PaymentModal, e os pagamentos do histórico ficam sem "Desfazer"; sem Tables não há agrupamento por mesa,
  * lugar, "Mover" nem consulta a GET tables (402 abriria o modal de upgrade sozinho).
+ *
+ * Mesas como no terminal (SPEC-20261026-1908): depois de eliminar, as mesmas sugestões (`useTableSuggestions`:
+ * "Quebrar mesa" — com o "Agora é mesa final!" no resultado — ou "Quem muda de mesa"), os mesmos avisos do topo
+ * (`TableAlerts`) e, no "Escolher eu mesmo", as mesas com os lugares numa modal (`TablesOverview`, tocar no jogador
+ * abre o "Mover").
  */
 export function EntriesTab({ tournament, entries }: EntriesTabProps) {
   const queryClient = useQueryClient()
@@ -84,6 +94,8 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
   const [removeConfirm, setRemoveConfirm] = useState<TournamentEntry | null>(null)
   const [editPerson, setEditPerson] = useState<Person | null>(null)
   const [moveEntry, setMoveEntry] = useState<TournamentEntry | null>(null)
+  const [tablesOpen, setTablesOpen] = useState(false)
+  const [drawOpen, setDrawOpen] = useState(false)
   const [showAddPlayer, setShowAddPlayer] = useState(false)
   const [showBonusModal, setShowBonusModal] = useState(false)
   const [bonusCount, setBonusCount] = useState('')
@@ -110,8 +122,20 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
   })
   const allTables = useMemo(() => (canTables ? tables ?? [] : []), [canTables, tables])
 
-  const actions = useTerminalActions(tid, tournament)
+  // Quebra/equilíbrio das mesas depois de eliminar, igual ao terminal (SPEC-20261026-1908); "Escolher eu mesmo" abre
+  // as mesas numa modal. Eliminação desfeita fecha o sorteio aberto (feito com as mesas de antes).
+  const suggestions = useTableSuggestions({
+    tournamentId: tid,
+    tournament,
+    tables: allTables,
+    entries,
+    onChooseMyself: () => setTablesOpen(true),
+  })
+  const actions = useTerminalActions(tid, tournament, { onEliminationUndone: suggestions.close })
   const activeEntries = useMemo(() => entries.filter((e) => isActiveStatus(e.status)), [entries])
+  const unseatedCount = useMemo(() => countUnseated(allTables, entries), [allTables, entries])
+  // Avisos de mesa do topo só com o jogo valendo (torneio encerrado ou caixa fechado não mexe em mesa)
+  const showTableAlerts = canTables && live && !gameActionsLocked && allTables.length > 0
 
   /** "Quem eliminou?": companheiros de mesa; sem mesa (ou sem Tables no plano), todos os outros ativos por nome (L10) */
   function candidatesFor(entry: TournamentEntry): TournamentEntry[] {
@@ -125,13 +149,14 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
     return [...others].sort((a, b) => playerName(a).localeCompare(playerName(b), 'pt-BR'))
   }
 
-  // Depois de eliminar o painel não abre quebra/equilíbrio de mesa (o aviso fica na aba Mesas — L10)
+  // Depois de eliminar, a quebra/equilíbrio das mesas como no terminal (SPEC-20261026-1908)
   const flows = usePlayerActionDialogs({
     tournamentId: tid,
     tournament,
     actions,
     showPayment: canPay,
     candidatesFor,
+    onEliminated: () => void suggestions.evaluateAfterElimination(),
   })
 
   const bonusMutation = useMutation({
@@ -370,6 +395,19 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
         </div>
       ) : (
         <>
+          {/* Avisos de mesa do terminal (quebrar ou equilibrar; jogador sem lugar), com as mesmas regras */}
+          {showTableAlerts && (
+            <TableAlerts
+              analysis={suggestions.analysis}
+              tables={allTables}
+              unseatedCount={unseatedCount}
+              onBreakTable={suggestions.openBreak}
+              onDrawBalance={() => suggestions.drawBalance()}
+              onOpenTables={() => setTablesOpen(true)}
+              className="px-0 pt-0"
+            />
+          )}
+
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
             <SearchInput
               value={search}
@@ -453,6 +491,7 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
         {fichaEntry && (
           <PlayerDetails
             entry={fichaEntry}
+            entries={entries}
             tables={allTables}
             tournamentId={tid}
             tournament={tournament}
@@ -481,6 +520,35 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
       {/* ── Ações do jogador (os mesmos diálogos do terminal) ── */}
       {flows.dialogs}
 
+      {/* ── Mesas como no terminal: as mesas com os lugares, sortear de novo, quebrar e o sorteio de equilíbrio ── */}
+      {canTables && (
+        <Modal isOpen={tablesOpen} onClose={() => setTablesOpen(false)} title="Mesas" size="lg">
+          <TablesOverview
+            tables={allTables}
+            entries={entries}
+            canBreak={!!suggestions.analysis.breakable}
+            onMovePlayer={(entry) => setMoveEntry(entry)}
+            onDraw={() => setDrawOpen(true)}
+            onBreak={suggestions.openBreak}
+          />
+        </Modal>
+      )}
+
+      {canTables && drawOpen && (
+        <DrawTablesDialog
+          tournamentId={tid}
+          hasTables={allTables.length > 0}
+          activePlayers={activeEntries.length}
+          defaultSeats={tournament.seatsPerTable && tournament.seatsPerTable > 1 ? tournament.seatsPerTable : 9}
+          onClose={() => setDrawOpen(false)}
+          onDrawn={() => {
+            actions.invalidateAll()
+            // Mostra os lugares sorteados para anunciar (como o terminal)
+            setTablesOpen(true)
+          }}
+        />
+      )}
+
       {canTables && moveEntry && (
         <MovePlayerDialog
           tournamentId={tid}
@@ -491,6 +559,8 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
           onMoved={actions.invalidateAll}
         />
       )}
+
+      {suggestions.dialogs}
 
       <PlayerFormDialog
         isOpen={!!editPerson}

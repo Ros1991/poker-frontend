@@ -26,7 +26,13 @@ export interface TournamentEntry {
   paymentStatus: PaymentStatus
   finalPosition: number | null
   eliminatedAt: string | null
-  eliminatedByPersonId: string | null
+  /** Inscrição de quem eliminou este jogador (null = não informado, ainda jogando ou eliminação desfeita) */
+  eliminatedById: string | null
+  /**
+   * Quantas pessoas este jogador eliminou neste torneio (SPEC-20261026-1908). Só a lista (GET entries) preenche; as
+   * respostas de uma inscrição só (rebuy, add-on, pagamento) vêm com 0.
+   */
+  eliminationsCount: number
   prizeAmount: number
   prizePaid: boolean
   rankingPoints: number

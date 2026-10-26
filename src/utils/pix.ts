@@ -396,17 +396,33 @@ export function toEmvText(text: string, max: number): string {
 }
 
 /**
- * Payload "PIX copia e cola" (QR estático reutilizável, sem valor e sem o campo 01; txid ***). A chave SEMPRE passa
- * pelo normalizador antes (até uma chave antiga não normalizada sai certa); chave inválida → null (sem QR).
- * Nome e cidade são exigidos pelo padrão; os apps mostram o nome real do DICT ao ler o QR.
+ * Valor do campo 54 do BR Code (SPEC-20261026-1906): reais com ponto e 2 casas ("150.00"), no máximo 13 caracteres
+ * (o padrão EMV). Valor que não serve (zero, negativo, NaN, infinito, que arredonda para 0,00 ou não cabe) → null.
+ */
+export function formatPixAmount(amount: number): string | null {
+  if (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0) return null
+  const text = (Math.round(amount * 100) / 100).toFixed(2)
+  if (text === '0.00' || text.length > 13 || !/^[0-9]+\.[0-9]{2}$/.test(text)) return null
+  return text
+}
+
+/**
+ * Payload "PIX copia e cola" (QR estático, sem o campo 01; txid ***). A chave SEMPRE passa pelo normalizador antes
+ * (até uma chave antiga não normalizada sai certa); chave inválida → null (sem QR). Nome e cidade são exigidos pelo
+ * padrão; os apps mostram o nome real do DICT ao ler o QR.
+ * Sem `amount` (ou null): QR reutilizável sem valor (o do telão). Com `amount` (SPEC-20261026-1906, tela de pagar):
+ * campo 54 com o valor já preenchido, logo depois da moeda (53); valor que não serve → null (sem QR).
  */
 export function buildPixPayload(
   pixKey: string | null | undefined,
   merchantName = 'POKER DA GALERA',
   merchantCity = 'SAO PAULO',
+  amount?: number | null,
 ): string | null {
   const pix = normalizePixKey(pixKey)
   if (!pix.ok || !pix.key || pix.key.length > 77) return null
+  const amountText = amount == null ? null : formatPixAmount(amount)
+  if (amount != null && amountText === null) return null
   const name = toEmvText(merchantName, 25) || 'POKER DA GALERA'
   const city = toEmvText(merchantCity, 15) || 'SAO PAULO'
   try {
@@ -415,6 +431,7 @@ export function buildPixPayload(
       tlv('26', tlv('00', 'br.gov.bcb.pix') + tlv('01', pix.key)) + // Merchant Account Information (PIX)
       tlv('52', '0000') + // Merchant Category Code
       tlv('53', '986') + // Moeda: BRL
+      (amountText ? tlv('54', amountText) : '') + // Valor da transação (só no QR com valor)
       tlv('58', 'BR') + // País
       tlv('59', name) +
       tlv('60', city) +

@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { ArrowRightLeft, CreditCard, PlusCircle, RefreshCw, Skull, Undo2 } from 'lucide-react'
 import * as tournamentPlayersApi from '../../api/tournamentPlayers.api'
 import { Button } from '../ui/Button'
+import { cn } from '../../utils/cn'
 import { EditablePhotoAvatar } from '../photo/EditablePhotoAvatar'
 import type { Table } from '../../api/tables.api'
 import type { TournamentEntry } from '../../types/entry.types'
@@ -11,7 +12,16 @@ import type { Tournament } from '../../types/tournament.types'
 import { HistoryList } from './HistoryList'
 import { DueLabel } from './PlayerCard'
 import type { PlayerActionRules } from './PlayerCard'
-import { entryTotalBreakdown, formatCurrency, isActiveStatus, playerName, seatLabel, statusLabel } from './terminalFormat'
+import {
+  eliminatedByEntry,
+  entryTotalBreakdown,
+  formatCurrency,
+  isActiveStatus,
+  joinNames,
+  playerName,
+  seatLabel,
+  statusLabel,
+} from './terminalFormat'
 
 export interface PlayerDetailsProps {
   entry: TournamentEntry
@@ -41,11 +51,13 @@ export interface PlayerDetailsProps {
   removePhoto?: () => Promise<unknown>
   /** Chaves a mais para invalidar depois de trocar a foto (ex.: pessoas do home game, no painel) */
   onPhotoChanged?: () => void
+  /** Inscrições do torneio: dizem QUEM este jogador eliminou (sem elas a Ficha mostra só quantos) */
+  entries?: TournamentEntry[]
 }
 
-function Info({ label, value }: { label: string; value: ReactNode }) {
+function Info({ label, value, className }: { label: string; value: ReactNode; className?: string }) {
   return (
-    <div className="rounded-lg border border-border-default bg-bg-card p-2.5">
+    <div className={cn('rounded-lg border border-border-default bg-bg-card p-2.5', className)}>
       <p className="text-[11px] uppercase tracking-wide text-text-secondary">{label}</p>
       <p className="mt-0.5 text-sm font-semibold tabular-nums text-text-primary">{value}</p>
     </div>
@@ -77,9 +89,13 @@ export function PlayerDetails({
   historyPaymentsLocked = false,
   removePhoto,
   onPhotoChanged,
+  entries,
 }: PlayerDetailsProps) {
   const queryClient = useQueryClient()
   const active = isActiveStatus(entry.status)
+  // Quantas pessoas eliminou (SPEC-20261026-1908): o número vem do servidor; os nomes, das inscrições (se vieram)
+  const eliminations = entry.eliminationsCount ?? 0
+  const victims = entries ? eliminatedByEntry(entry, entries).map(playerName) : []
   // Campeão (nunca eliminado, eliminatedAt nulo) não tem eliminação a desfazer
   const canUndoElimination = !active && !!entry.eliminatedAt
   const playActions = active && !gameActionsLocked
@@ -120,7 +136,14 @@ export function PlayerDetails({
         />
         {showPayment && <Info label="Total" value={formatCurrency(entry.totalDue)} />}
         {showPayment && <Info label="Pagou" value={formatCurrency(entry.totalPaid)} />}
+        {/* Com a Mesa a contagem fica ímpar: Eliminações ocupa a última linha inteira */}
+        <Info label="Eliminações" value={eliminations} className={showTables ? 'col-span-2' : undefined} />
       </div>
+      {eliminations > 0 && victims.length > 0 && (
+        <p className="mb-3 text-sm text-text-secondary" data-eliminated-names>
+          Eliminou <span className="font-medium text-text-primary">{joinNames(victims)}</span>
+        </p>
+      )}
       {showPayment && (
         <>
           <p className="mb-1 text-center text-base">

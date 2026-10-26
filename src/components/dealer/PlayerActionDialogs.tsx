@@ -19,7 +19,10 @@ interface PlayerActionDialogsOptions {
   showPayment: boolean
   /** Candidatos a "Quem eliminou?" (terminal: companheiros de mesa; painel: mesa ou, sem mesa, todos os ativos) */
   candidatesFor: (entry: TournamentEntry) => TournamentEntry[]
-  /** Depois de eliminar (terminal: avalia quebra/equilíbrio das mesas; o painel não abre nada — L10) */
+  /**
+   * Depois de eliminar: terminal e painel avaliam a quebra/equilíbrio das mesas com o mesmo `useTableSuggestions`
+   * (SPEC-20261026-1908 — antes o painel não abria nada)
+   */
   onEliminated?: (entry: TournamentEntry) => void
 }
 

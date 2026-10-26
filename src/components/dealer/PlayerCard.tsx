@@ -1,9 +1,9 @@
-import { ChevronRight, CreditCard, PlusCircle, RefreshCw, Skull } from 'lucide-react'
+import { ChevronRight, CreditCard, PlusCircle, RefreshCw, Skull, Swords } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Avatar } from '../ui/Avatar'
 import { cn } from '../../utils/cn'
 import type { TournamentEntry } from '../../types/entry.types'
-import { amountDue, formatCurrency, playerName } from './terminalFormat'
+import { amountDue, eliminationsText, formatCurrency, playerName } from './terminalFormat'
 
 export interface PlayerActionRules {
   canRebuy: boolean
@@ -38,6 +38,21 @@ export function DueLabel({ entry, className }: { entry: TournamentEntry; classNa
       <span className={cn('font-semibold tabular-nums text-accent-blue', className)}>Pagou a mais {formatCurrency(over)}</span>
     )
   return <span className={cn('font-semibold text-accent-green-deep', className)}>Pago</span>
+}
+
+/**
+ * "Eliminou 2 jogadores" (SPEC-20261026-1908) — card e linha do painel e do terminal; nada quando ainda não eliminou
+ * ninguém (o zero fica na Ficha)
+ */
+export function EliminationsLabel({ entry, className }: { entry: TournamentEntry; className?: string }) {
+  const count = entry.eliminationsCount ?? 0
+  if (count <= 0) return null
+  return (
+    <span className={cn('inline-flex min-w-0 items-center gap-1 text-text-secondary', className)} data-eliminations={count}>
+      <Swords className="h-3.5 w-3.5 shrink-0 text-text-muted" aria-hidden />
+      <span className="truncate">{eliminationsText(count)}</span>
+    </span>
+  )
 }
 
 function ActionButton({
@@ -87,7 +102,8 @@ function ActionButton({
 /**
  * Card do jogador na tela da mesa (SPEC-20261023-1216, C1–C5): foto redonda grande ocupando a
  * coluna esquerda inteira (iniciais grandes sem foto) com o lugar numa etiqueta sobre ela; à
- * direita o nome, "rebuys · add-on", "Deve/Pago" e a botoeira 2×2 (Rebuy | Add-on / Pagar |
+ * direita o nome, "rebuys · add-on", "Eliminou N jogadores" (só quando já eliminou alguém — SPEC-20261026-1908),
+ * "Deve/Pago" e a botoeira 2×2 (Rebuy | Add-on / Pagar |
  * Eliminar). Tocar na foto ou no nome abre a Ficha. Sem Payments no plano, some "Pagar" e
  * "Deve/Pago" e Eliminar ocupa a linha de baixo inteira.
  */
@@ -142,6 +158,7 @@ export function PlayerCard({
             {' · '}
             {entry.addonPurchased ? (entry.addonDouble ? 'Add-on duplo' : 'Add-on') : 'Sem add-on'}
           </span>
+          <EliminationsLabel entry={entry} />
           {showPayment && <DueLabel entry={entry} />}
         </div>
 

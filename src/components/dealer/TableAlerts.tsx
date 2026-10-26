@@ -1,5 +1,6 @@
 import { AlertTriangle, Shuffle, UserX } from 'lucide-react'
 import { Button } from '../ui/Button'
+import { cn } from '../../utils/cn'
 import type { Table } from '../../api/tables.api'
 import type { TableAnalysis } from '../../utils/tableBalance'
 import { tableLabel } from './terminalFormat'
@@ -11,12 +12,15 @@ interface TableAlertsProps {
   onBreakTable: () => void
   onDrawBalance: () => void
   onOpenTables: () => void
+  /** Espaçamento de quem usa (o terminal fica com o padrão; o painel encosta na grade da aba) */
+  className?: string
 }
 
 /**
  * Avisos abaixo do topo. Quebrar mesa tem prioridade sobre desequilíbrio.
  * Só monta quando o plano do dono tem controle de mesas (Tables) — no Mesa não há mesas
- * (SPEC-20261023-1205, D13); quem decide é o DealerTerminalPage via `terminalFeatures`.
+ * (SPEC-20261023-1205, D13); quem decide é o DealerTerminalPage via `terminalFeatures`. Também na aba Jogadores do
+ * painel (SPEC-20261026-1908), com as mesmas regras.
  */
 export function TableAlerts({
   analysis,
@@ -25,6 +29,7 @@ export function TableAlerts({
   onBreakTable,
   onDrawBalance,
   onOpenTables,
+  className,
 }: TableAlertsProps) {
   const name = (id: string) => {
     const t = tables.find((x) => x.id === id)
@@ -35,7 +40,7 @@ export function TableAlerts({
   if (!breakable && !imbalance && unseatedCount === 0) return null
 
   return (
-    <div className="flex flex-col gap-2 px-3 pt-3">
+    <div className={cn('flex flex-col gap-2 px-3 pt-3', className)} data-table-alerts>
       {breakable ? (
         <div className="rounded-xl border border-accent-yellow/40 bg-accent-yellow-soft p-3">
           <p className="flex items-start gap-2 text-sm font-medium text-text-primary">

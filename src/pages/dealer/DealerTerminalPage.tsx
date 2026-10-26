@@ -1,6 +1,6 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation } from '@tanstack/react-query'
 import { ChevronDown, ChevronRight, Shuffle, UserPlus } from 'lucide-react'
 import { toast } from 'sonner'
 import * as tournamentsApi from '../../api/tournaments.api'
@@ -12,8 +12,6 @@ import { useWebSocket } from '../../hooks/useWebSocket'
 import { Button } from '../../components/ui/Button'
 import { LoadingSpinner } from '../../components/common/LoadingSpinner'
 import { AddPlayerSheet } from '../../components/dealer/AddPlayerSheet'
-import { BalanceDrawDialog } from '../../components/dealer/BalanceDrawDialog'
-import { BreakTableDialog } from '../../components/dealer/BreakTableDialog'
 import { DrawTablesDialog } from '../../components/dealer/DrawTablesDialog'
 import { EliminatedPlayerRow } from '../../components/dealer/EliminatedPlayerRow'
 import { HistorySheet } from '../../components/dealer/HistorySheet'
@@ -28,6 +26,7 @@ import { TableAlerts } from '../../components/dealer/TableAlerts'
 import { TablesSheet } from '../../components/dealer/TablesSheet'
 import { TableSelectDialog } from '../../components/dealer/TableSelectDialog'
 import { TerminalHeader } from '../../components/dealer/TerminalHeader'
+import { useTableSuggestions } from '../../components/dealer/useTableSuggestions'
 import { terminalFeatures, useTerminalActions } from '../../components/dealer/useTerminalActions'
 import {
   apiErrorMessage,
@@ -36,33 +35,9 @@ import {
   playerName,
   tableLabel,
 } from '../../components/dealer/terminalFormat'
-import { analyzeTables, countUnseated, pickRandomBalanceMove, seatedByTable } from '../../utils/tableBalance'
-import type { BalanceMove } from '../../utils/tableBalance'
+import { countUnseated } from '../../utils/tableBalance'
 import type { TimerState } from '../../types/blind.types'
 import type { TournamentEntry } from '../../types/entry.types'
-import type { Table } from '../../api/tables.api'
-
-function httpStatus(err: unknown): number | undefined {
-  return (err as { response?: { status?: number } })?.response?.status
-}
-
-/**
- * O sorteio de equilíbrio ainda vale com os dados de agora: o jogador segue
- * ativo no mesmo lugar, o lugar de destino está livre e as mesas continuam
- * desequilibradas (2 ou mais de diferença entre origem e destino).
- */
-function isBalanceMoveStillValid(move: BalanceMove, tables: Table[], entries: TournamentEntry[]): boolean {
-  const player = entries.find((e) => e.id === move.entryId)
-  if (!player || !isActiveStatus(player.status)) return false
-  if (player.tableId !== move.fromTableId || player.seatNumber !== move.fromSeat) return false
-  const toTable = tables.find((t) => t.id === move.toTableId)
-  if (!toTable || !tables.some((t) => t.id === move.fromTableId) || move.toSeat > toTable.maxSeats) return false
-  const seated = seatedByTable(tables, entries)
-  const toPlayers = seated.get(move.toTableId) ?? []
-  if (toPlayers.some((e) => e.seatNumber === move.toSeat)) return false
-  const fromCount = seated.get(move.fromTableId)?.length ?? 0
-  return fromCount - toPlayers.length >= 2
-}
 
 interface DealerTerminalPageProps {
   /** Aberto pelo QR do dealer (sem login, só este torneio); `dealerName` vai no selo "Dealer · Nome" */
@@ -82,7 +57,6 @@ interface DealerTerminalPageProps {
 export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {}) {
   const { tournamentId: routeTournamentId } = useParams<{ tournamentId: string }>()
   const tournamentId = routeTournamentId ?? ''
-  const queryClient = useQueryClient()
 
   const [selectedTableId, setSelectedTableId] = useState<string | null>(null)
   const [tableSelectOpen, setTableSelectOpen] = useState(false)
@@ -92,8 +66,6 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
   const [showEliminated, setShowEliminated] = useState(false)
   const [moveEntry, setMoveEntry] = useState<TournamentEntry | null>(null)
   const [drawOpen, setDrawOpen] = useState(false)
-  const [breakOpen, setBreakOpen] = useState(false)
-  const [balanceMove, setBalanceMove] = useState<BalanceMove | null>(null)
 
   const { data: tournament, isLoading: tournamentLoading } = useQuery({
     queryKey: ['tournament', tournamentId],
@@ -138,23 +110,26 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
     onTimerUpdate: (state) => syncFromServer(state as TimerState),
   })
 
-  // Eliminação desfeita: o sorteio de equilíbrio/quebra aberto foi feito com as mesas de antes
-  const closeTableDialogs = useCallback(() => {
-    setBalanceMove(null)
-    setBreakOpen(false)
-  }, [])
-
-  const actions = useTerminalActions(tournamentId, tournament, { onEliminationUndone: closeTableDialogs })
-  const { invalidateAll } = actions
-
   const allEntries = useMemo(() => entries ?? [], [entries])
   const allTables = useMemo(() => tables ?? [], [tables])
+
+  // Quebra/equilíbrio das mesas depois de eliminar (compartilhado com o painel — SPEC-20261026-1908); "Escolher eu
+  // mesmo" abre a tela Mesas. Eliminação desfeita fecha o sorteio aberto (feito com as mesas de antes).
+  const suggestions = useTableSuggestions({
+    tournamentId,
+    tournament,
+    tables: allTables,
+    entries: allEntries,
+    onChooseMyself: () => openScreen('tables'),
+  })
+  const { analysis } = suggestions
+
+  const actions = useTerminalActions(tournamentId, tournament, { onEliminationUndone: suggestions.close })
+  const { invalidateAll } = actions
 
   // Mesa escolhida; se ela sumiu (sorteio de novo, mesa quebrada) cai na primeira
   const selectedTable =
     allTables.find((t) => t.id === selectedTableId) ?? allTables[0] ?? null
-
-  const analysis = useMemo(() => analyzeTables(allTables, allEntries), [allTables, allEntries])
 
   const activeEntries = useMemo(() => allEntries.filter((e) => isActiveStatus(e.status)), [allEntries])
 
@@ -236,38 +211,6 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
     onError: (err) => toast.error(apiErrorMessage(err, 'Erro ao voltar o nível.')),
   })
 
-  // ── Mesas: equilíbrio depois de eliminar ─────────────────────────────
-  /** Inscrições e mesas buscadas agora no servidor (sem cache) */
-  async function fetchFreshTables() {
-    const [freshEntries, freshTables] = await Promise.all([
-      queryClient.fetchQuery({
-        queryKey: ['entries', tournamentId],
-        queryFn: () => entriesApi.getAll(tournamentId),
-        staleTime: 0,
-      }),
-      queryClient.fetchQuery({
-        queryKey: ['tables', tournamentId],
-        queryFn: () => tablesApi.getAll(tournamentId),
-        staleTime: 0,
-      }),
-    ])
-    return { freshEntries, freshTables }
-  }
-
-  /** Com os dados novos: se der para quebrar uma mesa abre o "Quebrar"; senão, se desequilibrou, sorteia quem muda */
-  async function evaluateTablesAfterElimination() {
-    // Sem controle de mesas no plano não há equilíbrio nem quebra (e a consulta daria 402)
-    if (!canTables) return
-    try {
-      const { freshEntries, freshTables } = await fetchFreshTables()
-      const fresh = analyzeTables(freshTables, freshEntries)
-      if (fresh.breakable) setBreakOpen(true)
-      else if (fresh.imbalance) setBalanceMove(pickRandomBalanceMove(fresh, freshTables, freshEntries))
-    } catch {
-      // Sem os dados novos, os avisos do topo aparecem na próxima consulta
-    }
-  }
-
   // Diálogos de ação (rebuy, add-on, eliminar, desfazer eliminação, pagar) compartilhados com o painel
   // (SPEC-20261023-1217, L14); depois de eliminar, a quebra/equilíbrio das mesas como sempre
   const flows = usePlayerActionDialogs({
@@ -276,67 +219,7 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
     actions,
     showPayment: canPay,
     candidatesFor: tablematesOf,
-    onEliminated: () => void evaluateTablesAfterElimination(),
-  })
-
-  function drawBalanceMove(excludeEntryId?: string) {
-    const move = pickRandomBalanceMove(analysis, allTables, allEntries, excludeEntryId)
-    if (!move) {
-      toast.info('As mesas já estão equilibradas.')
-      setBalanceMove(null)
-      return
-    }
-    setBalanceMove(move)
-  }
-
-  /** Sorteia de novo com os dados novos; se não há mais desequilíbrio, fecha avisando */
-  function redrawBalanceMove(freshTables: Table[], freshEntries: TournamentEntry[], notice?: string) {
-    const move = pickRandomBalanceMove(analyzeTables(freshTables, freshEntries), freshTables, freshEntries)
-    if (!move) {
-      toast.info('As mesas já estão equilibradas.')
-      setBalanceMove(null)
-      return
-    }
-    if (notice) toast.info(notice)
-    setBalanceMove(move)
-  }
-
-  const balanceMutation = useMutation({
-    mutationFn: async (move: BalanceMove) => {
-      // O sorteio pode ter ficado velho (eliminação desfeita, outro aparelho mexeu): confere antes
-      const { freshEntries, freshTables } = await fetchFreshTables()
-      if (!isBalanceMoveStillValid(move, freshTables, freshEntries)) {
-        return { moved: false as const, freshEntries, freshTables }
-      }
-      await tablesApi.movePlayer(tournamentId, {
-        entryId: move.entryId,
-        toTableId: move.toTableId,
-        toSeat: move.toSeat,
-        reason: 'balance',
-      })
-      return { moved: true as const }
-    },
-    onSuccess: (outcome, move) => {
-      if (!outcome.moved) {
-        redrawBalanceMove(outcome.freshTables, outcome.freshEntries, 'As mesas mudaram. Sorteamos de novo: confira antes de confirmar.')
-        return
-      }
-      const dest = allTables.find((t) => t.id === move.toTableId)
-      toast.success(`${move.playerName} foi para ${dest ? tableLabel(dest) : 'a mesa'}, lugar ${move.toSeat}`)
-      setBalanceMove(null)
-      invalidateAll()
-    },
-    onError: async (err) => {
-      toast.error(apiErrorMessage(err, 'Erro ao mudar o jogador de mesa.'))
-      // 400 = o servidor recusou este sorteio (ex.: lugar de destino já ocupado): sorteia de novo
-      if (httpStatus(err) !== 400) return
-      try {
-        const { freshEntries, freshTables } = await fetchFreshTables()
-        redrawBalanceMove(freshTables, freshEntries, 'Sorteamos de novo: confira antes de confirmar.')
-      } catch {
-        setBalanceMove(null)
-      }
-    },
+    onEliminated: () => void suggestions.evaluateAfterElimination(),
   })
 
   // ── Render ───────────────────────────────────────────────────────────
@@ -381,8 +264,8 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
           analysis={analysis}
           tables={allTables}
           unseatedCount={unseatedCount}
-          onBreakTable={() => setBreakOpen(true)}
-          onDrawBalance={() => drawBalanceMove()}
+          onBreakTable={suggestions.openBreak}
+          onDrawBalance={() => suggestions.drawBalance()}
           onOpenTables={() => openScreen('tables')}
         />
       )}
@@ -542,7 +425,7 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
           canBreak={!!analysis.breakable}
           onMovePlayer={(entry) => setMoveEntry(entry)}
           onDraw={() => setDrawOpen(true)}
-          onBreak={() => setBreakOpen(true)}
+          onBreak={suggestions.openBreak}
         />
       )}
 
@@ -557,6 +440,7 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
       {/* ── Ficha do jogador ── */}
       <PlayerSheet
         entry={fichaEntry}
+        entries={allEntries}
         tables={allTables}
         tournamentId={tournamentId}
         tournament={tournament}
@@ -608,31 +492,8 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
         />
       )}
 
-      {canTables && breakOpen && (
-        <BreakTableDialog
-          tournamentId={tournamentId}
-          tables={allTables}
-          entries={allEntries}
-          suggestedTableId={analysis.breakable?.suggestedTableId ?? null}
-          onClose={() => setBreakOpen(false)}
-          onBroken={() => invalidateAll()}
-        />
-      )}
-
-      {canTables && balanceMove && (
-        <BalanceDrawDialog
-          move={balanceMove}
-          tables={allTables}
-          loading={balanceMutation.isPending}
-          onConfirm={() => balanceMutation.mutate(balanceMove)}
-          onReroll={() => drawBalanceMove(balanceMove.entryId)}
-          onChooseMyself={() => {
-            setBalanceMove(null)
-            openScreen('tables')
-          }}
-          onClose={() => setBalanceMove(null)}
-        />
-      )}
+      {/* Quebrar mesa e "Quem muda de mesa" (só com controle de mesas no plano) */}
+      {suggestions.dialogs}
     </div>
   )
 }
