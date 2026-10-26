@@ -46,11 +46,11 @@ export function homeGameFormValues(homeGame?: HomeGame | null): HomeGameFormData
 
 /**
  * Mostrar a seção "Dados PIX"? Só quando o plano libera pagamentos: na edição, o do DONO (homeGame.planFeatures); na
- * criação, o da própria conta (quem cria é o dono). Admin do sistema vê. Plano da conta ainda carregando → escondida.
+ * criação, o da própria conta (quem cria é o dono). O Admin do sistema segue a mesma regra (SPEC-20261026-1126). Plano
+ * da conta ainda carregando → escondida.
  */
 export function useHomeGamePixVisible(homeGame: HomeGame | null | undefined, isEditing: boolean): boolean {
-  const { myPlan, bypassLimits } = usePlan()
-  if (bypassLimits) return true
+  const { myPlan } = usePlan()
   if (isEditing) return !!homeGame && hasFeature(homeGame.planFeatures, 'Payments')
   return !!myPlan && hasFeature(myPlan.features, 'Payments')
 }

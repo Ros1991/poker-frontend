@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
@@ -42,6 +42,7 @@ import {
 import { TOURNAMENT_STATUS_LABELS, TOURNAMENT_STATUS_COLORS } from '../../constants/statuses'
 import { HomeGameFormModal } from './HomeGameFormModal'
 import { AddMemberModal } from './AddMemberModal'
+import { DeleteHomeGameModal } from './DeleteHomeGameModal'
 import { AccessDeniedState } from '../../components/common/AccessDeniedState'
 import { isForbiddenError } from '../../utils/httpErrors'
 import { useHomeGame } from '../../hooks/useHomeGame'
@@ -75,7 +76,7 @@ export function HomeGameDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const { selectHomeGame, selectedHomeGame } = useHomeGame()
+  const { selectHomeGame, selectedHomeGame, refreshHomeGames } = useHomeGame()
   const { user } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
   // O dealer entra pelo QR (SPEC-20261023-1216): sem aba de dealers; um link antigo com a aba
@@ -86,6 +87,9 @@ export function HomeGameDetailPage() {
   const setActiveTab = (tab: Tab) => setSearchParams({ tab }, { replace: true })
   const [isEditOpen, setIsEditOpen] = useState(false)
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false)
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+  // Excluído (SPEC-20261026-1126): a página não volta a marcar este home game como o ativo enquanto sai
+  const deletedRef = useRef(false)
   const [tournamentSearch, setTournamentSearch] = useState('')
 
   // Home Game data
@@ -102,7 +106,7 @@ export function HomeGameDetailPage() {
 
   // Sincroniza o HomeGame selecionado quando a página carrega
   useEffect(() => {
-    if (homeGame && selectedHomeGame?.id !== homeGame.id) {
+    if (homeGame && !deletedRef.current && selectedHomeGame?.id !== homeGame.id) {
       selectHomeGame(homeGame)
     }
   }, [homeGame, selectedHomeGame?.id, selectHomeGame])
@@ -140,6 +144,16 @@ export function HomeGameDetailPage() {
     user?.role === 'Admin' ||
     homeGame?.ownerId === user?.id ||
     (members ?? []).some((m) => m.userId === user?.id && m.isAdmin)
+  // Excluir o home game: só o dono e o Admin do sistema (membro administrador não exclui)
+  const canDelete = user?.role === 'Admin' || (!!homeGame && homeGame.ownerId === user?.id)
+
+  // Depois de excluir: troca o home game ativo e vai para a lista (com um só sobrando, ela abre ele sozinha)
+  async function handleDeleted() {
+    deletedRef.current = true
+    await refreshHomeGames()
+    navigate(ROUTES.HOME_GAMES, { replace: true })
+    queryClient.removeQueries({ queryKey: ['homeGame', id] })
+  }
 
   // Jogadores: todas as pessoas do home game — quem foi cadastrado como Dealer aparece aqui com o
   // selo "Dealer" e também joga (SPEC-20261023-1216, DL3)
@@ -249,11 +263,25 @@ export function HomeGameDetailPage() {
             </div>
           </div>
 
-          {canManage && (
-            <Button variant="secondary" onClick={() => setIsEditOpen(true)}>
-              <Edit className="h-4 w-4" />
-              Editar
-            </Button>
+          {(canManage || canDelete) && (
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+              {canManage && (
+                <Button variant="secondary" onClick={() => setIsEditOpen(true)}>
+                  <Edit className="h-4 w-4" />
+                  Editar
+                </Button>
+              )}
+              {canDelete && (
+                <Button
+                  variant="secondary"
+                  className="text-accent-red-deep hover:bg-accent-red-soft"
+                  onClick={() => setIsDeleteOpen(true)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Excluir home game
+                </Button>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -341,6 +369,15 @@ export function HomeGameDetailPage() {
           queryClient.invalidateQueries({ queryKey: ['homeGame', id] })
           queryClient.invalidateQueries({ queryKey: ['homeGames'] })
         }}
+      />
+
+      {/* Excluir home game (SPEC-20261026-1126) */}
+      <DeleteHomeGameModal
+        isOpen={isDeleteOpen}
+        onClose={() => setIsDeleteOpen(false)}
+        homeGameId={homeGame.id}
+        homeGameName={homeGame.name}
+        onDeleted={handleDeleted}
       />
 
       {/* Add Member Modal */}

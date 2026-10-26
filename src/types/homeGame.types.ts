@@ -63,3 +63,22 @@ export interface CreateHomeGameRequest {
 }
 
 export type UpdateHomeGameRequest = Partial<CreateHomeGameRequest>
+
+/**
+ * GET HomeGames/{id}/deletion-summary (SPEC-20261026-1126): o que some junto com o home game. Só o dono e o Admin do
+ * sistema leem. `blockedMessage` preenchido = há torneio em andamento e a exclusão é recusada.
+ */
+export interface HomeGameDeletionSummary {
+  homeGameId: string
+  name: string
+  ownerId: string
+  ownerName: string | null
+  tournaments: number
+  players: number
+  rankings: number
+  /** Membros além do dono (perdem o acesso) */
+  members: number
+  blockingTournamentId: string | null
+  blockingTournamentName: string | null
+  blockedMessage: string | null
+}

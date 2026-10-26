@@ -13,6 +13,7 @@ import {
   Mail,
   Pencil,
   ShieldCheck,
+  Trash2,
   UserCheck,
   UserX,
 } from 'lucide-react'
@@ -27,6 +28,8 @@ import { LoadingSpinner } from '../../components/common/LoadingSpinner'
 import { PLAN_SOURCE_LABELS, formatPlanDate } from '../../components/plan'
 import { ROUTES, homeGameDetailPath, userEditPath } from '../../constants/routes'
 import { useAuth } from '../../hooks/useAuth'
+import { useHomeGame } from '../../hooks/useHomeGame'
+import { DeleteHomeGameModal } from '../home-games/DeleteHomeGameModal'
 import type { PlanSource } from '../../types/plan.types'
 import type { AdminUserDetail, UserPlanHistoryEntry } from '../../types/user.types'
 import { displayPhone } from '../../utils/phone'
@@ -61,6 +64,7 @@ export function UserDetailPage() {
   const location = useLocation()
   const queryClient = useQueryClient()
   const { user: me } = useAuth()
+  const { refreshHomeGames } = useHomeGame()
   const validId = isGuid(id)
 
   const [planOpen, setPlanOpen] = useState(false)
@@ -68,6 +72,8 @@ export function UserDetailPage() {
   const [confirm, setConfirm] = useState<PendingConfirm>(null)
   const [busy, setBusy] = useState(false)
   const [resending, setResending] = useState(false)
+  // Excluir home game da conta (SPEC-20261026-1126): o mesmo modal da página do home game
+  const [deleteHomeGame, setDeleteHomeGame] = useState<{ id: string; name: string } | null>(null)
 
   const { data: user, isLoading, isError, error, refetch } = useQuery({
     queryKey: adminUserQueryKey(id ?? ''),
@@ -345,12 +351,21 @@ export function UserDetailPage() {
                     <li key={hg.id} className="flex flex-wrap items-center justify-between gap-x-3 text-sm">
                       <Link
                         to={homeGameDetailPath(hg.id)}
-                        className="inline-flex min-h-[44px] items-center font-medium text-accent-blue hover:underline"
+                        className="inline-flex min-h-[44px] min-w-0 items-center break-words font-medium text-accent-blue hover:underline"
                       >
                         {hg.name}
                       </Link>
-                      <span className="text-text-secondary">
+                      <span className="flex items-center gap-2 text-text-secondary">
                         {plural(hg.tournamentsCount, 'torneio', 'torneios')} · {plural(hg.membersCount, 'membro', 'membros')}
+                        <button
+                          type="button"
+                          onClick={() => setDeleteHomeGame({ id: hg.id, name: hg.name })}
+                          className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md text-text-secondary transition-colors hover:bg-accent-red-soft hover:text-accent-red-deep"
+                          title="Excluir home game"
+                          aria-label={`Excluir o home game ${hg.name}`}
+                        >
+                          <Trash2 className="h-4 w-4" aria-hidden="true" />
+                        </button>
                       </span>
                     </li>
                   ))}
@@ -422,6 +437,14 @@ export function UserDetailPage() {
         )}
       </Card>
 
+      <DeleteHomeGameModal
+        isOpen={deleteHomeGame !== null}
+        onClose={() => setDeleteHomeGame(null)}
+        homeGameId={deleteHomeGame?.id ?? ''}
+        homeGameName={deleteHomeGame?.name ?? ''}
+        // A ficha recarrega pelo modal (lista "É dono"); o home game ativo do Admin troca se era o excluído
+        onDeleted={() => refreshHomeGames()}
+      />
       <ChangePlanModal isOpen={planOpen} onClose={() => setPlanOpen(false)} user={user} />
       <ResetPasswordModal isOpen={passwordOpen} onClose={() => setPasswordOpen(false)} user={user} />
       <ConfirmDialog

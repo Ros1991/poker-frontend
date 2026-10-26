@@ -2,10 +2,11 @@
  * Plano da conta logada (SPEC-20261023-1205).
  *
  * API estável:
- * - `usePlan(): { myPlan, isLoading, isError, refetch, bypassLimits }`
+ * - `usePlan(): { myPlan, isLoading, isError, refetch }`
  *   - `myPlan: MyPlan | undefined` — `GET me/plan` (React Query, `staleTime` 60 s). Só busca com
  *     usuário logado.
- *   - `bypassLimits: boolean` — Admin do sistema ignora limites (não mostre pré-bloqueio para ele).
+ *   O Admin do sistema segue o plano como qualquer conta (SPEC-20261026-1126): mesmos cadeados, mesmo pré-bloqueio e
+ *   o mesmo UpgradeModal — não existe exceção de plano por papel.
  *   Use para a página "Meu plano", o banner de vencimento e pré-checagens da CONTA (ex.: "Novo
  *   torneio" com "Próximo libera em X dias" usando `nextTournamentAllowedAt(myPlan)`).
  *   Para cadeado de recurso dentro de um home game/torneio NÃO use o plano do usuário: use o do
@@ -30,8 +31,6 @@ export interface UsePlanResult {
   isLoading: boolean
   isError: boolean
   refetch: () => void
-  /** Admin do sistema: nenhum limite se aplica */
-  bypassLimits: boolean
 }
 
 export function usePlan(): UsePlanResult {
@@ -49,7 +48,6 @@ export function usePlan(): UsePlanResult {
     isLoading: query.isLoading,
     isError: query.isError,
     refetch: () => void query.refetch(),
-    bypassLimits: user?.role === 'Admin',
   }
 }
 

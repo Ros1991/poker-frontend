@@ -6,7 +6,7 @@
  * home game), a tabela comparativa dos 3 planos (preços e limites SÓ do catálogo do `GET me/plan`) e
  * o CTA "Falar com o suporte" (WhatsApp de `VITE_SUPPORT_WHATSAPP`). Não existe checkout.
  */
-import { Loader2, Mail, MessageCircle, ShieldCheck } from 'lucide-react'
+import { Loader2, Mail, MessageCircle } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Badge } from '../../components/ui/Badge'
 import { PlanComparisonTable } from '../../components/plan/PlanComparisonTable'
@@ -32,7 +32,7 @@ function openWhatsApp(url: string | null) {
 
 export function MyPlanPage() {
   const { user } = useAuth()
-  const { myPlan, isLoading, isError, refetch, bypassLimits } = usePlan()
+  const { myPlan, isLoading, isError, refetch } = usePlan()
   const countdown = useTimeUntil(myPlan?.usage?.tournamentsLast7Days?.nextAllowedAt)
 
   const ownedHomeGames = myPlan?.usage?.membersByHomeGame ?? []
@@ -73,7 +73,6 @@ export function MyPlanPage() {
       {myPlan && (
         <MyPlanContent
           myPlan={myPlan}
-          bypassLimits={bypassLimits}
           countdownLabel={countdown.label}
           generalSupportUrl={generalSupportUrl}
           onChoose={SUPPORT_WHATSAPP ? choosePlan : undefined}
@@ -85,7 +84,6 @@ export function MyPlanPage() {
 
 interface MyPlanContentProps {
   myPlan: MyPlan
-  bypassLimits: boolean
   countdownLabel: string | null
   generalSupportUrl: string | null
   onChoose?: (plan: PlanDefinition) => void
@@ -93,7 +91,6 @@ interface MyPlanContentProps {
 
 function MyPlanContent({
   myPlan,
-  bypassLimits,
   countdownLabel,
   generalSupportUrl,
   onChoose,
@@ -149,12 +146,6 @@ function MyPlanContent({
                 'Sem vencimento.'
               )}
             </p>
-            {bypassLimits && (
-              <p className="flex items-center gap-2 text-sm text-text-secondary">
-                <ShieldCheck className="h-4 w-4 shrink-0 text-accent-blue" aria-hidden />
-                Administrador do sistema: nenhum limite de plano se aplica a você.
-              </p>
-            )}
           </div>
 
           {generalSupportUrl && (

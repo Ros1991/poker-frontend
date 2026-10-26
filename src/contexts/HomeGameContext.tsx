@@ -35,12 +35,13 @@ export function HomeGameProvider({ children }: HomeGameProviderProps) {
     try {
       const data = await homeGamesApi.getAll()
       setHomeGames(data)
-      // Se só tem 1 HomeGame, seleciona automaticamente
-      if (data.length === 1) {
-        setSelectedHomeGame(data[0])
-      } else {
-        setSelectedHomeGame(null)
-      }
+      // O ativo continua o mesmo se ainda existe (com os dados novos); se ele foi excluído (SPEC-20261026-1126) ou
+      // nunca houve um, vale o único home game da lista — ou nenhum
+      setSelectedHomeGame((current) => {
+        const kept = current ? data.find((hg) => hg.id === current.id) : undefined
+        if (kept) return kept
+        return data.length === 1 ? data[0] : null
+      })
     } catch {
       setHomeGames([])
     } finally {

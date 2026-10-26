@@ -22,8 +22,8 @@ interface NewTournamentButtonProps {
  * Quando o usuário logado é o DONO e o `GET me/plan` diz que a vaga da semana está ocupada
  * (`usage.tournamentsLast7Days.nextAllowedAt` no futuro), o botão fica desabilitado com
  * "Próximo libera em X" (contagem regressiva) e o link "Ver planos" abre o UpgradeModal.
- * Admin do sistema e membros que não são donos não têm pré-bloqueio: se o backend recusar na
- * criação, o 402 abre o mesmo modal sozinho.
+ * Membros que não são donos não têm pré-bloqueio (o uso é do dono): se o backend recusar na criação, o 402 abre o
+ * mesmo modal sozinho. O Admin do sistema é tratado como qualquer conta (SPEC-20261026-1126).
  */
 export function NewTournamentButton({
   homeGameId,
@@ -34,11 +34,11 @@ export function NewTournamentButton({
 }: NewTournamentButtonProps) {
   const navigate = useNavigate()
   const { user } = useAuth()
-  const { myPlan, bypassLimits } = usePlan()
+  const { myPlan } = usePlan()
   const gate = usePlanGate()
 
   const isOwner = !!user?.id && !!ownerId && ownerId === user.id
-  const nextAllowedAt = isOwner && !bypassLimits ? nextTournamentAllowedAt(myPlan) : null
+  const nextAllowedAt = isOwner ? nextTournamentAllowedAt(myPlan) : null
   const { label, reached } = useTimeUntil(nextAllowedAt)
   const blocked = !!nextAllowedAt && !reached && !!label
 
