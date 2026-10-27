@@ -10,6 +10,8 @@ export interface PrizeCalculationResult {
   grossPrizePool: number
   totalCosts: number
   netPrizePool: number
+  /** Bounties à parte do prize pool (SPEC-20261026-1909): netPrizePool = bruto − custos − bounties */
+  totalBounties?: number
   suggestedPrizeCount: number
   prizes: PrizeItem[]
   remainder: number

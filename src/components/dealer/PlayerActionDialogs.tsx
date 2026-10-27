@@ -20,6 +20,11 @@ interface PlayerActionDialogsOptions {
   /** Candidatos a "Quem eliminou?" (terminal: companheiros de mesa; painel: mesa ou, sem mesa, todos os ativos) */
   candidatesFor: (entry: TournamentEntry) => TournamentEntry[]
   /**
+   * Knockout (SPEC-20261026-1909): todos os outros que ainda jogam — no knockout escolher quem eliminou é obrigatório,
+   * então o diálogo deixa escolher alguém de fora da mesa (ou qualquer um, sem mesa). No Normal não é usado.
+   */
+  othersFor?: (entry: TournamentEntry) => TournamentEntry[]
+  /**
    * Depois de eliminar: terminal e painel avaliam a quebra/equilíbrio das mesas com o mesmo `useTableSuggestions`
    * (SPEC-20261026-1908 — antes o painel não abria nada)
    */
@@ -38,6 +43,7 @@ export function usePlayerActionDialogs({
   actions,
   showPayment,
   candidatesFor,
+  othersFor,
   onEliminated,
 }: PlayerActionDialogsOptions) {
   const [rebuyEntry, setRebuyEntry] = useState<TournamentEntry | null>(null)
@@ -89,11 +95,23 @@ export function usePlayerActionDialogs({
         <EliminateDialog
           entry={eliminateEntry}
           tablemates={candidatesFor(eliminateEntry)}
+          others={othersFor?.(eliminateEntry)}
+          tournament={tournament}
           loading={actions.eliminateMutation.isPending}
           onClose={() => setEliminateEntry(null)}
           onConfirm={(eliminatedByEntryId) =>
             actions.eliminateMutation.mutate(
-              { entry: eliminateEntry, eliminatedByEntryId },
+              {
+                entry: eliminateEntry,
+                eliminatedByEntryId,
+                // Nome de quem eliminou para o toast do bounty (o servidor devolve o nome completo)
+                killerName: (() => {
+                  const k = [...candidatesFor(eliminateEntry), ...(othersFor?.(eliminateEntry) ?? [])].find(
+                    (e) => e.id === eliminatedByEntryId,
+                  )
+                  return k ? playerName(k) : undefined
+                })(),
+              },
               {
                 onSuccess: () => {
                   const eliminated = eliminateEntry

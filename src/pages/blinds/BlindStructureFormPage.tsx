@@ -8,7 +8,9 @@ import * as homeGamesApi from '../../api/homeGames.api'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { PixKeyInput } from '../../components/pix/PixKeyInput'
+import { KnockoutFields } from '../../components/tournament/KnockoutFields'
 import { checkPixKey, toPixKeyPayload, type PixKeyType } from '../../utils/pix'
+import { bountyError, knockoutTypeOf, type KnockoutType } from '../../utils/knockout'
 import { LoadingSpinner } from '../../components/common/LoadingSpinner'
 import { AccessDeniedState } from '../../components/common/AccessDeniedState'
 import { PlanLock, requiredPlanFor } from '../../components/plan'
@@ -113,6 +115,10 @@ export function BlindStructureFormPage() {
   const [costs, setCosts] = useState<CostRow[]>([])
   const [hasDealer, setHasDealer] = useState(false)
   const [dealerFee, setDealerFee] = useState<string>('')
+  // Knockout padrão (SPEC-20261026-1909): o torneio criado com a estrutura herda (em qualquer plano)
+  const [knockoutType, setKnockoutType] = useState<KnockoutType>('None')
+  const [bountyAmount, setBountyAmount] = useState<string>('')
+  const [bountyFieldError, setBountyFieldError] = useState<string | null>(null)
 
   const {
     data: existing,
@@ -175,6 +181,8 @@ export function BlindStructureFormPage() {
       )
       setHasDealer(existing.defaultHasDealer ?? false)
       setDealerFee(existing.defaultDealerFee != null ? String(existing.defaultDealerFee) : '')
+      setKnockoutType(knockoutTypeOf({ knockoutType: existing.defaultKnockoutType }))
+      setBountyAmount(existing.defaultBountyAmount != null ? String(existing.defaultBountyAmount) : '')
       setLevels(
         existing.levels.map((l: BlindLevel, i: number) => ({
           key: i + 1,
@@ -216,6 +224,9 @@ export function BlindStructureFormPage() {
         defaultStaffAmount: toNum(defaultStaffAmount),
         defaultRankingContribMode: defaultRankingContribMode,
         defaultRankingContribValue: toNum(defaultRankingContribValue),
+        // Knockout padrão (SPEC-20261026-1909): sempre explícito; Normal apaga o valor
+        defaultKnockoutType: knockoutType,
+        defaultBountyAmount: knockoutType !== 'None' ? Number(bountyAmount) : null,
         levels: levels.map((l, i) => ({
           levelNumber: i + 1,
           smallBlind: l.isBreak ? 0 : l.smallBlind,
@@ -349,6 +360,20 @@ export function BlindStructureFormPage() {
     if (levels.length === 0) {
       toast.error('Adicione pelo menos um nível.')
       return
+    }
+    // Knockout padrão: bounty obrigatório e, com buy-in padrão, menor que ele (e até o rebuy padrão)
+    if (knockoutType !== 'None') {
+      const bounty = Number(bountyAmount) || 0
+      const buyIn = Number(defaultBuyIn) || 0
+      const koError = buyIn > 0
+        ? bountyError(knockoutType, bounty, buyIn, Number(defaultRebuy) || 0)
+        : bountyError(knockoutType, bounty, Number.POSITIVE_INFINITY, null)
+      if (koError) {
+        setBountyFieldError(koError)
+        toast.error(koError)
+        document.getElementById('estrutura-bounty')?.focus()
+        return
+      }
     }
     if (canEditCosts) {
       const invalid = filledCosts.some((c) => !c.description.trim() || !(Number(c.amount) > 0))
@@ -564,6 +589,25 @@ export function BlindStructureFormPage() {
             />
           </div>
         </div>
+
+        {/* Knockout padrão (SPEC-20261026-1909) */}
+        <KnockoutFields
+          idPrefix="estrutura"
+          description="Padrão dos torneios criados com esta estrutura (dá para trocar no torneio)."
+          type={knockoutType}
+          onTypeChange={(k) => {
+            setKnockoutType(k)
+            setBountyFieldError(null)
+          }}
+          bounty={bountyAmount}
+          onBountyChange={(v) => {
+            setBountyAmount(v)
+            setBountyFieldError(null)
+          }}
+          buyIn={Number(defaultBuyIn) || 0}
+          rebuy={Number(defaultRebuy) || 0}
+          error={bountyFieldError}
+        />
 
         {/* Custos padrão do torneio (SPEC-20261023-1215) */}
         <section aria-labelledby="custos-padrao-titulo">

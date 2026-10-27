@@ -47,6 +47,10 @@ export interface TvTournamentInfo {
   totalRebuys: number
   totalAddons: number
   responsiblePixKey: string | null
+  /** Knockout (SPEC-20261026-1909, todos os planos): selo do formato e, no PKO, a cabeça de cada jogador */
+  knockoutType?: string
+  bountyAmount?: number | null
+  totalBounties?: number
   // SPEC-20261023-1205 (D6/D13). No Mesa o backend já devolve prizes = [], prizePool = 0, tables = [],
   // responsiblePixKey = null e zera balance/totalDue/prizeAmount de cada entrada.
   /** Plano efetivo do dono do home game */
@@ -83,6 +87,9 @@ export interface TvEntry {
   balance: number
   totalDue: number
   prizeAmount: number | null
+  /** Knockout: cabeça atual (0 depois de eliminado) e bounties ganhos */
+  bountyHead?: number
+  bountyWon?: number
 }
 
 export interface TvTable {

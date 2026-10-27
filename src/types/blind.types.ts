@@ -1,4 +1,5 @@
 import type { PixKeyType } from '../utils/pix'
+import type { KnockoutType } from '../utils/knockout'
 
 /**
  * Custo padrão de valor fixo por torneio guardado na estrutura (SPEC-20261023-1215): todo torneio criado com a
@@ -49,6 +50,12 @@ export interface BlindStructure {
   defaultHasDealer?: boolean
   /** Valor POR DEALER, por torneio (obrigatório quando defaultHasDealer) */
   defaultDealerFee?: number | null
+  /**
+   * Knockout padrão (SPEC-20261026-1909): o torneio criado com a estrutura herda formato e bounty (e pode trocar).
+   * No PUT, ausente = manter.
+   */
+  defaultKnockoutType?: KnockoutType
+  defaultBountyAmount?: number | null
 }
 
 export interface BlindLevel {

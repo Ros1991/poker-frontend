@@ -12,6 +12,7 @@ import {
   DollarSign,
   CreditCard,
   AlertCircle,
+  Crosshair,
   Scale,
   Smartphone,
 } from 'lucide-react'
@@ -24,6 +25,7 @@ import type { BadgeColor } from '../../../components/ui/Badge'
 import { LoadingSpinner } from '../../../components/common/LoadingSpinner'
 import { PAYMENT_STATUS_COLORS, PAYMENT_STATUS_LABELS } from '../../../constants/statuses'
 import type { Tournament } from '../../../types/tournament.types'
+import { isKnockout, knockoutTypeOf, KNOCKOUT_LABELS } from '../../../utils/knockout'
 import type { TournamentEntry, PaymentStatus } from '../../../types/entry.types'
 import type {
   PaymentBreakdown,
@@ -109,10 +111,15 @@ export function FinancialTab({ tournament, entries }: FinancialTabProps) {
     (e) => e.paymentStatus !== 'Paid' && e.balance > 0,
   )
 
+  // Knockout (SPEC-20261026-1909): bounties à parte do prize pool (o líquido do servidor já vem sem eles)
+  const knockout = isKnockout(tournament)
+  const totalBounties = knockout ? (tournament.totalBounties ?? 0) : 0
+  const bountyCount = knockout && (tournament.bountyAmount ?? 0) > 0 ? Math.round(totalBounties / (tournament.bountyAmount ?? 1)) : 0
+
   return (
     <div className="flex flex-col gap-6">
       {/* Main financial cards */}
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className={knockout ? 'grid gap-3 sm:grid-cols-2 lg:grid-cols-4' : 'grid gap-3 sm:grid-cols-3'}>
         <div className="rounded-xl border border-border-default bg-bg-primary p-4">
           <div className="flex items-center gap-2 mb-2">
             <TrendingUp className="h-4 w-4 text-accent-green" />
@@ -143,6 +150,17 @@ export function FinancialTab({ tournament, entries }: FinancialTabProps) {
             {formatCurrency(tournament.netPrizePool)}
           </p>
         </div>
+        {knockout && (
+          <div className="rounded-xl border border-border-default bg-bg-primary p-4" data-financial-bounties-card>
+            <div className="flex items-center gap-2 mb-2">
+              <Crosshair className="h-4 w-4 text-accent-purple" />
+              <span className="text-xs text-text-secondary">Bounties (à parte do prize pool)</span>
+            </div>
+            <p className="text-2xl font-bold text-accent-purple-deep tabular-nums" data-financial-bounties-total>
+              {formatCurrency(totalBounties)}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Revenue breakdown */}
@@ -184,8 +202,23 @@ export function FinancialTab({ tournament, entries }: FinancialTabProps) {
               {formatCurrency(totalRevenue)}
             </span>
           </div>
+          {knockout && (
+            <div
+              className="flex items-center justify-between gap-3 border-t border-border-default py-2"
+              data-financial-bounties-line
+            >
+              <span className="text-sm text-text-primary">
+                Dos quais bounties ({bountyCount}x {formatCurrency(tournament.bountyAmount ?? 0)}) — à parte do prize pool
+              </span>
+              <span className="shrink-0 text-sm font-semibold text-accent-purple-deep tabular-nums">
+                {formatCurrency(totalBounties)}
+              </span>
+            </div>
+          )}
         </div>
       </div>
+
+      {knockout && <BountiesSummary tournament={tournament} entries={entries} total={totalBounties} />}
 
       {/* Payment status */}
       <div className="rounded-xl border border-border-default bg-bg-primary p-4">
@@ -293,6 +326,73 @@ export function FinancialTab({ tournament, entries }: FinancialTabProps) {
           </p>
         </div>
       )}
+    </div>
+  )
+}
+
+/**
+ * Bounties do torneio knockout (SPEC-20261026-1909): quem ganhou quanto eliminando e o que está nas cabeças (de quem
+ * ainda joga ou do campeão, que fica com a dele). Ganhos + cabeças = bounties arrecadados — a conferência fecha.
+ */
+function BountiesSummary({
+  tournament,
+  entries,
+  total,
+}: {
+  tournament: Tournament
+  entries: TournamentEntry[]
+  total: number
+}) {
+  const progressive = knockoutTypeOf(tournament) === 'Progressive'
+  const rows = entries
+    .map((e) => ({ e, won: e.bountyWon ?? 0, head: e.eliminatedAt ? 0 : (e.bountyHead ?? 0) }))
+    .filter((r) => r.won > 0 || r.head > 0)
+    .sort((a, b) => b.won + b.head - (a.won + a.head))
+  const won = rows.reduce((s, r) => s + r.won, 0)
+  const heads = rows.reduce((s, r) => s + r.head, 0)
+  const diff = Math.round((total - won - heads) * 100) / 100
+  return (
+    <div className="rounded-xl border border-border-default bg-bg-primary p-4" data-financial-bounties>
+      <h3 className="text-sm font-semibold text-text-secondary uppercase tracking-wider mb-1">Bounties</h3>
+      <p className="mb-3 text-xs text-text-secondary">
+        {KNOCKOUT_LABELS[knockoutTypeOf(tournament)]}:{' '}
+        {progressive
+          ? 'quem elimina leva metade do bounty em dinheiro e a outra metade soma na própria cabeça.'
+          : 'quem elimina leva o bounty inteiro do eliminado.'}{' '}
+        Quem não for eliminado (o campeão) fica com o próprio bounty.
+      </p>
+      {rows.length === 0 ? (
+        <p className="py-1 text-sm text-text-secondary">Nenhum bounty ainda.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-xs text-text-secondary">
+                <th className="py-1.5 text-left font-medium">Jogador</th>
+                <th className="py-1.5 text-right font-medium">Ganhou</th>
+                <th className="py-1.5 text-right font-medium">Na cabeça</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map(({ e, won: w, head: h }) => (
+                <tr key={e.id} className="border-t border-border-default" data-financial-bounty-row>
+                  <td className="py-1.5 text-text-primary">{e.person.nickname ?? e.person.fullName}</td>
+                  <td className="py-1.5 text-right tabular-nums text-text-primary">{w > 0 ? formatCurrency(w) : '—'}</td>
+                  <td className="py-1.5 text-right tabular-nums text-text-primary">{h > 0 ? formatCurrency(h) : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <p className="mt-2 border-t border-border-default pt-2 text-xs tabular-nums text-text-secondary" data-financial-bounties-check>
+        Ganhos {formatCurrency(won)} + nas cabeças {formatCurrency(heads)} = {formatCurrency(won + heads)}
+        {Math.abs(diff) > EPS ? (
+          <span className="ml-1 font-semibold text-accent-red-deep">— diferença de {formatCurrency(Math.abs(diff))} para os {formatCurrency(total)} arrecadados</span>
+        ) : (
+          <span className="ml-1 font-semibold text-accent-green-deep">= bounties arrecadados</span>
+        )}
+      </p>
     </div>
   )
 }

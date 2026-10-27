@@ -2,9 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
-import { Users, Trophy, Clock, Skull, Coins, Hourglass, LayoutGrid, ArrowLeft } from 'lucide-react'
+import { Users, Trophy, Clock, Skull, Coins, Hourglass, LayoutGrid, ArrowLeft, Crosshair } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { buildPixPayload, normalizePixKey, PIX_KEY_TYPE_LABELS } from '../../utils/pix'
+import { bountyToReceive, isKnockout, isProgressive, KNOCKOUT_BADGES, knockoutTypeOf } from '../../utils/knockout'
 import * as publicDisplayApi from '../../api/publicDisplay.api'
 import { useBlindTimer } from '../../hooks/useBlindTimer'
 import { pairDisplayPath } from '../../constants/routes'
@@ -357,6 +358,28 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
         ? 'text-accent-gold-deep'
         : 'text-text-primary'
 
+  // Knockout (SPEC-20261026-1909, todos os planos): selo do formato no topo e, no PKO, a cabeça de quem ainda joga
+  const knockout = isKnockout(tournament)
+  const pko = isProgressive(tournament)
+  // Colunas literais (o Tailwind só gera classe que aparece inteira no código). No PKO a coluna "Cabeça" entra com o
+  // valor sem "R$" (cabe ao lado do nome na coluna de 1/4 do telão) e Reb/Add/Deve ficam um pouco mais estreitas; no
+  // Normal e no knockout simples as colunas são as de sempre.
+  const activeCols = !showMoney
+    ? pko
+      ? 'grid-cols-[minmax(0,1fr)_2.5rem_2.5rem_4.5rem]'
+      : 'grid-cols-[minmax(0,1fr)_3rem_3rem]'
+    : pko
+      ? 'grid-cols-[minmax(0,1fr)_2.5rem_2.5rem_4.5rem_7rem]'
+      : 'grid-cols-[minmax(0,1fr)_3rem_3rem_8rem]'
+  const finishedCols = !showMoney
+    ? 'grid-cols-[minmax(0,1fr)]'
+    : pko
+      ? 'grid-cols-[minmax(0,1fr)_7rem]'
+      : 'grid-cols-[minmax(0,1fr)_8rem]'
+  // Cabeça no telão: "75" ou "87,50" (a coluna diz que é em reais)
+  const headValue = (v: number) =>
+    v.toLocaleString('pt-BR', { minimumFractionDigits: Number.isInteger(v) ? 0 : 2, maximumFractionDigits: 2 })
+
   function renderBalance(e: TvEntry) {
     if (e.balance > 0) {
       return <span className="font-semibold tabular-nums text-accent-red-deep">{formatCurrency(e.balance)}</span>
@@ -400,6 +423,14 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
                 className="px-3 py-1 text-sm"
               >
                 {knownStatus ? TOURNAMENT_STATUS_LABELS[knownStatus] : status}
+              </Badge>
+            )}
+            {knockout && (
+              <Badge color="purple" className="gap-1.5 px-3 py-1 text-base tabular-nums">
+                <Crosshair className="h-4 w-4" aria-hidden />
+                <span data-tv-knockout={knockoutTypeOf(tournament)}>
+                  {KNOCKOUT_BADGES[knockoutTypeOf(tournament)]} · bounty {formatCurrency(tournament?.bountyAmount ?? 0)}
+                </span>
               </Badge>
             )}
           </div>
@@ -547,14 +578,11 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
             <p className="mb-2 text-base tabular-nums text-text-secondary">
               {tournament?.totalRebuys ?? 0} rebuys | {tournament?.totalAddons ?? 0} add-ons
             </p>
-            <div
-              className={`mb-1 grid gap-1 px-2 text-sm uppercase tracking-wider text-text-secondary ${
-                !showMoney ? 'grid-cols-[minmax(0,1fr)_3rem_3rem]' : 'grid-cols-[minmax(0,1fr)_3rem_3rem_8rem]'
-              }`}
-            >
+            <div className={`mb-1 grid gap-1 px-2 text-sm uppercase tracking-wider text-text-secondary ${activeCols}`}>
               <span>Jogador</span>
               <span className="text-center">Reb</span>
               <span className="text-center">Add</span>
+              {pko && <span className="text-right" title="Cabeça (bounty) em reais">Cabeça</span>}
               {showMoney && <span className="text-right">Deve</span>}
             </div>
             <AutoScrollList className="min-h-0 flex-1">
@@ -575,14 +603,9 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
                   return (
                     <div
                       key={e.id}
+                      data-tv-entry={e.displayName}
                       className={`grid items-center gap-1 rounded-lg px-2 py-2 text-xl ${
-                        !showMoney
-                          ? finished
-                            ? 'grid-cols-[minmax(0,1fr)]'
-                            : 'grid-cols-[minmax(0,1fr)_3rem_3rem]'
-                          : finished
-                            ? 'grid-cols-[minmax(0,1fr)_8rem]'
-                            : 'grid-cols-[minmax(0,1fr)_3rem_3rem_8rem]'
+                        finished ? finishedCols : activeCols
                       } ${
                         isChampion
                           ? 'border border-accent-gold/40 bg-accent-gold-soft'
@@ -613,6 +636,14 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
                           <span className="text-center tabular-nums text-text-secondary">
                             {e.addonPurchased ? (e.addonDouble ? '2' : '1') : '-'}
                           </span>
+                          {pko && (
+                            <span
+                              className="text-right font-semibold tabular-nums text-accent-purple-deep"
+                              data-tv-head={e.bountyHead ?? 0}
+                            >
+                              {headValue(e.bountyHead ?? 0)}
+                            </span>
+                          )}
                         </>
                       )}
                       {showMoney && <span className="text-right">{renderBalance(e)}</span>}
@@ -649,6 +680,12 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
                     {champion?.prizeAmount ? (
                       <div className="text-4xl font-semibold tabular-nums text-accent-green-deep">
                         {formatCurrency(champion.prizeAmount)}
+                      </div>
+                    ) : null}
+                    {/* Knockout: os bounties do campeão (os que ganhou + a própria cabeça) */}
+                    {knockout && champion && bountyToReceive(champion) > 0 ? (
+                      <div className="text-3xl font-semibold tabular-nums text-accent-purple-deep" data-tv-champion-bounty>
+                        + {formatCurrency(bountyToReceive(champion))} em bounties
                       </div>
                     ) : null}
                   </div>

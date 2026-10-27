@@ -1,7 +1,8 @@
-import { ChevronRight, CreditCard, PlusCircle, RefreshCw, Skull, Swords } from 'lucide-react'
+import { ChevronRight, CreditCard, Crosshair, PlusCircle, RefreshCw, Skull, Swords } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Avatar } from '../ui/Avatar'
 import { cn } from '../../utils/cn'
+import type { KnockoutType } from '../../utils/knockout'
 import type { TournamentEntry } from '../../types/entry.types'
 import { amountDue, eliminationsText, formatCurrency, playerName } from './terminalFormat'
 
@@ -22,6 +23,8 @@ interface PlayerCardProps {
   showPayment?: boolean
   /** Plano do dono com Tables: etiqueta com o número do lugar sobre a foto */
   showSeat?: boolean
+  /** Formato do torneio (SPEC-20261026-1909): no knockout, os bounties ganhos e (PKO) a cabeça */
+  knockout?: KnockoutType
 }
 
 /**
@@ -51,6 +54,41 @@ export function EliminationsLabel({ entry, className }: { entry: TournamentEntry
     <span className={cn('inline-flex min-w-0 items-center gap-1 text-text-secondary', className)} data-eliminations={count}>
       <Swords className="h-3.5 w-3.5 shrink-0 text-text-muted" aria-hidden />
       <span className="truncate">{eliminationsText(count)}</span>
+    </span>
+  )
+}
+
+/**
+ * Bounties do jogador no torneio knockout (SPEC-20261026-1909) — card e linha do painel e do terminal, lista do "Mais":
+ * "Bounties R$ 50,00" (o que ganhou eliminando, só quando > 0) e, no PKO, "Cabeça R$ 75,00" de quem ainda joga. Nada no
+ * torneio Normal.
+ */
+export function BountyLabel({
+  entry,
+  knockout = 'None',
+  className,
+}: {
+  entry: TournamentEntry
+  knockout?: KnockoutType
+  className?: string
+}) {
+  if (knockout === 'None') return null
+  const won = entry.bountyWon ?? 0
+  const head = knockout === 'Progressive' && !entry.eliminatedAt ? (entry.bountyHead ?? 0) : 0
+  if (won <= 0 && head <= 0) return null
+  return (
+    <span className={cn('inline-flex min-w-0 flex-wrap items-center gap-x-2 text-accent-purple-deep', className)} data-bounty>
+      <Crosshair className="h-3.5 w-3.5 shrink-0" aria-hidden />
+      {won > 0 && (
+        <span className="tabular-nums" data-bounty-won={won}>
+          Bounties <span className="font-semibold">{formatCurrency(won)}</span>
+        </span>
+      )}
+      {head > 0 && (
+        <span className="tabular-nums" data-bounty-head={head}>
+          Cabeça <span className="font-semibold">{formatCurrency(head)}</span>
+        </span>
+      )}
     </span>
   )
 }
@@ -117,6 +155,7 @@ export function PlayerCard({
   onEliminate,
   showPayment = true,
   showSeat = true,
+  knockout = 'None',
 }: PlayerCardProps) {
   const name = playerName(entry)
   const seat = showSeat ? entry.seatNumber : null
@@ -159,6 +198,7 @@ export function PlayerCard({
             {entry.addonPurchased ? (entry.addonDouble ? 'Add-on duplo' : 'Add-on') : 'Sem add-on'}
           </span>
           <EliminationsLabel entry={entry} />
+          <BountyLabel entry={entry} knockout={knockout} />
           {showPayment && <DueLabel entry={entry} />}
         </div>
 

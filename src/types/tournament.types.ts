@@ -1,5 +1,6 @@
 import type { PlanName } from './plan.types'
 import type { PixKeyType } from '../utils/pix'
+import type { KnockoutType } from '../utils/knockout'
 
 export type TournamentStatus =
   | 'Draft'
@@ -36,6 +37,12 @@ export interface Tournament {
   totalPrizePool: number
   totalCosts: number
   netPrizePool: number
+  /** Bounties comprados (inscrições + rebuys), à parte do prize pool — netPrizePool já vem sem eles (SPEC-20261026-1909) */
+  totalBounties: number
+  /** Formato (SPEC-20261026-1909): 'None' = Normal, 'Simple' = Knockout simples, 'Progressive' = PKO */
+  knockoutType: KnockoutType
+  /** Parte do buy-in (e de cada rebuy) que vira bounty; null no Normal */
+  bountyAmount: number | null
   prizeConfirmed: boolean
   settlementClosed: boolean
   blindStructureId: string | null
@@ -82,6 +89,10 @@ export interface CreateTournamentRequest {
    * "Dealers (N × R$ X)" na criação (e na primeira estrutura de um rascunho) — SPEC-20261023-1215.
    */
   dealerCount?: number
+  /** Formato knockout (SPEC-20261026-1909); na criação, ausente = herdar o padrão da estrutura */
+  knockoutType?: KnockoutType
+  /** Valor do bounty (parte do buy-in); null/ausente no Normal */
+  bountyAmount?: number | null
 }
 
 export interface UpdateTournamentRequest extends Partial<CreateTournamentRequest> {

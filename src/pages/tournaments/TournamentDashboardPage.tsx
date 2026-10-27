@@ -19,6 +19,7 @@ import {
   XCircle,
   Pencil,
   UserCheck,
+  Crosshair,
 } from 'lucide-react'
 import * as tournamentsApi from '../../api/tournaments.api'
 import * as entriesApi from '../../api/entries.api'
@@ -54,6 +55,7 @@ import { CostExtrasTab } from './tabs/CostExtrasTab'
 import { FinancialTab } from './tabs/FinancialTab'
 import type { TimerState } from '../../types/blind.types'
 import type { TournamentStatus } from '../../types/tournament.types'
+import { isKnockout, KNOCKOUT_BADGES, knockoutTypeOf } from '../../utils/knockout'
 import type { DealerRequest } from '../../types/display.types'
 import type { PlanFeature } from '../../types/plan.types'
 
@@ -444,6 +446,15 @@ export function TournamentDashboardPage() {
 
           <div className="flex items-center gap-2 flex-wrap">
             <Badge color={statusColor}>{statusLabel}</Badge>
+            {/* Formato knockout (SPEC-20261026-1909) */}
+            {isKnockout(tournament) && (
+              <Badge color="purple" className="gap-1 tabular-nums">
+                <Crosshair className="h-3.5 w-3.5" aria-hidden />
+                <span data-knockout-badge={knockoutTypeOf(tournament)}>
+                  {KNOCKOUT_BADGES[knockoutTypeOf(tournament)]} · bounty {formatCurrency(tournament.bountyAmount ?? 0)}
+                </span>
+              </Badge>
+            )}
             {tournament.status === 'Draft' && (
               <Button
                 variant="secondary"
@@ -533,8 +544,9 @@ export function TournamentDashboardPage() {
             const totalGeral = entries.reduce((sum, e) => sum + (e.totalDue ?? 0), 0)
             // Custos = soma do amount de todos os custos extras
             const totalCustos = costExtras.reduce((sum, c) => sum + (c.amount ?? 0), 0)
-            // Premiação = total geral - custos
-            const premiacao = totalGeral - totalCustos
+            // Premiação = total geral - custos - bounties (SPEC-20261026-1909: bounty fica à parte do prize pool)
+            const bounties = isKnockout(tournament) ? (tournament.totalBounties ?? 0) : 0
+            const premiacao = totalGeral - totalCustos - bounties
             return (
               <>
                 <div className="rounded-lg bg-bg-primary p-3">
@@ -546,6 +558,11 @@ export function TournamentDashboardPage() {
                   >
                     {formatCurrency(premiacao)}
                   </p>
+                  {isKnockout(tournament) && (
+                    <p className="text-xs tabular-nums text-accent-purple-deep" data-header-bounties>
+                      + {formatCurrency(bounties)} em bounties
+                    </p>
+                  )}
                 </div>
                 <div className="rounded-lg bg-bg-primary p-3">
                   <p className="text-xs text-text-secondary">Total</p>

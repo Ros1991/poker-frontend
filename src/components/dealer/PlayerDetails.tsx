@@ -9,6 +9,7 @@ import type { Table } from '../../api/tables.api'
 import type { TournamentEntry } from '../../types/entry.types'
 import type { HistoryItem } from '../../types/history.types'
 import type { Tournament } from '../../types/tournament.types'
+import { isKnockout, knockoutTypeOf } from '../../utils/knockout'
 import { HistoryList } from './HistoryList'
 import { DueLabel } from './PlayerCard'
 import type { PlayerActionRules } from './PlayerCard'
@@ -99,6 +100,8 @@ export function PlayerDetails({
   // Campeão (nunca eliminado, eliminatedAt nulo) não tem eliminação a desfazer
   const canUndoElimination = !active && !!entry.eliminatedAt
   const playActions = active && !gameActionsLocked
+  // Knockout (SPEC-20261026-1909): bounties ganhos e o que está na cabeça (quem foi eliminado não tem mais cabeça)
+  const knockout = isKnockout(tournament) ? knockoutTypeOf(tournament) : 'None'
 
   return (
     <div data-player-details>
@@ -139,6 +142,15 @@ export function PlayerDetails({
         {/* Com a Mesa a contagem fica ímpar: Eliminações ocupa a última linha inteira */}
         <Info label="Eliminações" value={eliminations} className={showTables ? 'col-span-2' : undefined} />
       </div>
+      {knockout !== 'None' && (
+        <div className="mb-3 grid grid-cols-2 gap-2" data-bounty-details>
+          <Info label="Bounties ganhos" value={formatCurrency(entry.bountyWon ?? 0)} />
+          <Info
+            label={knockout === 'Progressive' ? 'Cabeça (PKO)' : 'Bounty na cabeça'}
+            value={entry.eliminatedAt ? '—' : formatCurrency(entry.bountyHead ?? 0)}
+          />
+        </div>
+      )}
       {eliminations > 0 && victims.length > 0 && (
         <p className="mb-3 text-sm text-text-secondary" data-eliminated-names>
           Eliminou <span className="font-medium text-text-primary">{joinNames(victims)}</span>

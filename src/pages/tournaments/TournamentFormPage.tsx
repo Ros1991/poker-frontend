@@ -17,7 +17,9 @@ import { hasFeature, MY_PLAN_QUERY_KEY } from '../../hooks/usePlan'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { PixKeyInput } from '../../components/pix/PixKeyInput'
+import { KnockoutFields } from '../../components/tournament/KnockoutFields'
 import { checkPixKey, toPixKeyPayload, type PixKeyType } from '../../utils/pix'
+import { bountyError, knockoutTypeOf } from '../../utils/knockout'
 import { LoadingSpinner } from '../../components/common/LoadingSpinner'
 import { tournamentDashboardPath } from '../../constants/routes'
 
@@ -40,6 +42,9 @@ const tournamentSchema = z.object({
   staffAmount: z.coerce.number().min(0, 'Valor inválido'),
   rankingContribMode: z.enum(['PerPlayer', 'Percent']),
   rankingContribValue: z.coerce.number().min(0, 'Valor inválido'),
+  // Knockout (SPEC-20261026-1909): formato e bounty (texto do campo; conferido no envio com bountyError)
+  knockoutType: z.enum(['None', 'Simple', 'Progressive']),
+  bountyAmount: z.string(),
 })
 
 type TournamentFormData = z.infer<typeof tournamentSchema>
@@ -102,6 +107,8 @@ export function TournamentFormPage() {
       staffAmount: 0,
       rankingContribMode: 'PerPlayer',
       rankingContribValue: 0,
+      knockoutType: 'None',
+      bountyAmount: '',
     },
   })
 
@@ -227,7 +234,13 @@ export function TournamentFormPage() {
       )
     if (structure.defaultRankingContribValue != null)
       setValue('rankingContribValue', structure.defaultRankingContribValue)
-  }, [selectedBlindStructureId, blindStructures, setValue])
+    // Knockout padrão da estrutura (SPEC-20261026-1909): formato e bounty herdados; o organizador pode trocar abaixo
+    if (structure.defaultKnockoutType) {
+      setValue('knockoutType', knockoutTypeOf({ knockoutType: structure.defaultKnockoutType }))
+      setValue('bountyAmount', structure.defaultBountyAmount != null ? String(structure.defaultBountyAmount) : '')
+      clearErrors('bountyAmount')
+    }
+  }, [selectedBlindStructureId, blindStructures, setValue, clearErrors])
 
   // O <select> só mostra o valor quando a opção já existe: se o torneio carregou antes da lista de estruturas, o
   // campo aparecia como "Selecione..." (o formulário guardava o id certo). Reaplica o valor quando a lista chega.
@@ -267,6 +280,8 @@ export function TournamentFormPage() {
         (existingTournament.rankingContribMode as 'PerPlayer' | 'Percent') ??
         'PerPlayer',
       rankingContribValue: existingTournament.rankingContribValue ?? 0,
+      knockoutType: knockoutTypeOf(existingTournament),
+      bountyAmount: existingTournament.bountyAmount != null ? String(existingTournament.bountyAmount) : '',
     })
   }, [isEditMode, existingTournament, reset])
 
@@ -331,6 +346,14 @@ export function TournamentFormPage() {
       }
     }
     const pix = toPixKeyPayload(data.responsiblePixKey, pixKeyType, savedPix)
+    // Knockout (SPEC-20261026-1909): bounty obrigatório, menor que o buy-in e até o rebuy (o servidor confere de novo)
+    const bounty = Number(data.bountyAmount) || 0
+    const koError = bountyError(data.knockoutType, bounty, data.buyInAmount, data.rebuyAmount)
+    if (koError) {
+      setError('bountyAmount', { message: koError }, { shouldFocus: true })
+      toast.error(koError)
+      return
+    }
     const payload = {
       ...data,
       rankingId: hasRanking ? data.rankingId : undefined,
@@ -347,6 +370,9 @@ export function TournamentFormPage() {
       responsiblePixKeyType: canPay ? pix.type : undefined,
       // Só quando a pergunta aparece (estrutura com dealer pago e plano com custos); vira "Dealers (N × R$ X)"
       dealerCount: askDealers ? dealerCount : undefined,
+      // Formato sempre explícito (o servidor só herda da estrutura quando o campo não vem)
+      knockoutType: data.knockoutType,
+      bountyAmount: data.knockoutType !== 'None' ? bounty : null,
     }
     if (isEditMode) {
       updateMutation.mutate(payload as Record<string, unknown>)
@@ -607,6 +633,24 @@ export function TournamentFormPage() {
             </p>
           )}
         </div>
+
+        {/* Formato knockout (SPEC-20261026-1909): herdado da estrutura, pode trocar; em todos os planos */}
+        <KnockoutFields
+          idPrefix="torneio"
+          type={watch('knockoutType')}
+          onTypeChange={(k) => {
+            setValue('knockoutType', k, { shouldDirty: true })
+            clearErrors('bountyAmount')
+          }}
+          bounty={watch('bountyAmount') ?? ''}
+          onBountyChange={(v) => {
+            setValue('bountyAmount', v, { shouldDirty: true })
+            clearErrors('bountyAmount')
+          }}
+          buyIn={Number(watch('buyInAmount')) || 0}
+          rebuy={Number(watch('rebuyAmount')) || 0}
+          error={errors.bountyAmount?.message}
+        />
 
         {/* Staff e Ranking (custos automáticos) — só com Payments no plano do dono */}
         {canPay && (

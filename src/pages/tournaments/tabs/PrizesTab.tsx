@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Trophy, Calculator, Lock, Medal, Plus, Minus } from 'lucide-react'
+import { Trophy, Calculator, Crosshair, Lock, Medal, Plus, Minus } from 'lucide-react'
 import * as prizesApi from '../../../api/prizes.api'
 import type { PrizeItem } from '../../../api/prizes.api'
 import { Button } from '../../../components/ui/Button'
 import type { Tournament } from '../../../types/tournament.types'
 import type { TournamentEntry } from '../../../types/entry.types'
+import { bountyToReceive, isKnockout, keepsOwnHead } from '../../../utils/knockout'
 
 interface PrizesTabProps {
   tournament: Tournament
@@ -37,6 +38,8 @@ export function PrizesTab({ tournament, entries }: PrizesTabProps) {
     grossPrizePool: number
     totalCosts: number
     netPrizePool: number
+    /** Knockout (SPEC-20261026-1909): bounties à parte — o líquido já vem sem eles */
+    totalBounties: number
   } | null>(null)
 
   // Toasts: 'user' (Recalcular, +/− posição) avisa sucesso e erro; 'open' (ao abrir a aba) só o erro; 'background'
@@ -50,6 +53,7 @@ export function PrizesTab({ tournament, entries }: PrizesTabProps) {
         grossPrizePool: data.grossPrizePool,
         totalCosts: data.totalCosts,
         netPrizePool: data.netPrizePool,
+        totalBounties: data.totalBounties ?? 0,
       })
       if ((vars.mode ?? 'user') === 'user' && data.netPrizePool > 0) toast.success('Premiação calculada!')
       // Arrecadação/custos mudaram por fora (o cálculo é a leitura mais nova): relê o torneio para o cabeçalho
@@ -100,6 +104,7 @@ export function PrizesTab({ tournament, entries }: PrizesTabProps) {
         grossPrizePool: tournament.totalPrizePool,
         totalCosts: tournament.totalCosts,
         netPrizePool: tournament.netPrizePool,
+        totalBounties: tournament.totalBounties ?? 0,
       })
     },
   })
@@ -121,7 +126,7 @@ export function PrizesTab({ tournament, entries }: PrizesTabProps) {
 
   // Arrecadação/custos mudaram (inscrição, pagamento, custo novo — o torneio é relido pelas outras abas ou ao voltar o foco):
   // no estado neutro recalcula sozinho, e a tabela aparece assim que o líquido fica positivo.
-  const totalsKey = `${tournament.totalPrizePool}|${tournament.totalCosts}|${tournament.netPrizePool}|${tournament.totalEntries}`
+  const totalsKey = `${tournament.totalPrizePool}|${tournament.totalCosts}|${tournament.netPrizePool}|${tournament.totalEntries}|${tournament.totalBounties ?? 0}`
   const lastTotalsKey = useRef(totalsKey)
   useEffect(() => {
     if (lastTotalsKey.current === totalsKey) return
@@ -185,10 +190,14 @@ export function PrizesTab({ tournament, entries }: PrizesTabProps) {
   // Quanto ainda falta arrecadar para cobrir os custos (só no estado neutro com líquido negativo)
   const missingToCover = waitingPool && currentNet < 0 ? -currentNet : 0
 
+  // Knockout (SPEC-20261026-1909): bounties fora do prize pool e o acerto final (prêmio + bounties por jogador)
+  const knockout = isKnockout(tournament)
+  const totalBounties = knockout ? (calculation?.totalBounties ?? tournament.totalBounties ?? 0) : 0
+
   return (
     <div className="flex flex-col gap-6">
       {/* Summary cards */}
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className={knockout ? 'grid gap-3 sm:grid-cols-2 lg:grid-cols-4' : 'grid gap-3 sm:grid-cols-3'}>
         <div className="rounded-lg bg-bg-primary p-4">
           <p className="text-xs text-text-secondary">Premiação Bruta</p>
           <p className="text-xl font-bold text-text-primary tabular-nums">
@@ -210,7 +219,18 @@ export function PrizesTab({ tournament, entries }: PrizesTabProps) {
             {formatCurrency(currentNet)}
           </p>
         </div>
+        {knockout && (
+          <div className="rounded-lg bg-bg-primary p-4" data-prizes-bounties-card>
+            <p className="text-xs text-text-secondary">Bounties (à parte)</p>
+            <p className="text-xl font-bold text-accent-purple-deep tabular-nums">{formatCurrency(totalBounties)}</p>
+          </div>
+        )}
       </div>
+      {knockout && (
+        <p className="-mt-3 text-xs text-text-secondary">
+          A premiação líquida não inclui os bounties: eles vão para quem eliminou (e o campeão fica com o próprio).
+        </p>
+      )}
 
       {/* Estado neutro (SPEC-20261026-1907): texto, não erro; some sozinho quando a arrecadação passa dos custos */}
       {waitingPool && (
@@ -397,6 +417,15 @@ export function PrizesTab({ tournament, entries }: PrizesTabProps) {
         </div>
       )}
 
+      {knockout && (
+        <KnockoutSettlement
+          tournament={tournament}
+          entries={entries}
+          prizes={prizes}
+          totalBounties={totalBounties}
+        />
+      )}
+
       {!waitingPool && prizes.length === 0 && !calculateMutation.isPending && !savedMutation.isPending && (
         <div className="text-center py-8">
           <Trophy className="mx-auto h-10 w-10 text-text-muted mb-3" />
@@ -407,5 +436,118 @@ export function PrizesTab({ tournament, entries }: PrizesTabProps) {
         </div>
       )}
     </div>
+  )
+}
+
+/**
+ * Acerto final do torneio knockout (SPEC-20261026-1909): por jogador, prêmio da posição + bounties a receber (o que
+ * ganhou eliminando e, de quem não foi eliminado — o campeão —, a própria cabeça). Enquanto o torneio corre, as
+ * cabeças de quem ainda joga ficam "em jogo". A conferência mostra que prêmios + bounties fecham com o prize pool
+ * líquido + os bounties arrecadados.
+ */
+function KnockoutSettlement({
+  tournament,
+  entries,
+  prizes,
+  totalBounties,
+}: {
+  tournament: Tournament
+  entries: TournamentEntry[]
+  prizes: PrizeItem[]
+  totalBounties: number
+}) {
+  const finished = tournament.status === 'Finished'
+  const prizeOf = (e: TournamentEntry) => {
+    if (!e.finalPosition) return 0
+    const p = prizes.find((x) => x.position === e.finalPosition)
+    return p ? p.amount : (e.prizeAmount ?? 0)
+  }
+  // Durante o jogo a cabeça de quem ainda joga não é de ninguém: só no fim (ou do campeão, já definido) entra no acerto
+  const bountyOf = (e: TournamentEntry) =>
+    finished || (e.finalPosition === 1 && !e.eliminatedAt) ? bountyToReceive(e) : (e.bountyWon ?? 0)
+  const rows = entries
+    .map((e) => ({ e, prize: prizeOf(e), bounty: bountyOf(e), ownHead: keepsOwnHead(e) && (finished || e.finalPosition === 1) }))
+    .filter((r) => r.prize > 0 || r.bounty > 0)
+    .sort((a, b) => (a.e.finalPosition ?? 999) - (b.e.finalPosition ?? 999) || b.prize + b.bounty - (a.prize + a.bounty))
+  const sumPrize = rows.reduce((s, r) => s + r.prize, 0)
+  const sumBounty = rows.reduce((s, r) => s + r.bounty, 0)
+  const inPlay = Math.round(
+    entries
+      .filter((e) => !e.eliminatedAt && !(finished || e.finalPosition === 1))
+      .reduce((s, e) => s + (e.bountyHead ?? 0), 0) * 100,
+  ) / 100
+  const bountyDiff = Math.round((totalBounties - sumBounty - inPlay) * 100) / 100
+
+  return (
+    <section className="rounded-lg border border-border-default bg-bg-primary p-4" data-acerto>
+      <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-text-secondary">
+        <Crosshair className="h-4 w-4 text-accent-purple" aria-hidden />
+        Acerto final: prêmio + bounties
+      </h3>
+      <p className="mb-3 text-xs text-text-secondary">
+        {finished
+          ? 'Quanto cada jogador recebe: o prêmio da posição mais os bounties (o campeão fica com a própria cabeça).'
+          : 'Parcial: as cabeças de quem ainda joga vão para quem eliminar; o campeão fica com a dele no fim.'}
+      </p>
+      {rows.length === 0 ? (
+        <p className="py-1 text-sm text-text-secondary">Ninguém tem prêmio ou bounty a receber ainda.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-xs text-text-secondary">
+                <th className="py-1.5 text-left font-medium">Jogador</th>
+                <th className="py-1.5 text-right font-medium">Prêmio</th>
+                <th className="py-1.5 text-right font-medium">Bounties</th>
+                <th className="py-1.5 text-right font-medium">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map(({ e, prize, bounty, ownHead }) => (
+                <tr key={e.id} className="border-t border-border-default" data-acerto-row={e.person.nickname ?? e.person.fullName}>
+                  <td className="py-1.5 text-text-primary">
+                    {e.finalPosition ? <span className="mr-1 tabular-nums text-text-secondary">{e.finalPosition}º</span> : null}
+                    {e.person.nickname ?? e.person.fullName}
+                    {ownHead && (
+                      <span className="block text-xs text-accent-purple-deep">inclui a própria cabeça</span>
+                    )}
+                  </td>
+                  <td className="py-1.5 text-right tabular-nums text-text-primary" data-acerto-prize={prize}>
+                    {prize > 0 ? formatCurrency(prize) : '—'}
+                  </td>
+                  <td className="py-1.5 text-right tabular-nums text-accent-purple-deep" data-acerto-bounty={bounty}>
+                    {bounty > 0 ? formatCurrency(bounty) : '—'}
+                  </td>
+                  <td className="py-1.5 text-right font-semibold tabular-nums text-text-primary" data-acerto-total={prize + bounty}>
+                    {formatCurrency(prize + bounty)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="border-t border-border-default font-semibold">
+                <td className="py-1.5 text-text-primary">Total</td>
+                <td className="py-1.5 text-right tabular-nums text-text-primary">{formatCurrency(sumPrize)}</td>
+                <td className="py-1.5 text-right tabular-nums text-accent-purple-deep">{formatCurrency(sumBounty)}</td>
+                <td className="py-1.5 text-right tabular-nums text-text-primary" data-acerto-sum={sumPrize + sumBounty}>
+                  {formatCurrency(sumPrize + sumBounty)}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      )}
+      <p className="mt-2 text-xs tabular-nums text-text-secondary" data-acerto-check>
+        Bounties: {formatCurrency(sumBounty)} no acerto
+        {inPlay > 0 ? ` + ${formatCurrency(inPlay)} em jogo` : ''} = {formatCurrency(sumBounty + inPlay)}
+        {Math.abs(bountyDiff) > 0.005 ? (
+          <span className="ml-1 font-semibold text-accent-red-deep">
+            — diferença de {formatCurrency(Math.abs(bountyDiff))} para os {formatCurrency(totalBounties)} arrecadados
+          </span>
+        ) : (
+          <span className="ml-1 font-semibold text-accent-green-deep">= bounties arrecadados</span>
+        )}
+      </p>
+    </section>
   )
 }

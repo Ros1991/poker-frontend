@@ -2,7 +2,8 @@ import { ChevronRight } from 'lucide-react'
 import { Avatar } from '../ui/Avatar'
 import { cn } from '../../utils/cn'
 import type { TournamentEntry } from '../../types/entry.types'
-import { DueLabel, EliminationsLabel } from './PlayerCard'
+import type { KnockoutType } from '../../utils/knockout'
+import { BountyLabel, DueLabel, EliminationsLabel } from './PlayerCard'
 import { isActiveStatus, playerName, statusLabel } from './terminalFormat'
 
 interface EliminatedPlayerRowProps {
@@ -13,6 +14,8 @@ interface EliminatedPlayerRowProps {
   prizeText?: string | null
   /** "Deve/Pago/Pagou a mais" pequeno (painel, com Payments no plano do dono) */
   showDue?: boolean
+  /** Formato do torneio (SPEC-20261026-1909): bounties ganhos (e a cabeça no PKO) */
+  knockout?: KnockoutType
 }
 
 /**
@@ -22,9 +25,11 @@ interface EliminatedPlayerRowProps {
  * Fundo zebra e nome em text-secondary para quem saiu, sem opacidade (que derrubava o texto abaixo de AA).
  * "Eliminou N jogadores" na linha de detalhe quando eliminou alguém (SPEC-20261026-1908, painel e terminal).
  */
-export function EliminatedPlayerRow({ entry, onOpen, prizeText, showDue = false }: EliminatedPlayerRowProps) {
+export function EliminatedPlayerRow({ entry, onOpen, prizeText, showDue = false, knockout = 'None' }: EliminatedPlayerRowProps) {
   const active = isActiveStatus(entry.status)
-  const hasDetail = !!prizeText || showDue || (entry.eliminationsCount ?? 0) > 0
+  const hasBounty =
+    knockout !== 'None' && ((entry.bountyWon ?? 0) > 0 || (knockout === 'Progressive' && !entry.eliminatedAt && (entry.bountyHead ?? 0) > 0))
+  const hasDetail = !!prizeText || showDue || (entry.eliminationsCount ?? 0) > 0 || hasBounty
   return (
     <button
       type="button"
@@ -45,6 +50,7 @@ export function EliminatedPlayerRow({ entry, onOpen, prizeText, showDue = false 
             {prizeText && <span className="font-semibold tabular-nums text-accent-gold-deep">{prizeText}</span>}
             {showDue && <DueLabel entry={entry} />}
             <EliminationsLabel entry={entry} />
+            <BountyLabel entry={entry} knockout={knockout} />
           </span>
         )}
       </span>

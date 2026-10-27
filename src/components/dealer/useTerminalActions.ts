@@ -191,21 +191,29 @@ export function useTerminalActions(
   })
 
   const eliminateMutation = useMutation({
-    mutationFn: async (vars: { entry: TournamentEntry; eliminatedByEntryId?: string }) => {
+    mutationFn: async (vars: { entry: TournamentEntry; eliminatedByEntryId?: string; killerName?: string }) => {
       const before = await snapshotRefIds(tournamentId, vars.entry.id, ['Elimination'])
       const result = (await entriesApi.eliminate(tournamentId, vars.entry.id, {
         eliminatedByEntryId: vars.eliminatedByEntryId,
       })) as unknown as EliminationResult
       return { result, before }
     },
-    onSuccess: ({ result, before }, { entry }) => {
+    onSuccess: ({ result, before }, { entry, killerName }) => {
       invalidateAll()
       // "· na premiação" quando o servidor diz que a posição paga (SPEC-20261023-1217, L10 — painel e terminal)
       const itm = result?.isInTheMoney ? ' · na premiação' : ''
+      // Knockout (SPEC-20261026-1909): para onde foi o bounty
+      const who = killerName ?? result?.eliminatedBy ?? 'quem eliminou'
+      const bounty =
+        (result?.bountyAmount ?? 0) > 0
+          ? (result?.bountyToHead ?? 0) > 0
+            ? ` · bounty: ${formatCurrency(result?.bountyCash ?? 0)} para ${who} + ${formatCurrency(result?.bountyToHead ?? 0)} na cabeça`
+            : ` · bounty ${formatCurrency(result?.bountyCash ?? 0)} para ${who}`
+          : ''
       void showUndoToast(
         result?.position
-          ? `${playerName(entry)} saiu em ${result.position}º lugar${itm}`
-          : `${playerName(entry)} saiu do torneio${itm}`,
+          ? `${playerName(entry)} saiu em ${result.position}º lugar${itm}${bounty}`
+          : `${playerName(entry)} saiu do torneio${itm}${bounty}`,
         entry.id,
         ['Elimination'],
         before,

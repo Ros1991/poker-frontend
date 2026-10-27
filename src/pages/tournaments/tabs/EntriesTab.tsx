@@ -37,6 +37,7 @@ import {
   playerName,
 } from '../../../components/dealer/terminalFormat'
 import { cn } from '../../../utils/cn'
+import { isKnockout, knockoutTypeOf } from '../../../utils/knockout'
 import { countUnseated } from '../../../utils/tableBalance'
 import type { TournamentEntry } from '../../../types/entry.types'
 import type { Person } from '../../../types/person.types'
@@ -82,6 +83,8 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
   const canPay = hasFeature(tournament.planFeatures, 'Payments')
   const canTables = hasFeature(tournament.planFeatures, 'Tables')
   const live = tournament.status !== 'Finished' && tournament.status !== 'Cancelled'
+  // Knockout (SPEC-20261026-1909): bounties nos cards/linhas/Ficha e eliminação sem "Pular"
+  const knockout = isKnockout(tournament) ? knockoutTypeOf(tournament) : 'None'
   const gameActionsLocked = !!tournament.settlementClosed
   const isInProgress =
     tournament.status === 'Draft' || tournament.status === 'OpenForRegistration' || tournament.status === 'InProgress'
@@ -149,6 +152,13 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
     return [...others].sort((a, b) => playerName(a).localeCompare(playerName(b), 'pt-BR'))
   }
 
+  /** Knockout: todos os outros ativos por nome (escolher alguém de fora da mesa) */
+  function othersFor(entry: TournamentEntry): TournamentEntry[] {
+    return activeEntries
+      .filter((e) => e.id !== entry.id)
+      .sort((a, b) => playerName(a).localeCompare(playerName(b), 'pt-BR'))
+  }
+
   // Depois de eliminar, a quebra/equilíbrio das mesas como no terminal (SPEC-20261026-1908)
   const flows = usePlayerActionDialogs({
     tournamentId: tid,
@@ -156,6 +166,7 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
     actions,
     showPayment: canPay,
     candidatesFor,
+    othersFor,
     onEliminated: () => void suggestions.evaluateAfterElimination(),
   })
 
@@ -242,6 +253,7 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
           entry={entry}
           onOpen={() => setFichaEntryId(entry.id)}
           showDue={canPay}
+          knockout={knockout}
         />
       )
     return (
@@ -256,6 +268,7 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
         onEliminate={() => flows.askEliminate(entry)}
         showPayment={canPay}
         showSeat={canTables}
+        knockout={knockout}
       />
     )
   }
@@ -478,6 +491,7 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
                     onOpen={() => setFichaEntryId(entry.id)}
                     prizeText={prizeText(entry)}
                     showDue={canPay}
+                    knockout={knockout}
                   />
                 ))}
               </div>

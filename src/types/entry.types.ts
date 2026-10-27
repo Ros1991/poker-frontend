@@ -33,6 +33,10 @@ export interface TournamentEntry {
    * respostas de uma inscrição só (rebuy, add-on, pagamento) vêm com 0.
    */
   eliminationsCount: number
+  /** Knockout (SPEC-20261026-1909): o que está na cabeça do jogador agora (0 depois de eliminado e no Normal) */
+  bountyHead: number
+  /** Knockout: dinheiro de bounty que o jogador já ganhou eliminando os outros */
+  bountyWon: number
   prizeAmount: number
   prizePaid: boolean
   rankingPoints: number
@@ -68,6 +72,10 @@ export interface EliminationResult {
   playersRemaining: number
   isInTheMoney: boolean
   whatsAppLink: string | null
+  /** Knockout: a cabeça do eliminado, o que foi em dinheiro para quem eliminou e (PKO) o que somou na cabeça dele */
+  bountyAmount?: number | null
+  bountyCash?: number | null
+  bountyToHead?: number | null
 }
 
 /** Mesa aberta pela inscrição (SPEC-20261023-1214) */

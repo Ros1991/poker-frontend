@@ -36,6 +36,7 @@ import {
   tableLabel,
 } from '../../components/dealer/terminalFormat'
 import { countUnseated } from '../../utils/tableBalance'
+import { isKnockout, knockoutTypeOf } from '../../utils/knockout'
 import type { TimerState } from '../../types/blind.types'
 import type { TournamentEntry } from '../../types/entry.types'
 
@@ -168,6 +169,14 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
       .sort((a, b) => (a.seatNumber ?? 0) - (b.seatNumber ?? 0))
   }
 
+  // Knockout (SPEC-20261026-1909): sem "Pular" — quem eliminou pode ser de outra mesa (ou, sem mesa, qualquer um)
+  const knockout = isKnockout(tournament) ? knockoutTypeOf(tournament) : 'None'
+  function othersOf(entry: TournamentEntry): TournamentEntry[] {
+    return activeEntries
+      .filter((e) => e.id !== entry.id)
+      .sort((a, b) => playerName(a).localeCompare(playerName(b), 'pt-BR'))
+  }
+
   function openScreen(next: MoreScreen) {
     setMoreOpen(false)
     setTableSelectOpen(false)
@@ -219,6 +228,7 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
     actions,
     showPayment: canPay,
     candidatesFor: tablematesOf,
+    othersFor: othersOf,
     onEliminated: () => void suggestions.evaluateAfterElimination(),
   })
 
@@ -301,6 +311,7 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
                     onEliminate={() => flows.askEliminate(entry)}
                     showPayment={canPay}
                     showSeat={false}
+                    knockout={knockout}
                   />
                 ))}
               </div>
@@ -340,6 +351,7 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
                     onPay={() => flows.openPayment(entry)}
                     onEliminate={() => flows.askEliminate(entry)}
                     showPayment={canPay}
+                    knockout={knockout}
                   />
                 ))}
               </div>
@@ -361,7 +373,7 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
               <div className="flex flex-col gap-1.5">
                 {/* Eliminados: fundo zebra e nome em text-secondary, sem opacidade (que derrubava o texto abaixo de AA) */}
                 {eliminatedEntries.map((entry) => (
-                  <EliminatedPlayerRow key={entry.id} entry={entry} onOpen={() => setFichaEntryId(entry.id)} />
+                  <EliminatedPlayerRow key={entry.id} entry={entry} onOpen={() => setFichaEntryId(entry.id)} knockout={knockout} />
                 ))}
               </div>
             )}
@@ -412,6 +424,7 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
         tables={allTables}
         onOpenPlayer={(entry) => setFichaEntryId(entry.id)}
         onAddPlayer={() => setScreen('addPlayer')}
+        knockout={knockout}
         showPayments={canPay}
         showTables={canTables}
       />
