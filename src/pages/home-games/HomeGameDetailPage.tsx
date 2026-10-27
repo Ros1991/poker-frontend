@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
@@ -89,7 +89,10 @@ export function HomeGameDetailPage() {
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false)
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
   // Excluído (SPEC-20261026-1126): a página não volta a marcar este home game como o ativo enquanto sai
-  const deletedRef = useRef(false)
+  // Estado (não ref) desde a revisão geral 2: desliga o enabled das consultas do id excluído — com o ref, o
+  // removeQueries feito com a página ainda montada recriava a consulta e buscava de novo o home game apagado (404)
+  const [deleted, setDeleted] = useState(false)
+  const live = !!id && !deleted
   const [tournamentSearch, setTournamentSearch] = useState('')
 
   // Home Game data
@@ -101,7 +104,7 @@ export function HomeGameDetailPage() {
   } = useQuery({
     queryKey: ['homeGame', id],
     queryFn: () => homeGamesApi.getById(id!),
-    enabled: !!id,
+    enabled: live,
     // Contagens do cabeçalho (membros/torneios — SPEC-20261026-1907) sempre frescas ao abrir a página: criar,
     // cancelar ou excluir torneio em outra tela não fica 30 s com o número antigo
     refetchOnMount: 'always',
@@ -109,10 +112,10 @@ export function HomeGameDetailPage() {
 
   // Sincroniza o HomeGame selecionado quando a página carrega
   useEffect(() => {
-    if (homeGame && !deletedRef.current && selectedHomeGame?.id !== homeGame.id) {
+    if (homeGame && !deleted && selectedHomeGame?.id !== homeGame.id) {
       selectHomeGame(homeGame)
     }
-  }, [homeGame, selectedHomeGame?.id, selectHomeGame])
+  }, [homeGame, deleted, selectedHomeGame?.id, selectHomeGame])
 
   // Tournaments
   const { data: tournamentsData, isLoading: tournamentsLoading } = useQuery({
@@ -123,7 +126,7 @@ export function HomeGameDetailPage() {
         // Mesma lista que a contagem do cabeçalho (SPEC-20261026-1907): sem o corte padrão de 20 por página
         pageSize: 100,
       }),
-    enabled: !!id && activeTab === 'torneios',
+    enabled: live && activeTab === 'torneios',
   })
 
   // Ranking de temporada é recurso pago (SPEC-20261023-1205): o plano que vale é o do DONO
@@ -134,14 +137,14 @@ export function HomeGameDetailPage() {
   const { data: rankings, isLoading: rankingsLoading } = useQuery({
     queryKey: ['rankings', id],
     queryFn: () => rankingsApi.getAll(id!),
-    enabled: !!id && activeTab === 'rankings' && canRankings,
+    enabled: live && activeTab === 'rankings' && canRankings,
   })
 
   // Members
   const { data: members, isLoading: membersLoading } = useQuery({
     queryKey: ['homeGameMembers', id],
     queryFn: () => homeGamesApi.getMembers(id!),
-    enabled: !!id,
+    enabled: live,
   })
 
   // Permission check: owner, admin member, or system admin
@@ -154,7 +157,7 @@ export function HomeGameDetailPage() {
 
   // Depois de excluir: troca o home game ativo e vai para a lista (com um só sobrando, ela abre ele sozinha)
   async function handleDeleted() {
-    deletedRef.current = true
+    setDeleted(true)
     await refreshHomeGames()
     navigate(ROUTES.HOME_GAMES, { replace: true })
     queryClient.removeQueries({ queryKey: ['homeGame', id] })
@@ -165,14 +168,14 @@ export function HomeGameDetailPage() {
   const { data: jogadoresData, isLoading: jogadoresLoading } = useQuery({
     queryKey: ['persons', id],
     queryFn: () => personsApi.getByHomeGame(id!),
-    enabled: !!id && activeTab === 'jogadores',
+    enabled: live && activeTab === 'jogadores',
   })
 
   // Blind Structures
   const { data: blindStructures, isLoading: blindsLoading } = useQuery({
     queryKey: ['blindStructures', id],
     queryFn: () => blindStructuresApi.getAll({ homeGameId: id }),
-    enabled: !!id && activeTab === 'blinds',
+    enabled: live && activeTab === 'blinds',
   })
 
   const tournaments = (tournamentsData?.data ?? []).filter(

@@ -128,7 +128,7 @@ export function CostExtrasTab({ tournament }: CostExtrasTabProps) {
       queryClient.invalidateQueries({ queryKey: ['tournament', tournament.id] })
       toast.success('Pagamento revertido.')
     },
-    onError: () => toast.error('Erro ao reverter pagamento.'),
+    onError: (err: unknown) => toast.error(apiMessage(err, 'Erro ao reverter pagamento.')),
   })
 
   const removeMutation = useMutation({
@@ -233,10 +233,15 @@ export function CostExtrasTab({ tournament }: CostExtrasTabProps) {
             const isStaff = cost.costType === 'Staff'
             const isRanking = cost.costType === 'RankingAccumulated'
             const isDefault = cost.costType === COST_TYPE_DEFAULT
+            // "Reverter pagamento" desfaz só o que o caixa pagou (revisão geral 2): custo quitado por jogadores não tem o
+            // X — o pagamento do jogador se desfaz pelo estorno, no histórico
+            const paidByCashBox = cost.paidByCashBox ?? Math.max(0, paidAmount - (cost.paidByPlayers ?? 0))
+            const canUnpay = paidByCashBox > 0.005
             return (
               <div
                 key={cost.id}
                 className="flex flex-col gap-2 rounded-lg border border-border-default bg-bg-primary p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
+                data-cost-row={cost.description}
               >
                 {/* No celular: linha de cima com descrição e valor (a descrição quebra
                     linha em vez de sumir). Do sm em diante o wrapper some (contents)
@@ -283,14 +288,18 @@ export function CostExtrasTab({ tournament }: CostExtrasTabProps) {
                         <Check className="h-3 w-3 mr-1" />
                         Pago
                       </Badge>
-                      <button
-                        type="button"
-                        onClick={() => unpayMutation.mutate(cost.id)}
-                        className="p-2 sm:p-1 rounded text-text-secondary hover:text-accent-red hover:bg-accent-red-soft transition-colors"
-                        title="Reverter pagamento"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
+                      {canUnpay && (
+                        <button
+                          type="button"
+                          onClick={() => unpayMutation.mutate(cost.id)}
+                          className="p-2 sm:p-1 rounded text-text-secondary hover:text-accent-red hover:bg-accent-red-soft transition-colors"
+                          title="Reverter pagamento"
+                          aria-label={`Reverter o pagamento do caixa de ${cost.description}`}
+                          data-cost-unpay
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      )}
                     </div>
                   ) : (
                     <div className="flex items-center gap-1 shrink-0">

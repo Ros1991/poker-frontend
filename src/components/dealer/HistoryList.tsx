@@ -131,7 +131,7 @@ export function HistoryList({ tournamentId, entryId, search, onUndo, paymentsLoc
                     {/* Alvo do evento em destaque; o que aconteceu (com quem eliminou, se for o caso) menor, por baixo */}
                     <p
                       className={cn(
-                        'truncate text-base font-semibold leading-snug',
+                        'break-words text-base font-semibold leading-snug',
                         item.undone ? 'text-text-secondary' : 'text-text-primary',
                       )}
                       data-history-player

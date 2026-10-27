@@ -23,6 +23,11 @@ function formatCurrency(value: number): string {
 
 /** Texto do estado neutro (SPEC-20261026-1907): prize pool ≤ 0 no começo do torneio não é erro. */
 const PRIZE_POOL_WAITING_TEXT = 'A premiação aparece quando a arrecadação passar dos custos.'
+/**
+ * Knockout (revisão geral 2): os bounties saem à parte da arrecadação, então o que precisa passar dos custos é a
+ * arrecadação SEM os bounties (o prize pool). O que falta é o líquido negativo (−líquido), em prize pool.
+ */
+const PRIZE_POOL_WAITING_TEXT_KNOCKOUT = 'A premiação aparece quando a arrecadação, sem os bounties, passar dos custos.'
 
 /**
  * Aba Premiação. SPEC-20261026-1907: com o prize pool líquido zero ou negativo (custos maiores que a arrecadação
@@ -240,10 +245,19 @@ export function PrizesTab({ tournament, entries }: PrizesTabProps) {
           className="flex flex-col items-center gap-2 rounded-lg border border-border-default bg-bg-primary px-4 py-8 text-center"
         >
           <Trophy className="h-10 w-10 text-text-muted" aria-hidden="true" />
-          <p className="text-text-primary">{PRIZE_POOL_WAITING_TEXT}</p>
+          <p className="text-text-primary">{knockout ? PRIZE_POOL_WAITING_TEXT_KNOCKOUT : PRIZE_POOL_WAITING_TEXT}</p>
           {missingToCover > 0 && (
-            <p className="text-sm text-text-secondary">
-              Faltam <span className="tabular-nums">{formatCurrency(missingToCover)}</span> de arrecadação para cobrir os custos.
+            <p className="text-sm text-text-secondary" data-premiacao-falta>
+              {knockout ? (
+                <>
+                  Faltam <span className="tabular-nums">{formatCurrency(missingToCover)}</span> no prize pool (arrecadação
+                  sem os bounties) para cobrir os custos.
+                </>
+              ) : (
+                <>
+                  Faltam <span className="tabular-nums">{formatCurrency(missingToCover)}</span> de arrecadação para cobrir os custos.
+                </>
+              )}
             </p>
           )}
         </div>

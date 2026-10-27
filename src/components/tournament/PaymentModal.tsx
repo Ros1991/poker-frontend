@@ -587,7 +587,7 @@ export function PaymentModal({
                 </p>
                 <Button
                   variant="secondary"
-                  size="sm"
+                  size="md"
                   className="w-full"
                   onClick={() => handleSplit(cashBox)}
                   loading={splitMutation.isPending}
@@ -603,7 +603,7 @@ export function PaymentModal({
                       <Button
                         key={keyOf(d)}
                         variant="ghost"
-                        size="sm"
+                        size="md"
                         className="w-full justify-start border border-border-default"
                         onClick={() => handleSplit(d)}
                         disabled={busy}
@@ -632,14 +632,14 @@ export function PaymentModal({
                 <p className="min-w-0 text-xs text-text-secondary">
                   PIX de {formatCurrency(destValue)} para {destinationName(selected)}
                 </p>
-                <Button variant="secondary" size="sm" onClick={() => setShowQr(true)} data-payment-qr-button>
+                <Button variant="secondary" size="md" onClick={() => setShowQr(true)} data-payment-qr-button>
                   <QrCode className="h-4 w-4" />
                   QR com valor
                 </Button>
               </div>
             )}
 
-            {/* Pagamentos ja registrados */}
+            {/* Pagamentos já registrados */}
             <div className="border-t border-border-default pt-3">
               <p className="text-xs font-semibold text-text-secondary uppercase mb-2">
                 Pagamentos registrados

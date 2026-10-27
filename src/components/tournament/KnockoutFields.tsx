@@ -42,6 +42,9 @@ export function KnockoutFields({
   const value = Number(bounty) || 0
   const knockout = type !== 'None'
   const toPool = Math.max(0, Math.round((buyIn - value) * 100) / 100)
+  // Bounty que não é menor que o buy-in (revisão geral 2): no lugar da conta, o aviso no estilo de erro do campo — a
+  // conta "R$ 150 de bounty + R$ 0 para o prize pool" não fechava. O servidor recusa com 400 do mesmo jeito.
+  const bountyTooBig = buyIn > 0 && value > 0 && value >= buyIn
   return (
     <section aria-labelledby={`${idPrefix}-knockout-titulo`} data-knockout-fields>
       <h2
@@ -93,7 +96,11 @@ export function KnockoutFields({
             placeholder="Ex.: 50"
           />
           <div className="rounded-lg border border-border-default bg-bg-primary p-3 text-sm" data-knockout-split>
-            {buyIn > 0 && value > 0 ? (
+            {bountyTooBig ? (
+              <p role="alert" className="text-xs text-accent-red-deep" data-knockout-bounty-error>
+                O bounty precisa ser menor que o buy-in ({formatCurrency(buyIn)}).
+              </p>
+            ) : buyIn > 0 && value > 0 ? (
               <p className="text-text-primary">
                 Buy-in de <span className="tabular-nums">{formatCurrency(buyIn)}</span>:{' '}
                 <span className="font-semibold tabular-nums text-accent-purple-deep">{formatCurrency(value)}</span> de bounty

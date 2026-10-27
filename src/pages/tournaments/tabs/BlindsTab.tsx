@@ -374,7 +374,7 @@ export function BlindsTab({
 
           {blindLevels.length === 0 && !editMode && (
             <p className="text-sm text-text-secondary py-4 text-center">
-              Nenhum nivel configurado. Clique em "Editar Blinds" para adicionar.
+              Nenhum nível configurado. Clique em "Editar Blinds" para adicionar.
             </p>
           )}
 
@@ -498,12 +498,12 @@ export function BlindsTab({
                 </table>
               </div>
 
-              <div className="flex gap-2 mt-3">
-                <Button type="button" variant="secondary" size="sm" onClick={addLevel}>
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row" data-blinds-add-buttons>
+                <Button type="button" variant="secondary" className="w-full whitespace-nowrap sm:w-auto" onClick={addLevel}>
                   <Plus className="h-4 w-4" />
                   Adicionar Nível
                 </Button>
-                <Button type="button" variant="secondary" size="sm" onClick={addBreak}>
+                <Button type="button" variant="secondary" className="w-full whitespace-nowrap sm:w-auto" onClick={addBreak}>
                   <Coffee className="h-4 w-4" />
                   Adicionar Intervalo
                 </Button>

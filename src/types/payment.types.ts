@@ -91,6 +91,11 @@ export interface PaymentDestinationDetail {
   settledAmount: number
   /** Pago pelo caixa ao custo (botão "Pagar" da aba Custos) */
   paidByCashBox: number
+  /**
+   * Recebido dos jogadores acima do que o custo deveria receber (custo automático que encolheu depois de pago direto):
+   * fica fora do devido e aparece como "R$ X recebidos a mais — acertar com o caixa" (revisão geral 2)
+   */
+  overReceived?: number
   /** Quanto o custo ainda tem a receber (null no caixa) */
   remaining: number | null
   paymentStatus: string | null

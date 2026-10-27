@@ -95,7 +95,7 @@ export function HomeGameListPage() {
           <p className="mt-1 text-sm text-text-secondary text-center max-w-sm">
             {search
               ? 'Nenhum resultado para sua busca. Tente outro termo.'
-              : 'Crie seu primeiro home game para comecar a organizar torneios.'}
+              : 'Crie seu primeiro home game para começar a organizar torneios.'}
           </p>
           {!search && (
             <Button className="mt-4" onClick={() => setIsFormOpen(true)}>

@@ -362,15 +362,23 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
   const knockout = isKnockout(tournament)
   const pko = isProgressive(tournament)
   // Colunas literais (o Tailwind só gera classe que aparece inteira no código). No PKO a coluna "Cabeça" entra com o
-  // valor sem "R$" (cabe ao lado do nome na coluna de 1/4 do telão) e Reb/Add/Deve ficam um pouco mais estreitas; no
-  // Normal e no knockout simples as colunas são as de sempre.
+  // valor sem "R$" e Reb/Add/Deve ficam um pouco mais estreitas; no Normal e no knockout simples as colunas são as de
+  // sempre. Revisão geral 2: no PKO o nome tem no mínimo 7rem e, abaixo de 1600 px de largura (TV HD 1280/1366), as
+  // colunas Reb/Add saem para caber a Cabeça; a coluna de jogadores também fica um pouco mais larga (5fr de 16).
   const activeCols = !showMoney
     ? pko
-      ? 'grid-cols-[minmax(0,1fr)_2.5rem_2.5rem_4.5rem]'
+      ? 'grid-cols-[minmax(7rem,1fr)_4.5rem] min-[1600px]:grid-cols-[minmax(7rem,1fr)_2.5rem_2.5rem_4.5rem]'
       : 'grid-cols-[minmax(0,1fr)_3rem_3rem]'
     : pko
-      ? 'grid-cols-[minmax(0,1fr)_2.5rem_2.5rem_4.5rem_7rem]'
+      ? 'grid-cols-[minmax(7rem,1fr)_4.5rem_7rem] min-[1600px]:grid-cols-[minmax(7rem,1fr)_2.5rem_2.5rem_4.5rem_7rem]'
       : 'grid-cols-[minmax(0,1fr)_3rem_3rem_8rem]'
+  // Reb/Add no PKO só a partir de 1600 px (mesmas colunas do cabeçalho e das linhas)
+  const rebAddCols = pko ? 'max-[1599px]:hidden' : ''
+  const mainCols = pko ? 'grid-cols-[5fr_7fr_4fr]' : 'grid-cols-[1fr_2fr_1fr]'
+  // A coluna central do PKO (7/16) tem 7/8 da largura da do Normal (2/4): com zoom de 7/8 ela é o MESMO centro do Normal
+  // em escala — relógio, blinds, ante, próximo e o PIX do dia quebram nos mesmos pontos e ocupam 7/8 da altura, então o
+  // QR nunca desce mais que no Normal (antes, com blinds grandes, os blinds iam para 3 linhas e o QR saía da tela)
+  const centerZoom = pko ? '[zoom:0.875]' : ''
   const finishedCols = !showMoney
     ? 'grid-cols-[minmax(0,1fr)]'
     : pko
@@ -405,7 +413,9 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
 
       <div className="relative z-10 flex h-screen flex-col">
         {/* Top Bar */}
-        <header className="flex items-center justify-between border-b border-border-default bg-bg-card px-6 py-3">
+        <header
+          className={`flex items-center justify-between border-b border-border-default bg-bg-card px-6 py-3 ${knockout ? 'gap-4' : ''}`}
+        >
           <div className="flex min-w-0 items-center gap-4">
             {clubLogoSrc && (
               <img
@@ -414,19 +424,19 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
                 className="h-14 w-auto max-w-[12rem] shrink-0 object-contain"
               />
             )}
-            <h1 className="text-3xl font-bold tracking-tight">
+            <h1 className="min-w-0 truncate text-3xl font-bold tracking-tight">
               {tournament?.name ?? 'Torneio'}
             </h1>
             {status && (
               <Badge
                 color={knownStatus ? TOURNAMENT_STATUS_COLORS[knownStatus] : 'gray'}
-                className="px-3 py-1 text-sm"
+                className="shrink-0 whitespace-nowrap px-3 py-1 text-sm"
               >
                 {knownStatus ? TOURNAMENT_STATUS_LABELS[knownStatus] : status}
               </Badge>
             )}
             {knockout && (
-              <Badge color="purple" className="gap-1.5 px-3 py-1 text-base tabular-nums">
+              <Badge color="purple" className="shrink-0 gap-1.5 whitespace-nowrap px-3 py-1 text-base tabular-nums">
                 <Crosshair className="h-4 w-4" aria-hidden />
                 <span data-tv-knockout={knockoutTypeOf(tournament)}>
                   {KNOCKOUT_BADGES[knockoutTypeOf(tournament)]} · bounty {formatCurrency(tournament?.bountyAmount ?? 0)}
@@ -434,8 +444,9 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
               </Badge>
             )}
           </div>
-          <div className="flex items-center gap-5 text-base text-text-secondary">
-            <span>Pressione F para tela cheia</span>
+          <div className="flex shrink-0 items-center gap-5 whitespace-nowrap text-base text-text-secondary">
+            {/* Abaixo de 1600 px some, para o cabeçalho caber numa linha e não empurrar nada por cima do Nível */}
+            <span className="max-[1599px]:hidden" data-tv-fullscreen-hint>Pressione F para tela cheia</span>
             <span>
               {now.toLocaleDateString('pt-BR', {
                 day: '2-digit',
@@ -562,7 +573,7 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
             )}
           </div>
         ) : (
-        <div className="grid flex-1 min-h-0 grid-cols-[1fr_2fr_1fr] gap-4 px-6 py-4">
+        <div className={`grid flex-1 min-h-0 ${mainCols} gap-4 px-6 py-4`} data-tv-main>
           {/* ==== Coluna esquerda: jogadores ==== */}
           <aside className="flex min-h-0 flex-col rounded-xl border border-border-default bg-bg-card p-4">
             <div className="mb-1 flex items-center justify-between">
@@ -580,8 +591,8 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
             </p>
             <div className={`mb-1 grid gap-1 px-2 text-sm uppercase tracking-wider text-text-secondary ${activeCols}`}>
               <span>Jogador</span>
-              <span className="text-center">Reb</span>
-              <span className="text-center">Add</span>
+              <span className={`text-center ${rebAddCols}`}>Reb</span>
+              <span className={`text-center ${rebAddCols}`}>Add</span>
               {pko && <span className="text-right" title="Cabeça (bounty) em reais">Cabeça</span>}
               {showMoney && <span className="text-right">Deve</span>}
             </div>
@@ -632,8 +643,8 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
                       </span>
                       {!finished && (
                         <>
-                          <span className="text-center tabular-nums text-text-secondary">{e.rebuyCount || '-'}</span>
-                          <span className="text-center tabular-nums text-text-secondary">
+                          <span className={`text-center tabular-nums text-text-secondary ${rebAddCols}`}>{e.rebuyCount || '-'}</span>
+                          <span className={`text-center tabular-nums text-text-secondary ${rebAddCols}`}>
                             {e.addonPurchased ? (e.addonDouble ? '2' : '1') : '-'}
                           </span>
                           {pko && (
@@ -659,8 +670,11 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
             </AutoScrollList>
           </aside>
 
-          {/* ==== Coluna central: timer / blinds / campeão ==== */}
-          <div className="flex min-h-0 flex-col items-center justify-center gap-6">
+          {/* ==== Coluna central: timer / blinds / campeão ====
+              justify-center-safe (revisão geral 2): numa TV de 720/768 de altura, o que não cabe sobra para baixo e nunca
+              sobe para baixo do cabeçalho, por cima do "Nível"; até 800 px de altura o relógio, os blinds e o QR do PIX
+              ficam um pouco menores para tudo caber */}
+          <div className={`flex min-h-0 flex-col items-center justify-center-safe gap-6 ${centerZoom}`} data-tv-center>
             {tournament?.status === 'Finished' ? (
               (() => {
                 const champion = entries
@@ -708,7 +722,7 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
 
                 {/* Timer */}
                 <div
-                  className={`font-mono tabular-nums text-[10rem] font-bold leading-none tracking-tighter transition-colors duration-500 ${timerColor}`}
+                  className={`font-mono tabular-nums text-[10rem] font-bold leading-none tracking-tighter transition-colors duration-500 [@media(max-height:800px)]:text-[7rem] ${timerColor}`}
                 >
                   {formattedTime}
                 </div>
@@ -728,7 +742,7 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
                       <span className="text-2xl font-semibold uppercase tracking-wider text-text-secondary">
                         Blinds
                       </span>
-                      <span className="text-8xl font-bold tabular-nums text-accent-blue">
+                      <span className="text-8xl font-bold tabular-nums text-accent-blue [@media(max-height:800px)]:text-7xl">
                         {timerState.smallBlind.toLocaleString('pt-BR')} /{' '}
                         {timerState.bigBlind.toLocaleString('pt-BR')}
                       </span>
@@ -738,7 +752,7 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
                         <span className="text-2xl font-semibold uppercase tracking-wider text-text-secondary">
                           Ante
                         </span>
-                        <span className="text-7xl font-bold tabular-nums text-accent-orange-deep">
+                        <span className="text-7xl font-bold tabular-nums text-accent-orange-deep [@media(max-height:800px)]:text-6xl">
                           {timerState.ante.toLocaleString('pt-BR')}
                         </span>
                       </div>
@@ -765,6 +779,7 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
                         <QRCodeSVG
                           value={pixCard.payload}
                           size={140}
+                          className="[@media(max-height:800px)]:h-24 [@media(max-height:800px)]:w-24"
                         />
                       </div>
                       <div className="flex min-w-0 flex-col">

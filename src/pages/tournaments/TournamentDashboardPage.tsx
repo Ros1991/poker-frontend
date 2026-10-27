@@ -271,7 +271,7 @@ export function TournamentDashboardPage() {
   if (!tournament) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-4">
-        <p className="text-text-secondary">Torneio nao encontrado.</p>
+        <p className="text-text-secondary">Torneio não encontrado.</p>
         <Link to="/" className="text-accent-blue hover:underline">
           Voltar
         </Link>

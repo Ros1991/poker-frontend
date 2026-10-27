@@ -210,10 +210,14 @@ export function useTerminalActions(
             ? ` · bounty: ${formatCurrency(result?.bountyCash ?? 0)} para ${who} + ${formatCurrency(result?.bountyToHead ?? 0)} na cabeça`
             : ` · bounty ${formatCurrency(result?.bountyCash ?? 0)} para ${who}`
           : ''
+      // Última eliminação: o servidor já finalizou o torneio — o toast diz isso e quem é o campeão (revisão geral 2)
+      const finished = result?.tournamentFinished
+        ? `. Torneio finalizado: ${result.championName ?? 'o último jogador'} é o campeão!`
+        : ''
       void showUndoToast(
         result?.position
-          ? `${playerName(entry)} saiu em ${result.position}º lugar${itm}${bounty}`
-          : `${playerName(entry)} saiu do torneio${itm}${bounty}`,
+          ? `${playerName(entry)} saiu em ${result.position}º lugar${itm}${bounty}${finished}`
+          : `${playerName(entry)} saiu do torneio${itm}${bounty}${finished}`,
         entry.id,
         ['Elimination'],
         before,

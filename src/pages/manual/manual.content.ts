@@ -504,7 +504,7 @@ export const MANUAL_MODULES = [
           {
             title: 'Visão geral',
             text: [
-              'No topo: status, relógio, jogadores, rebuys, add-ons, premiação e total. Os botões mudam conforme o torneio anda: Iniciar Torneio, Pausar, Encerrar Rebuys e Finalizar.',
+              'No topo: status, relógio, jogadores, rebuys, add-ons, premiação e total. Os botões mudam conforme o torneio anda: Iniciar Torneio, Pausar, Encerrar Rebuys e Finalizar (para encerrar antes da hora; quando sobra o campeão, ele se finaliza sozinho).',
               'Ao lado ficam o TV Display (o telão) e o Terminal do dealer. Abaixo, as abas.',
             ],
             image: 'pc-painel-torneio',
@@ -591,7 +591,8 @@ export const MANUAL_MODULES = [
           {
             title: 'Finalize',
             text: [
-              'Quando sobrar o campeão, confira a premiação e toque em Finalizar. Os resultados vão para o ranking da temporada.',
+              'Confirme a premiação antes da última eliminação. Quando sobra o campeão, o torneio se finaliza sozinho e os resultados vão para o ranking da temporada.',
+              'Se precisar, ajuste e salve a premiação depois, na aba Premiação.',
             ],
           },
         ],

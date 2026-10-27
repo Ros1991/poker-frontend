@@ -3,11 +3,14 @@ import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
 import type { Table } from '../../api/tables.api'
 import type { BalanceMove } from '../../utils/tableBalance'
+import { PlayerConfirmHeader, type ConfirmPerson } from './PlayerConfirmHeader'
 import { tableLabel } from './terminalFormat'
 
 interface BalanceDrawDialogProps {
   move: BalanceMove
   tables: Table[]
+  /** Quem foi sorteado (foto e nome) — sem ele, só o nome do sorteio */
+  person?: ConfirmPerson | null
   loading: boolean
   onConfirm: () => void
   onReroll: () => void
@@ -15,10 +18,15 @@ interface BalanceDrawDialogProps {
   onClose: () => void
 }
 
-/** Mostra o sorteado da mesa mais cheia e o lugar livre da mais vazia */
+/**
+ * Mostra o sorteado da mesa mais cheia e o lugar livre da mais vazia. Revisão geral 2: confirmação de ação sobre um
+ * jogador = PlayerConfirmHeader no topo (foto + nome, SPEC-20261026-2103), com "Mesa A, lugar B → Mesa C, lugar D" na
+ * linha de detalhe — o mesmo no painel e no terminal.
+ */
 export function BalanceDrawDialog({
   move,
   tables,
+  person,
   loading,
   onConfirm,
   onReroll,
@@ -29,6 +37,7 @@ export function BalanceDrawDialog({
     const t = tables.find((x) => x.id === id)
     return t ? tableLabel(t) : 'Mesa'
   }
+  const shown: ConfirmPerson = person ?? { fullName: move.playerName, nickname: null, photoUrl: null }
 
   return (
     <Modal
@@ -42,16 +51,17 @@ export function BalanceDrawDialog({
         </Button>
       }
     >
-      <div className="mb-4 rounded-xl bg-bg-primary p-4 text-center">
-        <p className="text-2xl font-bold text-text-primary">{move.playerName}</p>
-        <p className="mt-2 text-base text-text-secondary">
-          {name(move.fromTableId)}, lugar {move.fromSeat}
-        </p>
-        <p className="text-lg text-accent-blue">↓</p>
-        <p className="text-base font-semibold text-accent-green-deep">
-          {name(move.toTableId)}, lugar {move.toSeat}
-        </p>
-      </div>
+      <PlayerConfirmHeader
+        person={shown}
+        detail={
+          <span data-balance-move>
+            {name(move.fromTableId)}, lugar {move.fromSeat} →{' '}
+            <span className="font-semibold text-text-primary">
+              {name(move.toTableId)}, lugar {move.toSeat}
+            </span>
+          </span>
+        }
+      />
       <div className="flex flex-col gap-2">
         <Button variant="secondary" className="w-full" disabled={loading} onClick={onReroll}>
           <Shuffle className="h-4 w-4" /> Sortear outro

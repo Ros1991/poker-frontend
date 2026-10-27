@@ -162,7 +162,7 @@ export function TournamentListPage() {
           <Trophy className="mx-auto h-12 w-12 text-text-muted mb-3" />
           <p className="text-text-secondary mb-1">Nenhum torneio encontrado.</p>
           <p className="text-sm text-text-secondary">
-            Crie seu primeiro torneio para comecar.
+            Crie seu primeiro torneio para começar.
           </p>
         </div>
       )}

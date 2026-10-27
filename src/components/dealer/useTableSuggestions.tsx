@@ -180,6 +180,7 @@ export function useTableSuggestions({ tournamentId, tournament, tables, entries,
         <BalanceDrawDialog
           move={balanceMove}
           tables={tables}
+          person={entries.find((e) => e.id === balanceMove.entryId)?.person ?? null}
           loading={balanceMutation.isPending}
           onConfirm={() => balanceMutation.mutate(balanceMove)}
           onReroll={() => drawBalance(balanceMove.entryId)}

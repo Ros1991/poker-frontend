@@ -12,6 +12,12 @@ export interface CostExtra {
   pixKeyType?: PixKeyType | null
   isCashBox?: boolean
   paidAmount?: number
+  /** Quanto os jogadores pagaram direto a este custo (PIX e abatimentos que valem) — revisão geral 2 */
+  paidByPlayers?: number
+  /** Parte do pago que foi pelo caixa (botão Dinheiro/Caixa): só ela se desfaz no "Reverter pagamento" */
+  paidByCashBox?: number
+  /** Recebido (dos jogadores e/ou do caixa) acima do valor: custo que encolheu depois de pago — revisão geral 2 */
+  overReceived?: number
   paymentStatus?: string
   paymentMethod?: string | null
   paidAt?: string | null

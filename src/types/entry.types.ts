@@ -76,6 +76,10 @@ export interface EliminationResult {
   bountyAmount?: number | null
   bountyCash?: number | null
   bountyToHead?: number | null
+  /** A eliminação deixou só o campeão: o torneio se finalizou sozinho (revisão geral 2) */
+  tournamentFinished?: boolean
+  /** Apelido (ou nome) do campeão, quando o torneio se finalizou nesta eliminação */
+  championName?: string | null
 }
 
 /** Mesa aberta pela inscrição (SPEC-20261023-1214) */

@@ -13,6 +13,7 @@ import {
   CreditCard,
   AlertCircle,
   Crosshair,
+  RefreshCw,
   Scale,
   Smartphone,
 } from 'lucide-react'
@@ -21,6 +22,7 @@ import * as paymentsApi from '../../../api/payments.api'
 import * as costExtrasApi from '../../../api/costExtras.api'
 import { Avatar } from '../../../components/ui/Avatar'
 import { Badge } from '../../../components/ui/Badge'
+import { Button } from '../../../components/ui/Button'
 import type { BadgeColor } from '../../../components/ui/Badge'
 import { LoadingSpinner } from '../../../components/common/LoadingSpinner'
 import { PAYMENT_STATUS_COLORS, PAYMENT_STATUS_LABELS } from '../../../constants/statuses'
@@ -86,8 +88,15 @@ export function FinancialTab({ tournament, entries }: FinancialTabProps) {
     queryFn: () => costExtrasApi.getAll(tournament.id),
   })
 
-  // Resumo por forma de pagamento e quem pagou para quem (SPEC-20261026-1906)
-  const { data: breakdown } = useQuery({
+  // Resumo por forma de pagamento e quem pagou para quem (SPEC-20261026-1906). Carregando e erro com aviso no lugar das
+  // duas seções (revisão geral 2) — antes elas só não apareciam
+  const {
+    data: breakdown,
+    isLoading: loadingBreakdown,
+    isError: breakdownFailed,
+    refetch: refetchBreakdown,
+    isFetching: fetchingBreakdown,
+  } = useQuery({
     queryKey: ['paymentBreakdown', tournament.id],
     queryFn: () => paymentsApi.getBreakdown(tournament.id),
     refetchOnMount: 'always',
@@ -266,12 +275,36 @@ export function FinancialTab({ tournament, entries }: FinancialTabProps) {
         </div>
       </div>
 
-      {breakdown && (
+      {breakdown ? (
         <>
           <MethodSummary breakdown={breakdown} />
           <WhoPaidWhom breakdown={breakdown} />
         </>
-      )}
+      ) : loadingBreakdown ? (
+        <div className="rounded-xl border border-border-default bg-bg-primary p-4" data-financial-breakdown-loading>
+          <LoadingSpinner size="sm" text="Carregando o detalhamento..." />
+        </div>
+      ) : breakdownFailed ? (
+        <div
+          role="alert"
+          className="flex flex-col items-start gap-3 rounded-xl border border-accent-red/30 bg-accent-red-soft p-4 sm:flex-row sm:items-center sm:justify-between"
+          data-financial-breakdown-error
+        >
+          <p className="flex items-start gap-2 text-sm text-accent-red-deep">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            Não foi possível carregar o detalhamento.
+          </p>
+          <Button
+            variant="secondary"
+            className="shrink-0"
+            onClick={() => void refetchBreakdown()}
+            loading={fetchingBreakdown}
+          >
+            <RefreshCw className="h-4 w-4" />
+            Tentar de novo
+          </Button>
+        </div>
+      ) : null}
 
       {/* Pending payments list */}
       {pendingEntries.length > 0 && (
@@ -458,7 +491,8 @@ function MethodSummary({ breakdown }: { breakdown: PaymentBreakdown }) {
 /** Quem pagou para quem: o caixa e cada custo (dealer, caixinha, casa, staff…) com a lista de quem pagou */
 function WhoPaidWhom({ breakdown }: { breakdown: PaymentBreakdown }) {
   const [open, setOpen] = useState<Set<string>>(() => new Set())
-  const keyOf = (d: PaymentDestinationDetail) => d.costExtraId ?? d.kind
+  // Custos excluídos vêm um por nome ("Custo excluído (Fotógrafo)"): a chave leva a descrição
+  const keyOf = (d: PaymentDestinationDetail) => d.costExtraId ?? `${d.kind}:${d.description}`
   const toggle = (k: string) =>
     setOpen((prev) => {
       const next = new Set(prev)
@@ -503,14 +537,15 @@ function DestinationRow({
   const isCost = d.kind === 'Cost'
   const amount = d.amount ?? 0
   const paid = d.paidAmount ?? 0
-  const over = isCost ? Math.round((paid - amount) * 100) / 100 : 0
+  // Recebido a mais: custo que encolheu depois de pago, por jogadores e/ou pelo caixa (o pago fica no valor; o excedente
+  // vem do servidor em overReceived) — fora do devido, com o aviso para acertar com o caixa (revisão geral 2)
+  const over = isCost ? Math.round(Math.max(d.overReceived ?? 0, paid - amount) * 100) / 100 : 0
   const names = [...new Set(d.lines.map((l) => l.playerName))]
   const Chevron = expanded ? ChevronDown : ChevronRight
 
   let badge: { color: BadgeColor; text: string } | null = null
   if (isCost) {
-    if (over > EPS) badge = { color: 'red', text: `Recebeu ${formatCurrency(over)} a mais` }
-    else if ((d.remaining ?? 0) > EPS) badge = { color: 'yellow', text: `Falta ${formatCurrency(d.remaining ?? 0)}` }
+    if ((d.remaining ?? 0) > EPS) badge = { color: 'yellow', text: `Falta ${formatCurrency(d.remaining ?? 0)}` }
     else badge = { color: 'green', text: 'Quitado' }
   } else if (d.kind === 'Removed') {
     badge = { color: 'gray', text: 'Excluído' }
@@ -542,6 +577,15 @@ function DestinationRow({
           {badge && <Badge color={badge.color}>{badge.text}</Badge>}
         </div>
       </button>
+      {over > EPS && (
+        <p
+          role="alert"
+          className="mb-2 ml-6 rounded-md bg-accent-red-soft px-2 py-1.5 text-xs font-semibold text-accent-red-deep tabular-nums"
+          data-destination-over
+        >
+          {formatCurrency(over)} recebidos a mais — acertar com o caixa
+        </p>
+      )}
 
       {expanded && (
         <div className="pb-3 pl-6" data-destination-lines>
@@ -578,6 +622,7 @@ function DestinationRow({
               {d.settledAmount > EPS && <span>(abatimentos: {formatCurrency(d.settledAmount)})</span>}
               {d.paidByCashBox > EPS && <span>Pago pelo caixa: {formatCurrency(d.paidByCashBox)}</span>}
               <span>Falta: {formatCurrency(d.remaining ?? 0)}</span>
+              {over > EPS && <span className="font-semibold text-accent-red-deep">A mais: {formatCurrency(over)}</span>}
             </p>
           )}
           {d.kind === 'CashBox' && (
