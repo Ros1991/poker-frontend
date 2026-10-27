@@ -235,21 +235,27 @@ export function LoginPage() {
                 {...register('password')}
               />
 
-              <div className="flex items-center justify-between gap-3">
-                <label className="flex items-center gap-2 cursor-pointer">
+              {/* Celular (SPEC-20261026-2103): "Lembrar" numa linha e "Esqueci minha senha" na de baixo; do sm em diante
+                  lado a lado quando cabe. Os dois textos nunca quebram (sem espaço, a linha inteira desce). */}
+              <div
+                className="flex flex-col items-start gap-1 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-x-3"
+                data-login-options
+              >
+                <label className="flex min-h-[40px] cursor-pointer items-center gap-2" data-login-remember>
                   <input
                     type="checkbox"
-                    className="h-4 w-4 rounded border-border-input bg-bg-input text-accent-blue focus:ring-accent-blue"
+                    className="h-4 w-4 shrink-0 rounded border-border-input bg-bg-input text-accent-blue focus:ring-accent-blue"
                     {...register('rememberMe')}
                   />
-                  <span className="text-sm text-text-secondary">
+                  <span className="whitespace-nowrap text-sm text-text-secondary">
                     Lembrar e-mail e senha
                   </span>
                 </label>
                 <Link
                   to={ROUTES.FORGOT_PASSWORD}
                   state={forgotState}
-                  className="text-sm text-accent-blue hover:underline"
+                  className="inline-flex min-h-[40px] items-center whitespace-nowrap text-sm text-accent-blue hover:underline"
+                  data-login-forgot
                 >
                   Esqueci minha senha
                 </Link>

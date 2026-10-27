@@ -22,6 +22,7 @@ import { MovePlayerDialog } from '../../../components/dealer/MovePlayerDialog'
 import { usePlayerActionDialogs } from '../../../components/dealer/PlayerActionDialogs'
 import { PlayerCard } from '../../../components/dealer/PlayerCard'
 import { PlayerDetails } from '../../../components/dealer/PlayerDetails'
+import { PlayerConfirmHeader } from '../../../components/dealer/PlayerConfirmHeader'
 import { TableAlerts } from '../../../components/dealer/TableAlerts'
 import { TablesOverview } from '../../../components/dealer/TablesSheet'
 import { useTableSuggestions } from '../../../components/dealer/useTableSuggestions'
@@ -393,6 +394,7 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
             search={historySearch}
             onUndo={actions.undoItem}
             paymentsLocked={!canPay}
+            entries={entries}
           />
         </section>
       ) : entries.length === 0 ? (
@@ -590,6 +592,7 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
         onClose={() => !removeMutation.isPending && setRemoveConfirm(null)}
         onConfirm={() => removeConfirm && removeMutation.mutate(removeConfirm)}
         title="Excluir inscrição"
+        header={removeConfirm && <PlayerConfirmHeader person={removeConfirm.person} />}
         message={
           removeConfirm
             ? `Excluir a inscrição de ${playerName(removeConfirm)}? ${

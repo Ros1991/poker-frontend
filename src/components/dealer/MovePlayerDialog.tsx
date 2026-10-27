@@ -10,6 +10,7 @@ import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { cn } from '../../utils/cn'
 import type { TournamentEntry } from '../../types/entry.types'
 import { seatedByTable } from '../../utils/tableBalance'
+import { PlayerConfirmHeader, PlayerPairHeader } from './PlayerConfirmHeader'
 import { apiErrorMessage, playerName, seatLabel, tableLabel } from './terminalFormat'
 
 interface MovePlayerDialogProps {
@@ -22,7 +23,10 @@ interface MovePlayerDialogProps {
   onMoved: () => void
 }
 
-/** Mover: escolher a mesa → escolher o lugar (livre move; ocupado troca os dois, com confirmação) */
+/**
+ * Mover: escolher a mesa → escolher o lugar (livre move; ocupado troca os dois, com confirmação). Foto redonda e nome no
+ * topo (SPEC-20261026-2103): de quem muda e, na troca, dos dois.
+ */
 export function MovePlayerDialog({ tournamentId, entry, tables, entries, onClose, onMoved }: MovePlayerDialogProps) {
   const [tableId, setTableId] = useState<string | null>(null)
   const [swapWith, setSwapWith] = useState<{ seat: number; other: TournamentEntry } | null>(null)
@@ -68,7 +72,7 @@ export function MovePlayerDialog({ tournamentId, entry, tables, entries, onClose
           </Button>
         }
       >
-        <p className="mb-3 text-sm text-text-secondary">Hoje: {seatLabel(entry, tables)}</p>
+        <PlayerConfirmHeader person={entry.person} detail={`Hoje: ${seatLabel(entry, tables)}`} className="mb-3" />
 
         {!table ? (
           <>
@@ -153,6 +157,7 @@ export function MovePlayerDialog({ tournamentId, entry, tables, entries, onClose
         onClose={() => setSwapWith(null)}
         onConfirm={() => table && swapWith && moveMutation.mutate({ toTableId: table.id, toSeat: swapWith.seat })}
         title="Trocar de lugar"
+        header={swapWith && <PlayerPairHeader first={entry.person} second={swapWith.other.person} />}
         message={swapWith ? `Trocar ${name} e ${playerName(swapWith.other)} de lugar?` : ''}
         confirmLabel="Trocar"
         variant="warning"

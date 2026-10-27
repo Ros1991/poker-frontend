@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Poker da Galera — SPEC-20261023-1207: páginas institucionais (os rankings públicos /r/... não entram: o link é do grupo) -->
+<!-- Poker da Galera — SPEC-20261023-1207: páginas institucionais (os rankings públicos /r/... não entram: o link é do grupo);
+     SPEC-20261026-1910: o manual de uso público (/manual e um endereço por módulo) -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://pokerdagalera.com.br/</loc>
@@ -15,5 +16,35 @@
     <loc>https://pokerdagalera.com.br/privacidade</loc>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://pokerdagalera.com.br/manual</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://pokerdagalera.com.br/manual/criando-seu-home-game</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://pokerdagalera.com.br/manual/terminal-do-dealer</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://pokerdagalera.com.br/manual/painel-do-home-game</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://pokerdagalera.com.br/manual/telao-na-tv</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://pokerdagalera.com.br/manual/planos</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
   </url>
 </urlset>

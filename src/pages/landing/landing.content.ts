@@ -42,6 +42,8 @@ export const HEADER = {
   tvShort: 'Telão',
   tvAfter: ' da TV',
   pricing: 'Planos',
+  /** Manual de uso (SPEC-20261026-1910), a partir de `md` */
+  manual: 'Manual',
 } as const
 
 export const HERO = {
@@ -155,6 +157,9 @@ export const THREE_STEPS = {
       text: `Inscreva quem chegou, inicie o relógio e abra ${TV_SHORT_DOMAINS[0]} na TV.`,
     },
   ],
+  /** Link para o manual de uso (SPEC-20261026-1910) abaixo dos 3 passos */
+  manualText: 'Quer o passo a passo com as telas?',
+  manualLink: 'Abrir o manual de uso',
 } as const
 
 export const PRICING = {
@@ -229,6 +234,8 @@ export const FOOTER = {
     login: 'Entrar',
     tv: 'Telão',
     pricing: 'Planos',
+    /** Manual de uso (SPEC-20261026-1910) */
+    manual: 'Manual',
     terms: 'Termos',
     privacy: 'Privacidade',
     contact: 'Contato',

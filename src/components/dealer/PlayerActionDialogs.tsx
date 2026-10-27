@@ -5,6 +5,7 @@ import type { TournamentEntry } from '../../types/entry.types'
 import type { Tournament } from '../../types/tournament.types'
 import { AddonDialog } from './AddonDialog'
 import { EliminateDialog } from './EliminateDialog'
+import { PlayerConfirmHeader } from './PlayerConfirmHeader'
 import { formatCurrency, playerName } from './terminalFormat'
 import type { useTerminalActions } from './useTerminalActions'
 
@@ -35,7 +36,8 @@ interface PlayerActionDialogsOptions {
  * Diálogos de ação do jogador compartilhados pelo terminal do dealer e pela aba Jogadores do painel
  * (SPEC-20261023-1217, L14): confirmação de rebuy, AddonDialog (simples/duplo), EliminateDialog ("Quem eliminou?"),
  * confirmação de desfazer eliminação e o PaymentModal. Devolve as funções que abrem cada um e o JSX (`dialogs`) para
- * quem usa pôr no fim da tela. Os toasts com "Desfazer" vêm do `useTerminalActions` de quem chama.
+ * quem usa pôr no fim da tela. Os toasts com "Desfazer" vêm do `useTerminalActions` de quem chama. Toda confirmação abre
+ * com a foto redonda e o nome do jogador no topo (SPEC-20261026-2103), para o dealer conferir quem é.
  */
 export function usePlayerActionDialogs({
   tournamentId,
@@ -67,6 +69,7 @@ export function usePlayerActionDialogs({
           actions.rebuyMutation.mutate(rebuyEntry, { onSettled: () => setRebuyEntry(null) })
         }
         title="Rebuy"
+        header={rebuyEntry && <PlayerConfirmHeader person={rebuyEntry.person} />}
         message={
           rebuyEntry
             ? `Rebuy para ${playerName(rebuyEntry)}: ${formatCurrency(tournament?.rebuyAmount ?? 0)}?`
@@ -132,6 +135,7 @@ export function usePlayerActionDialogs({
           actions.undoEliminationMutation.mutate(undoElimEntry, { onSettled: () => setUndoElimEntry(null) })
         }
         title="Desfazer eliminação"
+        header={undoElimEntry && <PlayerConfirmHeader person={undoElimEntry.person} />}
         message={undoElimEntry ? `Desfazer a eliminação de ${playerName(undoElimEntry)}? O jogador volta para o torneio.` : ''}
         confirmLabel="Desfazer"
         variant="warning"

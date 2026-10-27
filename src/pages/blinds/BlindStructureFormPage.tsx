@@ -790,7 +790,7 @@ export function BlindStructureFormPage() {
           </h2>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-sm tabular-nums">
+            <table className="w-full min-w-[36rem] text-sm tabular-nums">
               <thead>
                 <tr className="border-b border-border-default text-left text-text-secondary">
                   <th className="px-2 py-2 w-16">Nível</th>

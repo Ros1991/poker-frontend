@@ -9,6 +9,9 @@ import { usePlanCatalog } from '../../hooks/usePlanCatalog'
 import { requiredPlanFor } from '../plan/planUtils'
 import { cn } from '../../utils/cn'
 import type { HistoryItem, HistoryKind } from '../../types/history.types'
+import type { TournamentEntry } from '../../types/entry.types'
+import { PlayerConfirmHeader } from './PlayerConfirmHeader'
+import type { ConfirmPerson } from './PlayerConfirmHeader'
 import { formatTime, normalizeText } from './terminalFormat'
 
 const PAYMENT_KINDS: HistoryKind[] = ['Payment', 'Settlement']
@@ -26,6 +29,11 @@ interface HistoryListProps {
    * "Desfazer", com o motivo do plano (o plano que libera vem do catálogo, nunca digitado)
    */
   paymentsLocked?: boolean
+  /**
+   * Inscrições do torneio: a confirmação do "Desfazer" mostra a foto do jogador do item (SPEC-20261026-2103). Sem a
+   * inscrição na lista (ex.: inscrição excluída), vão as iniciais do nome que veio no item.
+   */
+  entries?: TournamentEntry[]
 }
 
 /**
@@ -56,7 +64,7 @@ function confirmMessage(item: HistoryItem): string {
  * o nome de quem eliminou fica dentro desse texto, nunca maior que o de quem saiu. Na Ficha (só um jogador) vem só o
  * texto do evento. "por <quem fez>" na última linha, menor ainda.
  */
-export function HistoryList({ tournamentId, entryId, search, onUndo, paymentsLocked = false }: HistoryListProps) {
+export function HistoryList({ tournamentId, entryId, search, onUndo, paymentsLocked = false, entries }: HistoryListProps) {
   const [confirmItem, setConfirmItem] = useState<HistoryItem | null>(null)
   const [undoing, setUndoing] = useState(false)
   // Catálogo público (GET public/plans, nunca 402): só para dizer qual plano libera os pagamentos
@@ -89,6 +97,14 @@ export function HistoryList({ tournamentId, entryId, search, onUndo, paymentsLoc
       setConfirmItem(null)
     }
   }
+
+  /** Quem aparece no topo da confirmação: a pessoa da inscrição do item (com a foto), senão só o nome do item */
+  function confirmPerson(item: HistoryItem): ConfirmPerson | null {
+    const entry = item.entryId ? entries?.find((e) => e.id === item.entryId) : undefined
+    if (entry) return entry.person
+    return item.playerName ? { fullName: item.playerName, nickname: null, photoUrl: null } : null
+  }
+  const confirmWho = confirmItem ? confirmPerson(confirmItem) : null
 
   if (isLoading) return <LoadingSpinner size="md" text="Carregando histórico..." className="py-8" />
   if (isError) return <p className="py-8 text-center text-sm text-accent-red-deep">Não foi possível carregar o histórico.</p>
@@ -171,6 +187,7 @@ export function HistoryList({ tournamentId, entryId, search, onUndo, paymentsLoc
         onClose={() => !undoing && setConfirmItem(null)}
         onConfirm={() => void handleConfirm()}
         title="Desfazer"
+        header={confirmWho && <PlayerConfirmHeader person={confirmWho} />}
         message={confirmItem ? confirmMessage(confirmItem) : ''}
         confirmLabel="Desfazer"
         variant="warning"

@@ -1,6 +1,12 @@
+import { BookOpen } from 'lucide-react'
+import { ROUTES } from '../../../constants/routes'
 import { THREE_STEPS } from '../landing.content'
+import { TEXT_LINK } from './linkStyles'
 
-/** Seção 4 — em 3 passos: criar o home game, montar a estrutura de blinds uma vez, abrir o torneio e ligar o telão. */
+/**
+ * Seção 4 — em 3 passos: criar o home game, montar a estrutura de blinds uma vez, abrir o torneio e ligar o telão. Embaixo,
+ * o link para o manual de uso com as telas (SPEC-20261026-1910).
+ */
 export function ThreeSteps() {
   return (
     <section aria-labelledby="landing-passos" className="border-y border-border-default bg-bg-secondary">
@@ -24,6 +30,13 @@ export function ThreeSteps() {
             </li>
           ))}
         </ol>
+        <p className="mt-6 flex flex-wrap items-center gap-x-2 gap-y-1 text-base text-text-secondary">
+          <BookOpen className="h-5 w-5 shrink-0 text-accent-blue" aria-hidden="true" />
+          <span>{THREE_STEPS.manualText}</span>
+          <a href={ROUTES.MANUAL} className={`${TEXT_LINK} inline-flex min-h-[44px] items-center`}>
+            {THREE_STEPS.manualLink}
+          </a>
+        </p>
       </div>
     </section>
   )

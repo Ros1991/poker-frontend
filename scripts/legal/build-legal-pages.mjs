@@ -155,6 +155,7 @@ ${sections}
 <li><a href="/login">${esc(FOOTER.links.login)}</a></li>
 <li><a href="/tv">${esc(FOOTER.links.tv)}</a></li>
 <li><a href="/#${esc(PRICING_ANCHOR)}">${esc(FOOTER.links.pricing)}</a></li>
+<li><a href="/manual">${esc(FOOTER.links.manual)}</a></li>
 <li><a href="/termos">${esc(FOOTER.links.terms)}</a></li>
 <li><a href="/privacidade">${esc(FOOTER.links.privacy)}</a></li>
 <li><a href="mailto:${esc(LEGAL_INFO.email)}">${esc(FOOTER.links.contact)}</a></li>

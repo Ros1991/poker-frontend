@@ -10,6 +10,8 @@ import { Modal } from '../../../components/ui/Modal'
 import { ConfirmDialog } from '../../../components/ui/ConfirmDialog'
 import { Input } from '../../../components/ui/Input'
 import { LoadingSpinner } from '../../../components/common/LoadingSpinner'
+import { PlayerConfirmHeader } from '../../../components/dealer/PlayerConfirmHeader'
+import type { ConfirmPerson } from '../../../components/dealer/PlayerConfirmHeader'
 import type { Tournament } from '../../../types/tournament.types'
 
 interface TablesTabProps {
@@ -55,6 +57,11 @@ export function TablesTab({ tournament }: TablesTabProps) {
     queryKey: ['entries', tournament.id],
     queryFn: () => entriesApi.getAll(tournament.id),
   })
+
+  // Foto e nome de quem está sendo movido/removido (SPEC-20261026-2103): a pessoa da inscrição; sem ela, só o nome
+  function personOf(p: { entryId: string; name: string }): ConfirmPerson {
+    return entries.find((e) => e.id === p.entryId)?.person ?? { fullName: p.name, nickname: null, photoUrl: null }
+  }
 
   const activePlayerCount = entries.filter((e) => e.status === 'Active' || e.status === 'Registered').length
   // As mesas nascem com as inscrições (SPEC-20261023-1214): sortear é "Sortear de novo" quando elas já existem
@@ -457,18 +464,18 @@ export function TablesTab({ tournament }: TablesTabProps) {
       >
         {movePlayerEntry && (
           <div className="flex flex-col gap-4">
-            <div className="rounded-lg bg-bg-tertiary p-3 text-sm text-text-secondary">
-              <p>
-                Jogador:{' '}
-                <strong className="text-text-primary">{movePlayerEntry.name}</strong>
-              </p>
-              <p>
-                Atualmente em:{' '}
-                <strong className="text-text-primary">
-                  Mesa {movePlayerEntry.currentTableNumber}, Posição {movePlayerEntry.currentSeat}
-                </strong>
-              </p>
-            </div>
+            <PlayerConfirmHeader
+              person={personOf(movePlayerEntry)}
+              className="mb-0"
+              detail={
+                <>
+                  Atualmente em:{' '}
+                  <strong className="text-text-primary">
+                    Mesa {movePlayerEntry.currentTableNumber}, Posição {movePlayerEntry.currentSeat}
+                  </strong>
+                </>
+              }
+            />
 
             <div>
               <label className="text-sm font-medium text-text-secondary block mb-1">
@@ -607,6 +614,7 @@ export function TablesTab({ tournament }: TablesTabProps) {
           if (movePlayerEntry) unseatMutation.mutate(movePlayerEntry.entryId)
         }}
         title="Remover da Mesa"
+        header={movePlayerEntry && <PlayerConfirmHeader person={personOf(movePlayerEntry)} />}
         message={`Remover ${movePlayerEntry?.name ?? ''} da mesa? Ele continua ativo, mas sem assento.`}
         confirmLabel="Remover"
         variant="danger"

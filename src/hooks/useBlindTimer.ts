@@ -16,6 +16,49 @@ const DEFAULT_TIMER_STATE: TimerState = {
   isBreak: false,
 }
 
+/** Formato que a API manda (`TimerStateResponse`): duração em minutos e o próximo nível num objeto à parte */
+interface ServerTimerState {
+  currentLevel?: number | null
+  smallBlind?: number
+  bigBlind?: number
+  ante?: number
+  durationMinutes?: number
+  remainingSeconds?: number
+  totalSeconds?: number
+  isRunning?: boolean
+  isPaused?: boolean
+  isBreak?: boolean
+  nextSmallBlind?: number | null
+  nextBigBlind?: number | null
+  nextAnte?: number | null
+  nextLevel?: { smallBlind?: number; bigBlind?: number; ante?: number; isBreak?: boolean } | null
+}
+
+/**
+ * Converte o estado do relógio que veio da API (REST ou SignalR) no `TimerState` da tela. A API não manda
+ * `totalSeconds` nem `nextSmallBlind`/`nextBigBlind`/`nextAnte` (manda `durationMinutes` e `nextLevel`): sem isto a
+ * aba Blinds mostrava "Próximo: NaN/NaN" e a barra de progresso ficava em 0%. Aceita também um `TimerState` pronto
+ * (o telão já converte antes), sem mudar nada nele.
+ */
+export function normalizeTimerState(raw: unknown): TimerState {
+  const r = (raw ?? {}) as ServerTimerState
+  const next = r.nextLevel && !r.nextLevel.isBreak ? r.nextLevel : null
+  return {
+    currentLevel: r.currentLevel ?? 1,
+    smallBlind: r.smallBlind ?? 0,
+    bigBlind: r.bigBlind ?? 0,
+    ante: r.ante ?? 0,
+    remainingSeconds: r.remainingSeconds ?? 0,
+    totalSeconds: r.totalSeconds ?? (r.durationMinutes ?? 0) * 60,
+    isRunning: r.isRunning ?? false,
+    isPaused: r.isPaused ?? false,
+    nextSmallBlind: r.nextSmallBlind !== undefined ? r.nextSmallBlind : (next?.smallBlind ?? null),
+    nextBigBlind: r.nextBigBlind !== undefined ? r.nextBigBlind : (next?.bigBlind ?? null),
+    nextAnte: r.nextAnte !== undefined ? r.nextAnte : (next?.ante ?? null),
+    isBreak: r.isBreak ?? false,
+  }
+}
+
 export function useBlindTimer(onExpire?: () => void) {
   const [timerState, setTimerState] = useState<TimerState>(DEFAULT_TIMER_STATE)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -32,10 +75,11 @@ export function useBlindTimer(onExpire?: () => void) {
   }, [onExpire])
 
   const syncFromServer = useCallback((serverState: TimerState) => {
-    setTimerState(serverState)
+    const state = normalizeTimerState(serverState)
+    setTimerState(state)
     lastServerSyncRef.current = Date.now()
-    serverRemainingRef.current = serverState.remainingSeconds
-    if (serverState.remainingSeconds > 0) expiredRef.current = false
+    serverRemainingRef.current = state.remainingSeconds
+    if (state.remainingSeconds > 0) expiredRef.current = false
   }, [])
 
   useEffect(() => {

@@ -6,6 +6,7 @@ import { cn } from '../../utils/cn'
 import type { TournamentEntry } from '../../types/entry.types'
 import type { Tournament } from '../../types/tournament.types'
 import { isKnockout, isProgressive, splitBounty } from '../../utils/knockout'
+import { PlayerConfirmHeader } from './PlayerConfirmHeader'
 import { formatCurrency, playerName } from './terminalFormat'
 
 interface EliminateDialogProps {
@@ -27,7 +28,8 @@ interface EliminateDialogProps {
 /**
  * Montado só quando aberto. Torneio Normal: a escolha começa em "Pular" (quem eliminou é opcional). Knockout: sem
  * "Pular" — escolher quem eliminou é obrigatório (o servidor também recusa sem) e o rodapé mostra para onde vai o
- * bounty (simples: tudo para quem eliminou; PKO: metade em dinheiro e metade na cabeça dele).
+ * bounty (simples: tudo para quem eliminou; PKO: metade em dinheiro e metade na cabeça dele). Nos dois, o topo traz a
+ * foto redonda e o nome de quem sai (SPEC-20261026-2103), para o dealer conferir que é a pessoa certa.
  */
 export function EliminateDialog({ entry, tablemates, others, tournament, loading, onConfirm, onClose }: EliminateDialogProps) {
   const knockout = isKnockout(tournament)
@@ -97,6 +99,7 @@ export function EliminateDialog({ entry, tablemates, others, tournament, loading
         </div>
       }
     >
+      <PlayerConfirmHeader person={entry.person} />
       {knockout && (
         <p
           className="mb-3 flex items-center gap-1.5 rounded-lg bg-accent-purple-soft px-3 py-2 text-sm text-accent-purple-deep"

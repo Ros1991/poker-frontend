@@ -8,6 +8,7 @@ import * as tournamentsApi from '../../api/tournaments.api'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
+import { PlayerConfirmHeader } from '../dealer/PlayerConfirmHeader'
 import type { TournamentEntry } from '../../types/entry.types'
 import type { PixSuggestion } from '../../types/costExtra.types'
 import { buildPixPayload, formatPixKey } from '../../utils/pix'
@@ -432,19 +433,20 @@ export function PaymentModal({
           </div>
         ) : (
           <div className="flex flex-col gap-4">
-            {/* Player info */}
-            <div className="rounded-lg bg-bg-primary p-3">
-              <p className="font-semibold text-text-primary">
-                {entry.person.nickname ?? entry.person.fullName}
-              </p>
-              <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-sm text-text-secondary tabular-nums">
-                <span>Total: {formatCurrency(entry.totalDue)}</span>
-                <span>Pago: {formatCurrency(entry.totalPaid)}</span>
-                <span className="font-semibold text-accent-red-deep">
-                  Pendente: {formatCurrency(pending)}
-                </span>
-              </div>
-            </div>
+            {/* Quem paga: foto redonda e nome em destaque para conferir a pessoa (SPEC-20261026-2103), com o saldo */}
+            <PlayerConfirmHeader
+              person={entry.person}
+              className="mb-0"
+              detail={
+                <div className="flex flex-wrap gap-x-4 gap-y-1 tabular-nums">
+                  <span>Total: {formatCurrency(entry.totalDue)}</span>
+                  <span>Pago: {formatCurrency(entry.totalPaid)}</span>
+                  <span className="font-semibold text-accent-red-deep">
+                    Pendente: {formatCurrency(pending)}
+                  </span>
+                </div>
+              }
+            />
 
             {/* Method selector */}
             <div className="flex flex-col gap-1.5">

@@ -111,18 +111,18 @@ export function BlindsTab({
     mutationFn: () => timerApi.nextLevel(tournament.id),
     onSuccess: (data) => {
       syncFromServer(data)
-      toast.success('Proximo nivel!')
+      toast.success('Próximo nível!')
     },
-    onError: () => toast.error('Erro ao avancar nivel.'),
+    onError: () => toast.error('Erro ao avançar nível.'),
   })
 
   const prevMutation = useMutation({
     mutationFn: () => timerApi.previousLevel(tournament.id),
     onSuccess: (data) => {
       syncFromServer(data)
-      toast.success('Nivel anterior.')
+      toast.success('Nível anterior.')
     },
-    onError: () => toast.error('Erro ao voltar nivel.'),
+    onError: () => toast.error('Erro ao voltar nível.'),
   })
 
   const isAnyLoading =
@@ -212,7 +212,7 @@ export function BlindsTab({
           </div>
         ) : (
           <p className="text-sm text-text-secondary mb-1">
-            Nivel {timerState.currentLevel}
+            Nível {timerState.currentLevel}
           </p>
         )}
 
@@ -252,10 +252,10 @@ export function BlindsTab({
           </div>
         )}
 
-        {timerState.nextSmallBlind !== null && (
+        {timerState.nextSmallBlind != null && timerState.nextBigBlind != null && (
           <p className="text-xs text-text-secondary tabular-nums mb-4">
-            Proximo: {formatNumber(timerState.nextSmallBlind!)}/
-            {formatNumber(timerState.nextBigBlind!)}
+            Próximo: {formatNumber(timerState.nextSmallBlind)}/
+            {formatNumber(timerState.nextBigBlind)}
             {timerState.nextAnte ? ` (ante ${formatNumber(timerState.nextAnte)})` : ''}
           </p>
         )}
@@ -266,7 +266,7 @@ export function BlindsTab({
             size="sm"
             onClick={() => prevMutation.mutate()}
             disabled={isAnyLoading}
-            title="Nivel anterior"
+            title="Nível anterior"
           >
             <SkipBack className="h-4 w-4" />
           </Button>
@@ -305,7 +305,7 @@ export function BlindsTab({
             size="sm"
             onClick={() => nextMutation.mutate()}
             disabled={isAnyLoading}
-            title="Proximo nivel"
+            title="Próximo nível"
           >
             <SkipForward className="h-4 w-4" />
           </Button>
@@ -323,7 +323,7 @@ export function BlindsTab({
                 Estrutura de Blinds
               </h3>
               <p className="text-xs text-text-secondary mt-0.5">
-                Edite livremente - nao afeta a estrutura padrao
+                Edite livremente — não afeta a estrutura padrão
               </p>
             </div>
             <div className="flex gap-2 flex-wrap">
@@ -382,14 +382,14 @@ export function BlindsTab({
             <>
               {/* Edit Mode - layout igual ao BlindStructureFormPage */}
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full min-w-[36rem] text-sm">
                   <thead>
                     <tr className="border-b border-border-default text-left text-text-secondary">
-                      <th className="px-2 py-2 w-16">Nivel</th>
+                      <th className="px-2 py-2 w-16">Nível</th>
                       <th className="px-2 py-2">Small Blind</th>
                       <th className="px-2 py-2">Big Blind</th>
                       <th className="px-2 py-2">Ante</th>
-                      <th className="px-2 py-2 w-24">Duracao (min)</th>
+                      <th className="px-2 py-2 w-24">Duração (min)</th>
                       <th className="px-2 py-2 w-24">Intervalo?</th>
                       <th className="px-2 py-2 w-12"></th>
                     </tr>
@@ -501,7 +501,7 @@ export function BlindsTab({
               <div className="flex gap-2 mt-3">
                 <Button type="button" variant="secondary" size="sm" onClick={addLevel}>
                   <Plus className="h-4 w-4" />
-                  Adicionar Nivel
+                  Adicionar Nível
                 </Button>
                 <Button type="button" variant="secondary" size="sm" onClick={addBreak}>
                   <Coffee className="h-4 w-4" />
@@ -516,7 +516,7 @@ export function BlindsTab({
                   <thead>
                     <tr className="bg-bg-tertiary">
                       <th className="px-3 py-2 text-left text-xs font-medium text-text-secondary">
-                        Nivel
+                        Nível
                       </th>
                       <th className="px-3 py-2 text-right text-xs font-medium text-text-secondary">
                         SB
@@ -528,7 +528,7 @@ export function BlindsTab({
                         Ante
                       </th>
                       <th className="px-3 py-2 text-right text-xs font-medium text-text-secondary">
-                        Duracao
+                        Duração
                       </th>
                     </tr>
                   </thead>
@@ -554,7 +554,7 @@ export function BlindsTab({
                                 Intervalo
                               </span>
                             ) : (
-                              `Nivel ${level.levelNumber}`
+                              `Nível ${level.levelNumber}`
                             )}
                             {isCurrent && (
                               <span className="ml-2 text-xs text-accent-blue">

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
+  BookOpen,
   Home,
   Shield,
   ChevronLeft,
@@ -207,6 +208,26 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
           </>
         )}
       </nav>
+
+      {/* Rodapé do menu: manual de uso público (SPEC-20261026-1910), em outra aba para não sair do painel */}
+      <div className="border-t border-border-default px-2 py-2">
+        <a
+          href={ROUTES.MANUAL}
+          target="_blank"
+          rel="noopener"
+          onClick={onNavigate}
+          title={collapsed ? 'Manual de uso' : undefined}
+          aria-label={collapsed ? 'Manual de uso (abre em outra aba)' : undefined}
+          className={cn(
+            'flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-text-secondary transition-colors hover:bg-bg-tertiary hover:text-text-primary',
+            collapsed && 'justify-center px-2',
+          )}
+          data-manual-link
+        >
+          <BookOpen className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
+          {!collapsed && <span>Manual de uso</span>}
+        </a>
+      </div>
 
       <button
         onClick={() => setCollapsed(!collapsed)}

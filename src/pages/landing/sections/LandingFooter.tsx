@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { Tv } from 'lucide-react'
 import { CONTACT_EMAIL } from '../../../constants/contact'
 import { ROUTES } from '../../../constants/routes'
@@ -7,13 +8,18 @@ import { PricingLink } from './PricingLink'
 interface LandingFooterProps {
   /** Na landing o "Planos" é âncora; nas páginas legais leva a `/#planos` */
   onLanding?: boolean
+  /** Linha extra no fim do rodapé (ex.: o crédito das fotos no manual — SPEC-20261026-1910) */
+  children?: ReactNode
 }
 
 const LINK =
   'inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-sm text-sm font-semibold text-text-primary underline-offset-4 hover:text-accent-blue hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue'
 
-/** Seção 7 (parte 2) — rodapé: Entrar · Telão · Planos · Termos · Privacidade · Contato e os domínios curtos do telão. */
-export function LandingFooter({ onLanding = false }: LandingFooterProps) {
+/**
+ * Seção 7 (parte 2) — rodapé: Entrar · Telão · Planos · Manual · Termos · Privacidade · Contato e os domínios curtos do
+ * telão. O "Manual" (SPEC-20261026-1910) leva ao manual de uso público.
+ */
+export function LandingFooter({ onLanding = false, children }: LandingFooterProps) {
   return (
     <footer className="border-t border-border-default bg-bg-secondary">
       <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-8 lg:flex-row lg:items-center lg:justify-between lg:px-8">
@@ -33,6 +39,11 @@ export function LandingFooter({ onLanding = false }: LandingFooterProps) {
               <PricingLink onLanding={onLanding} className={LINK}>
                 {FOOTER.links.pricing}
               </PricingLink>
+            </li>
+            <li>
+              <a href={ROUTES.MANUAL} className={LINK}>
+                {FOOTER.links.manual}
+              </a>
             </li>
             <li>
               <a href={ROUTES.TERMS} className={LINK}>
@@ -64,6 +75,7 @@ export function LandingFooter({ onLanding = false }: LandingFooterProps) {
           </p>
         </div>
       </div>
+      {children && <div className="mx-auto max-w-6xl px-4 pb-6 lg:px-8">{children}</div>}
     </footer>
   )
 }

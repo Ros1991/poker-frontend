@@ -1,5 +1,5 @@
 # Poker da Galera — SPEC-20261023-1207
-# Público: a landing (/), termos, privacidade e os rankings públicos (/r/...).
+# Público: a landing (/), termos, privacidade, o manual de uso (/manual, SPEC-20261026-1910) e os rankings públicos (/r/...).
 # O resto é o app (exige login) ou aparelho (TV, dealer): fora dos buscadores.
 User-agent: *
 Allow: /

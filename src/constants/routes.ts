@@ -45,7 +45,16 @@ export const ROUTES = {
   TERMS: '/termos',
   /** Política de privacidade (SPEC-20261023-1207); sem JavaScript o nginx serve public/privacidade.html */
   PRIVACY: '/privacidade',
+  /** Manual de uso público (SPEC-20261026-1910): índice dos módulos, sem login, carregado à parte pelo boot.tsx */
+  MANUAL: '/manual',
+  /** Um módulo do manual (`/manual/terminal-do-dealer`…) */
+  MANUAL_MODULE: '/manual/:slug',
 } as const
+
+/** `/manual` (sem slug) ou `/manual/<módulo>` — SPEC-20261026-1910 */
+export function manualPath(slug?: string) {
+  return slug ? `/manual/${slug}` : '/manual'
+}
 
 export function resetPasswordPath(token: string) {
   return `/redefinir-senha/${token}`

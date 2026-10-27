@@ -236,6 +236,7 @@ export function PlayerDetails({
         entryId={entry.id}
         onUndo={onUndo}
         paymentsLocked={historyPaymentsLocked}
+        entries={entries}
       />
     </div>
   )

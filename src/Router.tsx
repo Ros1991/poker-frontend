@@ -24,6 +24,9 @@ import { PublicPlayerPage } from './pages/public-ranking/PublicPlayerPage'
 // Termos e privacidade (sem login; carregados sob demanda — SPEC-20261023-1207)
 import { TermsRoute, PrivacyRoute } from './pages/legal/LegalRoutes'
 
+// Manual de uso público (sem login; sob demanda — SPEC-20261026-1910). Visita direta: o boot.tsx abre o manual sozinho
+import { ManualRoute } from './pages/manual/ManualRoute'
+
 // Home Games
 import { HomeGameListPage } from './pages/home-games/HomeGameListPage'
 import { HomeGameFormPage } from './pages/home-games/HomeGameFormPage'
@@ -83,6 +86,9 @@ export function Router() {
       {/* Termos de uso e política de privacidade (SPEC-20261023-1207) */}
       <Route path={ROUTES.TERMS} element={<TermsRoute />} />
       <Route path={ROUTES.PRIVACY} element={<PrivacyRoute />} />
+      {/* Manual de uso (SPEC-20261026-1910): índice e um módulo por página */}
+      <Route path={ROUTES.MANUAL} element={<ManualRoute />} />
+      <Route path={ROUTES.MANUAL_MODULE} element={<ManualRoute />} />
 
       {/* Protected routes with sidebar layout */}
       <Route

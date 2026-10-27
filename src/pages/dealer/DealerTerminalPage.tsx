@@ -448,6 +448,7 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
         tournamentId={tournamentId}
         onUndo={actions.undoItem}
         paymentsLocked={!!tournament && !canPay}
+        entries={allEntries}
       />
 
       {/* ── Ficha do jogador ── */}

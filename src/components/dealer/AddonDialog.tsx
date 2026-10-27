@@ -3,6 +3,7 @@ import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
 import type { TournamentEntry } from '../../types/entry.types'
 import type { Tournament } from '../../types/tournament.types'
+import { PlayerConfirmHeader } from './PlayerConfirmHeader'
 import { formatCurrency, playerName } from './terminalFormat'
 
 interface AddonDialogProps {
@@ -13,7 +14,10 @@ interface AddonDialogProps {
   onClose: () => void
 }
 
-/** Add-on simples ou duplo (duplo só se o torneio permitir). Confirmação dourada, a cor do Add-on no terminal. */
+/**
+ * Add-on simples ou duplo (duplo só se o torneio permitir). Confirmação dourada, a cor do Add-on no terminal. No topo, a
+ * foto redonda e o nome do jogador (SPEC-20261026-2103).
+ */
 export function AddonDialog({ entry, tournament, loading, onConfirm, onClose }: AddonDialogProps) {
   if (!entry) return null
   const amount = tournament?.addonAmount ?? 0
@@ -29,6 +33,7 @@ export function AddonDialog({ entry, tournament, loading, onConfirm, onClose }: 
         </Button>
       }
     >
+      <PlayerConfirmHeader person={entry.person} />
       <div className="flex flex-col gap-2">
         <Button size="lg" variant="gold" className="w-full tabular-nums" loading={loading} onClick={() => onConfirm(false)}>
           <PlusCircle className="h-5 w-5" />

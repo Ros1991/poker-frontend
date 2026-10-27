@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { Modal } from './Modal'
 import { Button } from './Button'
 
@@ -7,6 +8,11 @@ interface ConfirmDialogProps {
   onConfirm: () => void
   title: string
   message: string
+  /**
+   * Bloco antes da frase (SPEC-20261026-2103): nas confirmações de ação sobre um jogador, a foto redonda e o nome em
+   * destaque (`PlayerConfirmHeader`) para conferir quem é
+   */
+  header?: ReactNode
   confirmLabel?: string
   cancelLabel?: string
   variant?: 'danger' | 'warning'
@@ -19,6 +25,7 @@ export function ConfirmDialog({
   onConfirm,
   title,
   message,
+  header,
   confirmLabel = 'Confirmar',
   cancelLabel = 'Cancelar',
   variant = 'danger',
@@ -45,6 +52,7 @@ export function ConfirmDialog({
         </div>
       }
     >
+      {header}
       {/* Texto inteiro, quebrando a linha (inclusive nome comprido sem espaço) */}
       <p className="text-sm break-words text-text-secondary">{message}</p>
     </Modal>
