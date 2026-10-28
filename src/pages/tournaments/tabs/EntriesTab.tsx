@@ -542,6 +542,7 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
       {canTables && (
         <Modal isOpen={tablesOpen} onClose={() => setTablesOpen(false)} title="Mesas" size="lg">
           <TablesOverview
+            tournamentId={tid}
             tables={allTables}
             entries={entries}
             canBreak={!!suggestions.analysis.breakable}

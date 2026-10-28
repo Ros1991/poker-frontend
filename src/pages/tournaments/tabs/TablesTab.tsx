@@ -1,11 +1,9 @@
-import { useLayoutEffect, useRef, useState } from 'react'
-import type { ReactNode } from 'react'
-import { createPortal } from 'react-dom'
+import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { ArrowRightLeft, LayoutGrid, Shuffle, Plus, Trash2, Users } from 'lucide-react'
 import * as tablesApi from '../../../api/tables.api'
-import type { Table, TablePlayer } from '../../../api/tables.api'
+import type { Table } from '../../../api/tables.api'
 import * as entriesApi from '../../../api/entries.api'
 import { Avatar } from '../../../components/ui/Avatar'
 import { Button } from '../../../components/ui/Button'
@@ -17,62 +15,16 @@ import { PlayerConfirmHeader } from '../../../components/dealer/PlayerConfirmHea
 import type { ConfirmPerson } from '../../../components/dealer/PlayerConfirmHeader'
 import type { Tournament } from '../../../types/tournament.types'
 import { cn } from '../../../utils/cn'
-import { ghostPosition, useSeatDrag } from './useSeatDrag'
-import type { SeatDragSource, SeatRef } from './useSeatDrag'
-
-/**
- * Fantasma de quem está sendo arrastado (SPEC-20261027-2133): centrado no dedo/mouse e acima dele, mas preso dentro da
- * tela (revisão da onda 15: perto da borda esquerda a 320 px a foto e o nome saíam da tela). O tamanho muda com o texto
- * ("Solte num lugar", "Mesa 2, lugar 4", "Trocar com …"), então a posição é medida a cada render, antes da pintura.
- */
-function SeatDragGhost({ x, y, children }: { x: number; y: number; children: ReactNode }) {
-  const ref = useRef<HTMLDivElement>(null)
-  useLayoutEffect(() => {
-    const el = ref.current
-    if (!el) return
-    const { left, top } = ghostPosition(x, y, el.offsetWidth, el.offsetHeight, document.documentElement.clientWidth, window.innerHeight)
-    el.style.transform = `translate(${left}px, ${top}px)`
-  })
-  return createPortal(
-    <div
-      ref={ref}
-      aria-hidden="true"
-      data-seat-drag-ghost
-      className="pointer-events-none fixed left-0 top-0 z-[70] flex max-w-[16rem] items-center gap-2 rounded-full border border-accent-blue bg-bg-card py-1 pl-1 pr-3 shadow-lg"
-    >
-      {children}
-    </div>,
-    document.body,
-  )
-}
+import { useSeatDrag } from './useSeatDrag'
+import { useSeatDrop } from './useSeatDrop'
+import { SeatDragGhost } from './SeatDragGhost'
 
 interface TablesTabProps {
   tournament: Tournament
 }
 
-/** Soltar um jogador num lugar (SPEC-20261027-2133): vazio move, ocupado troca os dois */
-interface DropVars {
-  source: SeatDragSource
-  target: SeatRef
-  /** Quem estava no lugar de destino (troca) — null = lugar vazio (move) */
-  other: TablePlayer | null
-}
-
 function serverMessage(err: unknown): string | undefined {
   return (err as { response?: { data?: { message?: string } } })?.response?.data?.message
-}
-
-/** As mesas como ficam depois de soltar (atualização otimista; o erro do servidor desfaz) */
-function applyDrop(tables: Table[], { source, target, other }: DropVars): Table[] {
-  const moving = tables.flatMap((t) => t.players ?? []).find((p) => p.id === source.entryId)
-  if (!moving) return tables
-  return tables.map((t) => {
-    let players = (t.players ?? []).filter((p) => p.id !== source.entryId && p.id !== other?.id)
-    if (t.id === target.tableId) players = [...players, { ...moving, seatNumber: target.seatNumber }]
-    if (other && t.id === source.tableId) players = [...players, { ...other, seatNumber: source.seatNumber }]
-    players.sort((a, b) => a.seatNumber - b.seatNumber)
-    return { ...t, players, playerCount: players.length }
-  })
 }
 
 export function TablesTab({ tournament }: TablesTabProps) {
@@ -140,47 +92,11 @@ export function TablesTab({ tournament }: TablesTabProps) {
     void queryClient.invalidateQueries({ queryKey: ['history', tournament.id] })
   }
 
-  // Arrastar e soltar (toque e mouse — SPEC-20261027-2133): vazio move (o servidor recusa se alguém sentou nele
-  // nesse meio-tempo), ocupado troca os dois numa operação só; a tela muda na hora e o erro devolve ao lugar
-  const dropMutation = useMutation({
-    mutationFn: async ({ source, target, other }: DropVars): Promise<void> => {
-      if (other)
-        await tablesApi.swapPlayers(tournament.id, {
-          entryId: source.entryId,
-          otherEntryId: other.id,
-          fromTableId: source.tableId,
-          fromSeat: source.seatNumber,
-          toTableId: target.tableId,
-          toSeat: target.seatNumber,
-        })
-      else
-        await tablesApi.movePlayer(tournament.id, {
-          entryId: source.entryId,
-          toTableId: target.tableId,
-          toSeat: target.seatNumber,
-          requireFreeSeat: true,
-        })
-    },
-    onMutate: async (vars): Promise<{ previous: Table[] | undefined }> => {
-      await queryClient.cancelQueries({ queryKey: ['tables', tournament.id] })
-      const previous = queryClient.getQueryData<Table[]>(['tables', tournament.id])
-      queryClient.setQueryData<Table[]>(['tables', tournament.id], (old) => (old ? applyDrop(old, vars) : old))
-      return { previous }
-    },
-    onSuccess: (_data, { source, target, other }) => {
-      const name = shortName(source.entryId, source.name)
-      toast.success(
-        other
-          ? `${name} e ${shortName(other.id, other.name)} trocaram de lugar`
-          : `${name} → Mesa ${tableNumberOf(target.tableId) ?? ''}, lugar ${target.seatNumber}`,
-      )
-    },
-    onError: (err, _vars, ctx) => {
-      // O jogador volta para o lugar dele
-      if (ctx?.previous) queryClient.setQueryData(['tables', tournament.id], ctx.previous)
-      toast.error(serverMessage(err) || 'Não foi possível mudar o jogador de lugar.')
-    },
-    onSettled: invalidateSeating,
+  // Arrastar e soltar (toque e mouse — SPEC-20261027-2133): o mesmo soltar da tela Mesas do terminal (useSeatDrop)
+  const dropMutation = useSeatDrop({
+    tournamentId: tournament.id,
+    nameOf: shortName,
+    tableNameOf: (tableId) => `Mesa ${tableNumberOf(tableId) ?? ''}`,
   })
 
   const seatDrag = useSeatDrag((source, target) => {

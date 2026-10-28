@@ -615,8 +615,8 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
                     <div
                       key={e.id}
                       data-tv-entry={e.displayName}
-                      className={`grid items-center gap-1 rounded-lg px-2 py-2 text-xl ${
-                        finished ? finishedCols : activeCols
+                      className={`grid items-center rounded-lg px-2 py-2 text-xl ${
+                        finished ? `gap-1 ${finishedCols}` : `gap-x-1 gap-y-0.5 ${activeCols}`
                       } ${
                         isChampion
                           ? 'border border-accent-gold/40 bg-accent-gold-soft'
@@ -625,7 +625,9 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
                             : 'border border-border-default bg-bg-primary'
                       }`}
                     >
-                      <span className="flex min-w-0 items-center gap-1.5">
+                      {/* Quem ainda joga: o nome ocupa a 1ª linha inteira e Reb/Add (e Cabeça/Deve) vão para a 2ª, embaixo
+                          das colunas do cabeçalho — o nome não fica cortado (SPEC-20261028-1923) */}
+                      <span className={`flex min-w-0 items-center gap-1.5 ${finished ? '' : 'col-span-full'}`}>
                         {isChampion ? (
                           <span className="flex shrink-0 items-center gap-1 font-bold text-accent-gold-deep">
                             <Trophy className="h-5 w-5" />
@@ -643,6 +645,8 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
                       </span>
                       {!finished && (
                         <>
+                          {/* 2ª linha: a coluna do nome fica vazia, os números caem embaixo dos títulos */}
+                          <span aria-hidden="true" />
                           <span className={`text-center tabular-nums text-text-secondary ${rebAddCols}`}>{e.rebuyCount || '-'}</span>
                           <span className={`text-center tabular-nums text-text-secondary ${rebAddCols}`}>
                             {e.addonCount || '-'}

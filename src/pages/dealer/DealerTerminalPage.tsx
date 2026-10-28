@@ -441,6 +441,7 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
         <TablesSheet
           isOpen={screen === 'tables'}
           onClose={() => setScreen(null)}
+          tournamentId={tournamentId}
           tables={allTables}
           entries={allEntries}
           canBreak={!!analysis.breakable}

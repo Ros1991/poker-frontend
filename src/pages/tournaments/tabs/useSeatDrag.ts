@@ -173,8 +173,9 @@ export function useSeatDrag(onDrop: (source: SeatDragSource, target: SeatRef) =>
         break
       }
     }
-    if (!moved) {
-      // A página (quando é ela que rola)
+    // A página (quando é ela que rola) — nunca por trás de um diálogo (Sheet do terminal, Modal do painel): lá só rola o
+    // conteúdo dele; senão a tela de trás desce sozinha e aparece rolada ao fechar (SPEC-20261028-1923)
+    if (!moved && !p.origin.closest('[aria-modal="true"]')) {
       const page = document.scrollingElement
       if (page) {
         let dy = 0
