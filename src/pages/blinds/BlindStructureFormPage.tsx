@@ -100,7 +100,9 @@ export function BlindStructureFormPage() {
   const [defaultAddonStack, setDefaultAddonStack] = useState<string>('')
   const [defaultMaxRebuys, setDefaultMaxRebuys] = useState<string>('')
   const [defaultAddonAllowed, setDefaultAddonAllowed] = useState(true)
-  const [defaultAddonDoubleAllowed, setDefaultAddonDoubleAllowed] = useState(false)
+  // Máximo de add-ons padrão (SPEC-20261027-1311): texto do campo; 0 = ilimitado, padrão 1
+  const [defaultMaxAddons, setDefaultMaxAddons] = useState<string>('1')
+  const [maxAddonsError, setMaxAddonsError] = useState<string | null>(null)
   const [defaultLateRegistrationLevel, setDefaultLateRegistrationLevel] = useState<string>('')
   const [defaultRebuyUntilLevel, setDefaultRebuyUntilLevel] = useState<string>('')
   const [defaultStaffAmount, setDefaultStaffAmount] = useState<string>('')
@@ -158,7 +160,7 @@ export function BlindStructureFormPage() {
       setDefaultAddonStack(existing.defaultAddonStack != null ? String(existing.defaultAddonStack) : '')
       setDefaultMaxRebuys(existing.defaultMaxRebuys != null ? String(existing.defaultMaxRebuys) : '')
       setDefaultAddonAllowed(existing.defaultAddonAllowed ?? true)
-      setDefaultAddonDoubleAllowed(existing.defaultAddonDoubleAllowed ?? false)
+      setDefaultMaxAddons(String(existing.defaultMaxAddons ?? 1))
       setDefaultLateRegistrationLevel(existing.defaultLateRegistrationLevel != null ? String(existing.defaultLateRegistrationLevel) : '')
       setDefaultRebuyUntilLevel(existing.defaultRebuyUntilLevel != null ? String(existing.defaultRebuyUntilLevel) : '')
       setDefaultStaffAmount(existing.defaultStaffAmount != null ? String(existing.defaultStaffAmount) : '')
@@ -198,6 +200,12 @@ export function BlindStructureFormPage() {
     }
   }, [existing])
 
+  // Máximo de add-ons como número: inteiro de 0 (ilimitado) a 99, o mesmo limite do servidor; null = vazio ou inválido
+  const maxAddonsValue = (() => {
+    const n = Number(defaultMaxAddons)
+    return defaultMaxAddons.trim() !== '' && Number.isInteger(n) && n >= 0 && n <= 99 ? n : null
+  })()
+
   const saveMutation = useMutation({
     mutationFn: async () => {
       const toNum = (v: string) => v === '' ? undefined : Number(v)
@@ -218,7 +226,8 @@ export function BlindStructureFormPage() {
         defaultAddonStack: toNum(defaultAddonStack),
         defaultMaxRebuys: toNum(defaultMaxRebuys),
         defaultAddonAllowed: defaultAddonAllowed,
-        defaultAddonDoubleAllowed: defaultAddonDoubleAllowed,
+        // Vazio ou inválido → o servidor mantém (edição) ou usa 1 (criação)
+        defaultMaxAddons: maxAddonsValue ?? undefined,
         defaultLateRegistrationLevel: toNum(defaultLateRegistrationLevel),
         defaultRebuyUntilLevel: toNum(defaultRebuyUntilLevel),
         defaultStaffAmount: toNum(defaultStaffAmount),
@@ -359,6 +368,13 @@ export function BlindStructureFormPage() {
     }
     if (levels.length === 0) {
       toast.error('Adicione pelo menos um nível.')
+      return
+    }
+    if (defaultAddonAllowed && maxAddonsValue === null) {
+      const msg = 'Max add-ons: use de 0 (ilimitado) a 99.'
+      setMaxAddonsError(msg)
+      toast.error(msg)
+      document.getElementById('estrutura-max-addons')?.focus()
       return
     }
     // Knockout padrão: bounty obrigatório e, com buy-in padrão, menor que ele (e até o rebuy padrão)
@@ -525,26 +541,37 @@ export function BlindStructureFormPage() {
               placeholder="Ex: 6"
             />
           </div>
-          <div className="grid gap-4 sm:grid-cols-2 mt-4">
-            <label className="flex items-center gap-2 min-h-[44px] cursor-pointer">
+          {/* Add-on padrão (SPEC-20261027-1311): "Permitir add-on" e, marcado, o máximo por jogador como o de rebuys */}
+          <div className="grid gap-4 sm:grid-cols-3 mt-4" data-addon-rules>
+            <label className="flex items-center gap-2 min-h-[44px] cursor-pointer sm:col-span-3">
               <input
                 type="checkbox"
                 checked={defaultAddonAllowed}
-                onChange={(e) => setDefaultAddonAllowed(e.target.checked)}
+                onChange={(e) => {
+                  setDefaultAddonAllowed(e.target.checked)
+                  setMaxAddonsError(null)
+                }}
                 className="h-5 w-5 rounded border-border-input bg-bg-input text-accent-blue focus:ring-accent-blue"
               />
-              <span className="text-sm text-text-primary">Add-on permitido</span>
+              <span className="text-sm text-text-primary">Permitir add-on</span>
             </label>
             {defaultAddonAllowed && (
-              <label className="flex items-center gap-2 min-h-[44px] cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={defaultAddonDoubleAllowed}
-                  onChange={(e) => setDefaultAddonDoubleAllowed(e.target.checked)}
-                  className="h-5 w-5 rounded border-border-input bg-bg-input text-accent-blue focus:ring-accent-blue"
-                />
-                <span className="text-sm text-text-primary">Add-on duplo permitido</span>
-              </label>
+              <Input
+                id="estrutura-max-addons"
+                label="Max add-ons (0 = ilimitado)"
+                type="number"
+                min={0}
+                max={99}
+                step={1}
+                inputMode="numeric"
+                value={defaultMaxAddons}
+                onChange={(e) => {
+                  setDefaultMaxAddons(e.target.value)
+                  setMaxAddonsError(null)
+                }}
+                placeholder="1"
+                error={maxAddonsError ?? undefined}
+              />
             )}
           </div>
 

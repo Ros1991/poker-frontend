@@ -62,7 +62,7 @@ export function RegisterPage() {
   const location = useLocation()
   // Volta para onde a pessoa estava (ex.: o QR da TV abriu /parear/CODIGO e passou pelo login)
   const from = (location.state as { from?: Location } | null)?.from
-  const returnTo = from ? `${from.pathname}${from.search}` : ROUTES.HOME
+  const returnTo = from ? `${from.pathname}${from.search}` : ROUTES.HOME_GAMES
   // Criar conta com o Google (SPEC-20261023-1210): conta nova já nasce confirmada e entra direto
   const google = useGoogleSignIn(returnTo)
   const [isLoading, setIsLoading] = useState(false)

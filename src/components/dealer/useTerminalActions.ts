@@ -127,30 +127,61 @@ export function useTerminalActions(
   )
 
   /**
-   * Toast de sucesso com "Desfazer" do item criado pela ação. `before` = refIds
-   * do jogador (nos tipos pedidos) antes da ação; null = sem como saber → sem "Desfazer".
+   * Desfaz juntos os lançamentos de uma mesma ida ao PaymentModal (o atalho do limite por destino — SPEC-20261026-1906 —
+   * lança o que o destino recebe e o restante em outro destino: são dois itens no histórico, um pagamento só) e os N
+   * add-ons comprados de uma vez (SPEC-20261027-1311: um lançamento por add-on).
+   */
+  const undoItems = useCallback(
+    async (items: HistoryItem[], label: string) => {
+      let undone = 0
+      try {
+        for (const item of items) {
+          await undoHistoryItem(tournamentId, item)
+          undone++
+        }
+        toast.success(`Desfeito: ${label}`)
+      } catch (err) {
+        const msg = apiErrorMessage(err, 'Não foi possível desfazer.')
+        toast.error(undone > 0 ? `Só parte foi desfeita (${undone} de ${items.length}). ${msg}` : msg)
+      } finally {
+        invalidateAll()
+      }
+    },
+    [tournamentId, invalidateAll],
+  )
+
+  /**
+   * Toast de sucesso com "Desfazer" do(s) item(ns) criado(s) pela ação. `before` = refIds do jogador (nos tipos pedidos)
+   * antes da ação; null = sem como saber → sem "Desfazer". `expected` = quantos itens a ação cria (N add-ons de uma vez
+   * criam N lançamentos — SPEC-20261027-1311): o "Desfazer" desfaz todos eles juntos.
    */
   const showUndoToast = useCallback(
-    async (message: string, entryId: string, kinds: HistoryKind[], before: Set<string> | null) => {
-      let created: HistoryItem | null = null
+    async (message: string, entryId: string, kinds: HistoryKind[], before: Set<string> | null, expected = 1) => {
+      let created: HistoryItem[] | null = null
       if (before) {
         try {
           const items = createdSince(await historyApi.getHistory(tournamentId, entryId), kinds, before)
-          // Só um item novo é o desta ação; mais de um (outro aparelho ao mesmo tempo) é ambíguo
-          if (items.length === 1 && !items[0].undone && items[0].canUndo) created = items[0]
+          // Só os itens novos desta ação; outro número (outro aparelho ao mesmo tempo) é ambíguo
+          if (items.length === expected && items.every((i) => !i.undone && i.canUndo)) created = items
         } catch {
           // Sem o histórico, o toast vai sem "Desfazer"
         }
       }
-      const item = created
+      const items = created
       toast.success(
         message,
-        item
-          ? { duration: UNDO_TOAST_MS, action: { label: 'Desfazer', onClick: () => void undoItem(item) } }
+        items
+          ? {
+              duration: UNDO_TOAST_MS,
+              action: {
+                label: 'Desfazer',
+                onClick: () => void (items.length === 1 ? undoItem(items[0]) : undoItems(items, message)),
+              },
+            }
           : undefined,
       )
     },
-    [tournamentId, undoItem],
+    [tournamentId, undoItem, undoItems],
   )
 
   const rebuyMutation = useMutation({
@@ -171,20 +202,22 @@ export function useTerminalActions(
     onError: (err) => toast.error(apiErrorMessage(err, 'Erro ao registrar rebuy.')),
   })
 
+  // Add-on com quantidade (SPEC-20261027-1311): cada add-on vira um lançamento; o "Desfazer" do toast desfaz os N
   const addonMutation = useMutation({
-    mutationFn: async (vars: { entry: TournamentEntry; isDouble: boolean }) => {
+    mutationFn: async (vars: { entry: TournamentEntry; quantity: number }) => {
       const before = await snapshotRefIds(tournamentId, vars.entry.id, ['Addon'])
-      await entriesApi.addon(tournamentId, vars.entry.id, { isDouble: vars.isDouble })
+      await entriesApi.addon(tournamentId, vars.entry.id, { quantity: vars.quantity })
       return before
     },
-    onSuccess: (before, { entry, isDouble }) => {
+    onSuccess: (before, { entry, quantity }) => {
       invalidateAll()
-      const value = tournament ? ` (${formatCurrency(tournament.addonAmount * (isDouble ? 2 : 1))})` : ''
+      const value = tournament ? ` (${formatCurrency(tournament.addonAmount * quantity)})` : ''
       void showUndoToast(
-        `${isDouble ? 'Add-on duplo' : 'Add-on'} de ${playerName(entry)}${value}`,
+        `${quantity === 1 ? 'Add-on' : `${quantity} add-ons`} de ${playerName(entry)}${value}`,
         entry.id,
         ['Addon'],
         before,
+        quantity,
       )
     },
     onError: (err) => toast.error(apiErrorMessage(err, 'Erro ao registrar add-on.')),
@@ -250,29 +283,6 @@ export function useTerminalActions(
       })
     },
     [tournamentId, paymentsEnabled],
-  )
-
-  /**
-   * Desfaz juntos os lançamentos de uma mesma ida ao PaymentModal (o atalho do limite por destino — SPEC-20261026-1906 —
-   * lança o que o destino recebe e o restante em outro destino: são dois itens no histórico, um pagamento só).
-   */
-  const undoItems = useCallback(
-    async (items: HistoryItem[], label: string) => {
-      let undone = 0
-      try {
-        for (const item of items) {
-          await undoHistoryItem(tournamentId, item)
-          undone++
-        }
-        toast.success(`Desfeito: ${label}`)
-      } catch (err) {
-        const msg = apiErrorMessage(err, 'Não foi possível desfazer.')
-        toast.error(undone > 0 ? `Só parte foi desfeita (${undone} de ${items.length}). ${msg}` : msg)
-      } finally {
-        invalidateAll()
-      }
-    },
-    [tournamentId, invalidateAll],
   )
 
   const closePayment = useCallback(() => {

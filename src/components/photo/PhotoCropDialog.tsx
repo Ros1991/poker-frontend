@@ -1,11 +1,15 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent, WheelEvent as ReactWheelEvent } from 'react'
-import { ImagePlus, Minus, Plus } from 'lucide-react'
+import { Camera, ImagePlus, Loader2, Minus, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
 import { imageErrorMessage, renderSquareJpeg } from '../../utils/image'
 import type { DecodedImage } from '../../utils/image'
+import { BACKGROUND_REMOVAL_FEATURE } from '../../types/ai.types'
+import { useAiFeature } from './aiFeatures'
+import { BackgroundRemovalError, BACKGROUND_UNSUPPORTED_MESSAGE, removeBackground } from './backgroundRemoval'
+import { markBackgroundRemoved } from './backgroundUsage'
 
 const MIN_ZOOM = 1
 const MAX_ZOOM = 4
@@ -17,8 +21,12 @@ interface PhotoCropDialogProps {
   onCancel: () => void
   /** JPEG 512 × 512 pronto para enviar */
   onConfirm: (blob: Blob) => void
-  /** "Escolher outra": volta para os botões de foto */
+  /** "Escolher outra": volta para os botões de foto (foto que veio da galeria/arquivo) */
   onChooseAnother?: () => void
+  /** De onde veio a foto: da câmera, o botão secundário vira "Tirar outra" (SPEC-20261027-1312) */
+  source?: 'camera' | 'gallery'
+  /** "Tirar outra": reabre a câmera direto (input com capture no celular, webcam no computador) */
+  onRetake?: () => void
 }
 
 interface View {
@@ -31,13 +39,25 @@ interface View {
  * Recorte quadrado da foto (SPEC-20261023-1213, F3), sem dependência nova: arrastar para enquadrar, zoom pelo
  * controle deslizante, pela roda do mouse ou pela pinça no celular. O guia mostra o círculo — a foto é exibida
  * sempre redonda (D18-7) — mas o arquivo sai quadrado (JPEG 512 × 512, 0,8).
+ *
+ * SPEC-20261027-1312: caixa "Tirar o fundo" (só com o recurso ligado na tela de IA). Marcada, a prévia mostra a pessoa
+ * recortada sobre um fundo liso claro; desmarcada, a foto original — a pessoa compara e escolhe, e o arquivo é o da
+ * prévia. O recorte roda no aparelho (MediaPipe baixado só ao marcar); sem suporte ou com erro, aviso e foto normal.
+ * Foto da câmera: o botão secundário é "Tirar outra" (reabre a câmera); da galeria, "Escolher outra".
  */
 export function PhotoCropDialog(props: PhotoCropDialogProps) {
   if (!props.image) return null
   return <CropContent {...props} image={props.image} />
 }
 
-function CropContent({ image, onCancel, onConfirm, onChooseAnother }: PhotoCropDialogProps & { image: DecodedImage }) {
+function CropContent({
+  image,
+  onCancel,
+  onConfirm,
+  onChooseAnother,
+  source = 'gallery',
+  onRetake,
+}: PhotoCropDialogProps & { image: DecodedImage }) {
   const boxRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [viewSize, setViewSize] = useState(0)
@@ -45,6 +65,37 @@ function CropContent({ image, onCancel, onConfirm, onChooseAnother }: PhotoCropD
   const [saving, setSaving] = useState(false)
   const pointers = useRef(new Map<number, { x: number; y: number }>())
   const pinch = useRef<{ distance: number; zoom: number } | null>(null)
+  // "Tirar o fundo": a imagem recortada é calculada uma vez e guardada; a caixa só troca o que a prévia mostra
+  const canRemoveBackground = useAiFeature(BACKGROUND_REMOVAL_FEATURE)
+  const [removeBg, setRemoveBg] = useState(false)
+  const [processed, setProcessed] = useState<DecodedImage | null>(null)
+  const [preparing, setPreparing] = useState(false)
+  const [notice, setNotice] = useState<string | null>(null)
+  const alive = useRef(true)
+  useEffect(() => {
+    alive.current = true
+    return () => {
+      alive.current = false
+    }
+  }, [])
+  const shown = removeBg && processed ? processed : image
+
+  async function toggleBackground(checked: boolean) {
+    setNotice(null)
+    setRemoveBg(checked)
+    if (!checked || processed || preparing) return
+    setPreparing(true)
+    try {
+      const result = await removeBackground(image)
+      if (alive.current) setProcessed(result)
+    } catch (err) {
+      if (!alive.current) return
+      setRemoveBg(false)
+      setNotice(err instanceof BackgroundRemovalError ? err.message : BACKGROUND_UNSUPPORTED_MESSAGE)
+    } finally {
+      if (alive.current) setPreparing(false)
+    }
+  }
 
   // Quadro quadrado do tamanho da largura disponível (até 320 px)
   useLayoutEffect(() => {
@@ -93,8 +144,9 @@ function CropContent({ image, onCancel, onConfirm, onChooseAnother }: PhotoCropD
     const scale = baseScale * view.zoom
     ctx.clearRect(0, 0, canvas.width, canvas.height)
     ctx.imageSmoothingQuality = 'high'
-    ctx.drawImage(image.canvas, view.x * dpr, view.y * dpr, image.width * scale * dpr, image.height * scale * dpr)
-  }, [view, viewSize, baseScale, image])
+    // A imagem com o fundo tirado tem o mesmo tamanho da original: o enquadramento vale para as duas
+    ctx.drawImage(shown.canvas, view.x * dpr, view.y * dpr, shown.width * scale * dpr, shown.height * scale * dpr)
+  }, [view, viewSize, baseScale, shown])
 
   /** Zoom mantendo fixo o ponto (px, py) do quadro (centro, ponto da pinça ou do mouse) */
   const zoomTo = useCallback(
@@ -159,7 +211,9 @@ function CropContent({ image, onCancel, onConfirm, onChooseAnother }: PhotoCropD
     const scale = baseScale * view.zoom
     setSaving(true)
     try {
-      const blob = await renderSquareJpeg(image, { x: -view.x / scale, y: -view.y / scale, size: viewSize / scale })
+      // O arquivo é o que está na prévia (com ou sem o fundo); com o fundo tirado, o envio dele conta na tela de IA
+      const blob = await renderSquareJpeg(shown, { x: -view.x / scale, y: -view.y / scale, size: viewSize / scale })
+      if (shown !== image) markBackgroundRemoved(blob)
       onConfirm(blob)
     } catch (err) {
       toast.error(imageErrorMessage(err))
@@ -176,12 +230,18 @@ function CropContent({ image, onCancel, onConfirm, onChooseAnother }: PhotoCropD
       size="sm"
       footer={
         <div className="flex flex-wrap justify-end gap-2">
-          {onChooseAnother && (
-            <Button variant="secondary" onClick={onChooseAnother} disabled={saving}>
-              <ImagePlus className="h-4 w-4" /> Escolher outra
+          {source === 'camera' && onRetake ? (
+            <Button variant="secondary" onClick={onRetake} disabled={saving}>
+              <Camera className="h-4 w-4" /> Tirar outra
             </Button>
+          ) : (
+            onChooseAnother && (
+              <Button variant="secondary" onClick={onChooseAnother} disabled={saving}>
+                <ImagePlus className="h-4 w-4" /> Escolher outra
+              </Button>
+            )
           )}
-          <Button onClick={() => void confirm()} loading={saving} disabled={!view}>
+          <Button onClick={() => void confirm()} loading={saving} disabled={!view || preparing}>
             Usar foto
           </Button>
         </div>
@@ -237,6 +297,34 @@ function CropContent({ image, onCancel, onConfirm, onChooseAnother }: PhotoCropD
           </button>
         </div>
         <p className="text-center text-xs text-text-secondary">Arraste para enquadrar o rosto no círculo.</p>
+        {canRemoveBackground && (
+          <div className="flex w-full max-w-[320px] flex-col gap-1.5" data-tirar-o-fundo>
+            <label className="flex min-h-[44px] cursor-pointer items-center gap-3 rounded-lg border border-border-input bg-bg-input px-3 text-sm font-medium text-text-primary">
+              <input
+                type="checkbox"
+                className="h-5 w-5 shrink-0 rounded border-border-input bg-bg-input text-accent-blue focus:ring-accent-blue"
+                checked={removeBg}
+                disabled={saving}
+                onChange={(e) => void toggleBackground(e.target.checked)}
+              />
+              <span className="flex-1">Tirar o fundo</span>
+              {preparing && (
+                <span className="flex items-center gap-1.5 text-xs font-normal text-text-secondary" role="status">
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Preparando…
+                </span>
+              )}
+            </label>
+            {notice ? (
+              <p className="rounded-lg bg-accent-yellow-soft px-3 py-2 text-xs text-text-primary" role="alert">
+                {notice}
+              </p>
+            ) : (
+              <p className="text-xs text-text-secondary">
+                Deixa só a pessoa, sobre um fundo liso claro. Feito no próprio aparelho; desmarque para comparar.
+              </p>
+            )}
+          </div>
+        )}
       </div>
     </Modal>
   )

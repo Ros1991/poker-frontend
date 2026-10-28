@@ -9,7 +9,7 @@ import { useFocusedFieldIntoView } from '../../hooks/useFocusedFieldIntoView'
 
 interface ModalProps {
   isOpen: boolean
-  /** Chamado só pelo X do cabeçalho (o fundo escurecido e o ESC não fecham a modal) */
+  /** Chamado só pelo X do cabeçalho (o fundo escurecido e o ESC não fecham a modal); com `chrome="none"`, pelo X de quem está dentro */
   onClose: () => void
   title: string
   children: ReactNode
@@ -23,6 +23,13 @@ interface ModalProps {
    * "Adicionar jogadores"). Quem usa dá a altura preferida com um filho `flex min-h-0 flex-col h-[…]`.
    */
   fill?: boolean
+  /**
+   * Moldura da modal com o teclado aberto (SPEC-20261027-1311, lacuna da onda 14) — só quem usa `fill` e acompanha o
+   * teclado (AddPlayerModal) passa: `tight` = margens e cabeçalho mais baixos (o X de 44 px dá a altura); `none` = sem
+   * o cabeçalho visível (o título fica para o leitor de tela) e quem está dentro desenha o próprio "Fechar" (celular
+   * deitado com o teclado aberto: sobram 150–240 px). Padrão `normal`.
+   */
+  chrome?: 'normal' | 'tight' | 'none'
 }
 
 const sizeClasses = {
@@ -43,7 +50,7 @@ export function Modal(props: ModalProps) {
   return <OpenModal {...props} />
 }
 
-function OpenModal({ onClose, title, children, footer, className, size = 'md', fill = false }: ModalProps) {
+function OpenModal({ onClose, title, children, footer, className, size = 'md', fill = false, chrome = 'normal' }: ModalProps) {
   const titleId = useId()
   const viewport = useVisualViewport()
   const handleFocus = useFocusedFieldIntoView()
@@ -52,7 +59,10 @@ function OpenModal({ onClose, title, children, footer, className, size = 'md', f
 
   return createPortal(
     <div
-      className="fixed inset-x-0 top-0 z-50 flex h-dvh items-center justify-center bg-text-primary/40 p-3 backdrop-blur-sm sm:p-4"
+      className={cn(
+        'fixed inset-x-0 top-0 z-50 flex h-dvh items-center justify-center bg-text-primary/40 backdrop-blur-sm',
+        chrome === 'normal' ? 'p-3 sm:p-4' : 'px-3 py-1 sm:px-4',
+      )}
       style={
         viewport
           ? { height: viewport.height, transform: `translateY(${viewport.offsetTop}px)` }
@@ -70,27 +80,38 @@ function OpenModal({ onClose, title, children, footer, className, size = 'md', f
         aria-modal="true"
         aria-labelledby={titleId}
       >
-        <div
-          data-dialog-header
-          className="flex shrink-0 items-center justify-between gap-2 border-b border-border-default px-4 py-3 sm:px-6 sm:py-4"
-        >
-          <h2 id={titleId} className="min-w-0 truncate text-lg font-semibold text-text-primary">
+        {/* Sem cabeçalho visível (chrome none): o título continua dando o nome do diálogo ao leitor de tela */}
+        {chrome === 'none' ? (
+          <h2 id={titleId} className="sr-only">
             {title}
           </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-lg text-text-secondary transition-colors hover:bg-bg-tertiary hover:text-text-primary"
-            aria-label="Fechar"
+        ) : (
+          <div
+            data-dialog-header
+            className={cn(
+              'flex shrink-0 items-center justify-between gap-2 border-b border-border-default px-4 sm:px-6',
+              chrome === 'tight' ? 'py-0' : 'py-3 sm:py-4',
+            )}
           >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
+            <h2 id={titleId} className="min-w-0 truncate text-lg font-semibold text-text-primary">
+              {title}
+            </h2>
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-lg text-text-secondary transition-colors hover:bg-bg-tertiary hover:text-text-primary"
+              aria-label="Fechar"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+        )}
         <div
           data-modal-body
           className={cn(
-            'min-h-0 flex-1 px-4 py-4 sm:px-6',
+            'min-h-0 flex-1 px-4 sm:px-6',
             fill ? 'flex flex-col overflow-hidden' : 'overflow-y-auto overscroll-contain',
+            chrome === 'normal' ? 'py-4' : 'py-2',
           )}
           onFocus={handleFocus}
         >

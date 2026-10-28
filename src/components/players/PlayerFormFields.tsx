@@ -4,6 +4,12 @@ import { PhotoPicker } from '../photo/PhotoPicker'
 import { formatPhone, whatsappInput } from '../../utils/phone'
 import type { PlayerFormErrors, PlayerFormValue } from './playerForm'
 
+/**
+ * Fonte de 16 px nos campos no celular (SPEC-20261027-1311): abaixo disso o iPhone dá zoom ao focar e o campo passa da
+ * borda da tela. A partir de `sm` volta ao tamanho do resto do painel.
+ */
+const FIELD_TEXT = 'text-base sm:text-sm'
+
 interface PlayerFormFieldsProps {
   value: PlayerFormValue
   onChange: (patch: Partial<PlayerFormValue>) => void
@@ -67,6 +73,7 @@ export function PlayerFormFields({
         autoFocus={autoFocusName}
         autoComplete="off"
         disabled={disabled}
+        className={FIELD_TEXT}
         error={errors.fullName}
         onChange={(e) => onChange({ fullName: e.target.value })}
       />
@@ -78,6 +85,7 @@ export function PlayerFormFields({
         maxLength={60}
         autoComplete="off"
         disabled={disabled}
+        className={FIELD_TEXT}
         error={errors.nickname}
         onChange={(e) => onChange({ nickname: e.target.value })}
       />
@@ -90,6 +98,7 @@ export function PlayerFormFields({
         value={formatPhone(value.whatsapp)}
         autoComplete="off"
         disabled={disabled}
+        className={FIELD_TEXT}
         error={errors.whatsapp}
         helperText={errors.whatsapp ? undefined : whatsappHint}
         // Normaliza antes de limitar: colar "+55 (11) 98765-4321" ou "011 98765-4321" vira 11987654321
@@ -104,6 +113,7 @@ export function PlayerFormFields({
           value={value.email}
           autoComplete="off"
           disabled={disabled}
+          className={FIELD_TEXT}
           error={errors.email}
           onChange={(e) => onChange({ email: e.target.value })}
         />

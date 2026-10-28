@@ -133,10 +133,7 @@ export function PlayerDetails({
         {showTables && <Info label="Mesa" value={active ? seatLabel(entry, tables) : '—'} />}
         <Info label="Situação" value={statusLabel(entry)} />
         <Info label="Rebuys" value={entry.rebuyCount} />
-        <Info
-          label="Add-on"
-          value={entry.addonPurchased ? (entry.addonDouble ? 'Duplo' : 'Simples') : 'Não'}
-        />
+        <Info label="Add-ons" value={entry.addonCount} />
         {showPayment && <Info label="Total" value={formatCurrency(entry.totalDue)} />}
         {showPayment && <Info label="Pagou" value={formatCurrency(entry.totalPaid)} />}
         {/* Com a Mesa a contagem fica ímpar: Eliminações ocupa a última linha inteira */}

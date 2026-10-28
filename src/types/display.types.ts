@@ -82,8 +82,9 @@ export interface TvEntry {
   tableId: string | null
   seatNumber: number | null
   rebuyCount: number
+  /** Add-ons comprados (SPEC-20261027-1311; o antigo duplo = 2) */
+  addonCount: number
   addonPurchased: boolean
-  addonDouble: boolean
   balance: number
   totalDue: number
   prizeAmount: number | null

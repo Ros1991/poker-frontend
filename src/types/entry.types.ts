@@ -17,8 +17,11 @@ export interface TournamentEntry {
   buyInAmount: number
   rebuyCount: number
   rebuyTotal: number
+  /** Quantos add-ons comprou (SPEC-20261027-1311): cada um é uma unidade; o antigo duplo virou 2 */
+  addonCount: number
+  /** Tem algum add-on (addonCount > 0) */
   addonPurchased: boolean
-  addonDouble: boolean
+  /** Total em dinheiro dos add-ons */
   addonAmount: number
   totalDue: number
   totalPaid: number
@@ -53,9 +56,9 @@ export interface RebuyRequest {
   paid?: boolean
 }
 
+/** POST entries/{id}/addon (SPEC-20261027-1311): 1 a 10 por vez, até o máximo do torneio; ausente = 1 */
 export interface AddonRequest {
-  entryId: string
-  paid?: boolean
+  quantity?: number
 }
 
 export interface EliminateRequest {

@@ -3,8 +3,44 @@ import type { Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { fileURLToPath } from 'node:url'
+import { createReadStream, readFileSync } from 'node:fs'
 
 const fromRoot = (file: string) => fileURLToPath(new URL(file, import.meta.url))
+
+/**
+ * SPEC-20261027-1312 — "Tirar o fundo" da foto roda no aparelho com o MediaPipe (@mediapipe/tasks-vision). Os arquivos
+ * WASM do pacote (≈ 13 MB cada variante) são servidos pelo próprio site em `/mediapipe/wasm/` — sem CDN de terceiros e
+ * sem versionar binário grande: no `vite build` eles são copiados de node_modules para `dist/mediapipe/wasm/`; no
+ * servidor de desenvolvimento, servidos direto de node_modules. Só a variante com e sem SIMD do modo clássico (a que o
+ * FilesetResolver.forVisionTasks escolhe). O modelo (.tflite, 244 KB) fica em `public/mediapipe/`. Nada disso entra no
+ * bundle: o app só baixa quando a pessoa marca "Tirar o fundo".
+ */
+const MEDIAPIPE_WASM_FILES = [
+  'vision_wasm_internal.js',
+  'vision_wasm_internal.wasm',
+  'vision_wasm_nosimd_internal.js',
+  'vision_wasm_nosimd_internal.wasm',
+]
+
+function mediapipeWasm(): Plugin {
+  const dir = fromRoot('./node_modules/@mediapipe/tasks-vision/wasm/')
+  return {
+    name: 'poker-da-galera:mediapipe-wasm',
+    configureServer(server) {
+      server.middlewares.use('/mediapipe/wasm', (req, res, next) => {
+        const name = (req.url ?? '').split('?')[0].replace(/^\/+/, '')
+        if (!MEDIAPIPE_WASM_FILES.includes(name)) return next()
+        res.setHeader('Content-Type', name.endsWith('.wasm') ? 'application/wasm' : 'text/javascript; charset=utf-8')
+        createReadStream(dir + name).pipe(res)
+      })
+    },
+    generateBundle() {
+      for (const name of MEDIAPIPE_WASM_FILES) {
+        this.emitFile({ type: 'asset', fileName: `mediapipe/wasm/${name}`, source: readFileSync(dir + name) })
+      }
+    },
+  }
+}
 
 /**
  * SPEC-20261023-1207 — a landing em `/` chega mais rápido no celular: no index.html do build entra um script inline
@@ -46,7 +82,7 @@ function landingModulePreload(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [react(), tailwindcss(), landingModulePreload()],
+  plugins: [react(), tailwindcss(), landingModulePreload(), mediapipeWasm()],
   build: {
     rolldownOptions: {
       // SPEC-20261023-1207: tv.html é o mesmo app com o cartão OG do telão (o nginx o serve em `location = /tv`).

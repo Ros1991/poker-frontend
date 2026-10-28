@@ -308,7 +308,7 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
   const prizesList = snapshot?.prizes ?? []
   const premiacao = snapshot?.prizePool ?? 0
 
-  // Fichas em jogo (por entry: stack inicial + rebuys + addon; addon duplo = 2x)
+  // Fichas em jogo (por entry: stack inicial + rebuys + add-ons × fichas do add-on — SPEC-20261027-1311; o antigo duplo = 2)
   // + bônus de pontualidade (qtd de jogadores × fichas de bônus)
   const startingStack = tournament?.startingStack ?? 0
   const rebuyStack = tournament?.rebuyStack ?? startingStack
@@ -318,7 +318,7 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
   const totalChips =
     (entries?.reduce((sum, e) => {
       const rebuyChips = (e.rebuyCount ?? 0) * rebuyStack
-      const addonChips = e.addonPurchased ? (e.addonDouble ? 2 : 1) * addonStack : 0
+      const addonChips = (e.addonCount ?? 0) * addonStack
       return sum + startingStack + rebuyChips + addonChips
     }, 0) ?? 0) + bonusChipsTotal
   const avgStack = activeEntries.length > 0 ? Math.round(totalChips / activeEntries.length) : 0
@@ -645,7 +645,7 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
                         <>
                           <span className={`text-center tabular-nums text-text-secondary ${rebAddCols}`}>{e.rebuyCount || '-'}</span>
                           <span className={`text-center tabular-nums text-text-secondary ${rebAddCols}`}>
-                            {e.addonPurchased ? (e.addonDouble ? '2' : '1') : '-'}
+                            {e.addonCount || '-'}
                           </span>
                           {pko && (
                             <span

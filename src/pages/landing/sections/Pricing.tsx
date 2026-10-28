@@ -5,20 +5,23 @@ import { ROUTES } from '../../../constants/routes'
 import { usePlanCatalog } from '../../../hooks/usePlanCatalog'
 import type { PlanDefinition } from '../../../types/plan.types'
 import { PRICING, PRICING_ANCHOR } from '../landing.content'
+import { accountLink } from './accountLink'
 
 /**
  * Seção 5 — planos Mesa / Clube / Liga. A tabela é a MESMA do "Meu plano" e das boas-vindas (`PlanComparisonTable`,
  * catálogo de `GET public/plans`): preços, limites, selo "Mais escolhido" e nota da fase de testes saem de lá — nada
  * digitado aqui. CTA: plano grátis → `/register`; pagos → "Falar com o suporte" no WhatsApp (sem número no build,
- * e-mail do contato).
+ * e-mail do contato). Logado (SPEC-20261027-1311): o plano grátis vira "Abrir painel" (→ /home-games), sem o convite para
+ * criar conta.
  */
 export function Pricing() {
   const { plans } = usePlanCatalog()
   const featured = plans.find((p) => p.highlight && p.priceMonthly > 0)
+  const account = accountLink()
 
   const choose = (plan: PlanDefinition) => {
     if (plan.priceMonthly <= 0) {
-      window.location.assign(ROUTES.REGISTER)
+      window.location.assign(account.loggedIn ? account.href : ROUTES.REGISTER)
       return
     }
     const whatsapp = supportWhatsAppUrl(PRICING.supportMessage(plan.name))
@@ -51,7 +54,9 @@ export function Pricing() {
         <PlanComparisonTable
           className="mt-8"
           onChoose={choose}
-          chooseLabel={(plan) => (plan.priceMonthly <= 0 ? PRICING.freeCta : PRICING.paidCta)}
+          chooseLabel={(plan) =>
+            plan.priceMonthly <= 0 ? (account.loggedIn ? PRICING.panelCta : PRICING.freeCta) : PRICING.paidCta
+          }
         />
       </div>
     </section>

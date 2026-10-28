@@ -6,7 +6,7 @@ import type { ToasterProps } from 'sonner'
  * Onde o <Toaster> mostra os toasts (revisão geral do programa, ondas 7–9).
  *
  * - Computador: canto superior direito, como sempre.
- * - Celular sem diálogo aberto: embaixo, ao alcance do polegar (o "Desfazer" de 10 s do terminal/painel).
+ * - Celular (em pé; ou deitado, com toque e menos de 480 px de altura) sem diálogo aberto: embaixo, ao alcance do polegar (o "Desfazer" de 10 s do terminal/painel).
  * - Celular com modal/tela cheia aberta (`[role=dialog][aria-modal=true]`): o toast nunca fica por cima de um controle
  *   do diálogo (X, "Voltar", botões do corpo, "Confirmar Pagamento"/"Cancelar" do rodapé):
  *   - vai para a faixa livre mais alta da tela — no topo, acima do diálogo, quando o cabeçalho não está colado nele;
@@ -21,14 +21,22 @@ import type { ToasterProps } from 'sonner'
  * toque no toast (sem diálogo) ele ficava "expanded" e parado para sempre. Um toque fora do toast devolve o estado
  * normal (o tempo volta a correr). Só a área do próprio toast recebe toque (globals.css).
  */
-const PHONE_QUERY = '(max-width: 639px)'
+/**
+ * Celular: tela estreita (em pé) ou toque com pouca altura (deitado — SPEC-20261027-1311, lacuna da onda 14: no canto
+ * superior direito do computador, o toast cobria a barra de cima do "Adicionar jogadores" com o teclado aberto)
+ */
+const PHONE_QUERY = '(max-width: 639px), (pointer: coarse) and (max-height: 479px)'
 /** Margem do toast no celular (= padrão do sonner) */
 const EDGE = 16
 /** Altura de um toast com o botão de ação quando ainda não há nenhum na tela para medir */
 const TOAST_HEIGHT = 64
 /** Folga mínima entre o toast e um controle do diálogo */
 const GAP = 8
-/** Peso de um controle do cabeçalho (X/"Voltar") ou do rodapé quando não há faixa livre: são os últimos a cobrir */
+/**
+ * Peso de um controle do cabeçalho (X/"Voltar"), do rodapé ou de uma barra que faz as vezes de cabeçalho
+ * (`data-dialog-toolbar`: a barra de cima do "Adicionar jogadores" no layout mínimo, com o celular deitado e o teclado
+ * aberto) quando não há faixa livre: são os últimos a cobrir
+ */
 const EDGE_CONTROL_WEIGHT = 100
 
 /** O que recebe toque dentro de um diálogo */
@@ -109,7 +117,7 @@ function controlBands(dialog: HTMLElement, viewHeight: number): Band[] {
       const top = Math.max(rect.top, clip.top)
       const bottom = Math.min(rect.bottom, clip.bottom)
       if (rect.width > 0 && bottom > top) {
-        const atEdge = element.closest('[data-dialog-header],[data-modal-footer]') !== null
+        const atEdge = element.closest('[data-dialog-header],[data-modal-footer],[data-dialog-toolbar]') !== null
         bands.push({ top, bottom, weight: atEdge ? EDGE_CONTROL_WEIGHT : 1 })
       }
     }

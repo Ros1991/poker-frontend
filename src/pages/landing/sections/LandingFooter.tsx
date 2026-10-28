@@ -3,6 +3,7 @@ import { Tv } from 'lucide-react'
 import { CONTACT_EMAIL } from '../../../constants/contact'
 import { ROUTES } from '../../../constants/routes'
 import { FOOTER } from '../landing.content'
+import { accountLink } from './accountLink'
 import { PricingLink } from './PricingLink'
 
 interface LandingFooterProps {
@@ -20,14 +21,15 @@ const LINK =
  * telão. O "Manual" (SPEC-20261026-1910) leva ao manual de uso público.
  */
 export function LandingFooter({ onLanding = false, children }: LandingFooterProps) {
+  const account = accountLink()
   return (
     <footer className="border-t border-border-default bg-bg-secondary">
       <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-8 lg:flex-row lg:items-center lg:justify-between lg:px-8">
         <nav aria-label={FOOTER.navLabel}>
           <ul className="flex flex-wrap items-center gap-x-5 gap-y-1">
             <li>
-              <a href={ROUTES.LOGIN} className={LINK}>
-                {FOOTER.links.login}
+              <a href={account.href} className={LINK}>
+                {account.loggedIn ? FOOTER.links.panel : FOOTER.links.login}
               </a>
             </li>
             <li>

@@ -3,7 +3,6 @@ import { Navigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
 import { useAuth } from '../../hooks/useAuth'
-import { useOnboardingStatus } from '../../hooks/useOnboarding'
 import { LoadingSpinner } from './LoadingSpinner'
 import { ROUTES, dealerTerminalPath } from '../../constants/routes'
 import { getDealerSession, getDisplayToken, setDisplayToken } from '../../utils/deviceSessions'
@@ -25,7 +24,8 @@ function GateSpinner({ text }: { text?: string }) {
 
 /**
  * "/" decide em 4 ramos (SPEC-20261023-1207):
- * 1. logado → painel (como sempre) ou, no primeiro acesso, as boas-vindas (SPEC-20261023-1212);
+ * 1. logado → a landing, com "Abrir painel" no lugar de "Entrar" (o login e o cadastro levam direto ao painel, e as
+ *    boas-vindas do primeiro acesso ficam com o `ProtectedRoute`);
  * 2. celular com sessão de dealer → o terminal daquele torneio;
  * 3. aparelho com token de TV → `DisplayTokenGate` (rede de segurança das TVs que ainda abrem a raiz);
  * 4. qualquer outro visitante → a landing, renderizada na própria raiz (sem redirecionar: a URL canônica é `/`).
@@ -36,17 +36,15 @@ function GateSpinner({ text }: { text?: string }) {
  */
 export function RootGate() {
   const { isAuthenticated, isLoading, isReconnecting } = useAuth()
-  const onboarding = useOnboardingStatus()
 
-  if (isLoading || onboarding.isChecking) {
+  if (isLoading) {
     return (
       <GateSpinner text={isReconnecting ? 'Sem conexão com o servidor. Tentando de novo…' : undefined} />
     )
   }
 
-  if (isAuthenticated) {
-    return <Navigate to={onboarding.needsOnboarding ? ROUTES.WELCOME : ROUTES.HOME_GAMES} replace />
-  }
+  if (isAuthenticated) return <LandingInRoot />
+
 
   const dealer = getDealerSession()
   if (dealer) return <Navigate to={dealerTerminalPath(dealer.tournamentId)} replace />

@@ -1,10 +1,12 @@
-import { LogIn, Tv } from 'lucide-react'
+import { Tv } from 'lucide-react'
 import { ROUTES } from '../../../constants/routes'
 import { FINAL_CTA } from '../landing.content'
+import { accountLink } from './accountLink'
 import { TEXT_LINK, linkButton } from './linkStyles'
 
-/** Seção 7 (parte 1) — chamada final com os mesmos botões do topo: Entrar e Abrir o Telão da TV. */
+/** Seção 7 (parte 1) — chamada final com os mesmos botões do topo: Entrar (ou Abrir painel) e Abrir o Telão da TV. */
 export function FinalCta() {
+  const account = accountLink()
   return (
     <section aria-labelledby="landing-chamada-final" className="bg-bg-primary">
       <div className="mx-auto max-w-6xl px-4 py-12 sm:py-16 lg:px-8">
@@ -14,21 +16,23 @@ export function FinalCta() {
           </h2>
           <p className="mx-auto mt-3 max-w-xl text-base text-text-secondary">{FINAL_CTA.text}</p>
           <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
-            <a href={ROUTES.LOGIN} className={linkButton('primary', 'lg')}>
-              <LogIn className="h-5 w-5" aria-hidden="true" />
-              {FINAL_CTA.login}
+            <a href={account.href} className={linkButton('primary', 'lg')}>
+              <account.Icon className="h-5 w-5" aria-hidden="true" />
+              {account.loggedIn ? FINAL_CTA.panel : FINAL_CTA.login}
             </a>
             <a href={ROUTES.TV} className={linkButton('gold', 'lg')}>
               <Tv className="h-5 w-5" aria-hidden="true" />
               {FINAL_CTA.tv}
             </a>
           </div>
-          <p className="mt-4 text-sm text-text-secondary">
-            {FINAL_CTA.signupQuestion}{' '}
-            <a href={ROUTES.REGISTER} className={TEXT_LINK}>
-              {FINAL_CTA.signup}
-            </a>
-          </p>
+          {!account.loggedIn && (
+            <p className="mt-4 text-sm text-text-secondary">
+              {FINAL_CTA.signupQuestion}{' '}
+              <a href={ROUTES.REGISTER} className={TEXT_LINK}>
+                {FINAL_CTA.signup}
+              </a>
+            </p>
+          )}
         </div>
       </div>
     </section>

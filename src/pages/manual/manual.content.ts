@@ -104,6 +104,8 @@ export const MANUAL_PAGE = {
   plansTitle: 'Compare os planos',
   plansText: 'Preços e limites atualizados. O Mesa é grátis e não pede cartão.',
   plansFreeCta: 'Criar conta grátis',
+  /** Logado (integração da onda 14, como a tabela da landing): o plano grátis leva ao painel */
+  plansPanelCta: 'Abrir painel',
   plansPaidCta: 'Falar com o suporte',
   plansMessage: (plan: string) => `Olá! Li o manual e quero saber mais sobre o plano ${plan}.`,
   plansEmailSubject: (plan: string) => `Plano ${plan}`,
@@ -210,6 +212,15 @@ export const MANUAL_MODULES = [
             imageAlt: 'Janela Novo jogador com Tirar foto, Escolher da galeria, nome completo, apelido e WhatsApp',
           },
           {
+            title: 'Enquadre a foto e tire o fundo',
+            text: [
+              'Arraste para deixar o rosto no círculo. Marque Tirar o fundo para ficar só a pessoa sobre um fundo claro, feito no próprio celular; desmarque para comparar com a original.',
+              'Não gostou? Tirar outra abre a câmera de novo (com foto da galeria, o botão é Escolher outra). Toque em Usar foto para ficar com a que está na tela.',
+            ],
+            image: 'jogador-foto',
+            imageAlt: 'Tela Enquadrar a foto com a pessoa recortada sobre fundo claro, Tirar o fundo marcado e os botões Tirar outra e Usar foto',
+          },
+          {
             title: 'Confira a lista',
             text: [
               'A aba Jogadores mostra todo mundo do grupo, com foto, apelido e nome. O lápis edita e a lixeira remove.',
@@ -231,6 +242,15 @@ export const MANUAL_MODULES = [
             ],
             image: 'estrutura-valores',
             imageAlt: 'Formulário da estrutura de blinds com nome, descrição e os valores padrão de buy-in, rebuy e add-on',
+          },
+          {
+            title: 'Limites de rebuy e add-on',
+            text: [
+              'Em Máx. de rebuys, diga quantos rebuys cada jogador pode fazer (0 = ilimitado) e, em Rebuy até o nível, até quando vale.',
+              'Com Permitir add-on marcado, Max add-ons diz quantos add-ons cada jogador pode comprar: 0 = ilimitado e o padrão é 1. O torneio herda esses limites da estrutura.',
+            ],
+            image: 'estrutura-addon',
+            imageAlt: 'Máx. de rebuys, Rebuy até o nível, Permitir add-on marcado e o campo Max add-ons (0 = ilimitado) com 1',
           },
           {
             title: 'Ajuste os níveis',
@@ -264,11 +284,11 @@ export const MANUAL_MODULES = [
           {
             title: 'Torneio knockout (opcional)',
             text: [
-              'Em Formato do torneio, escolha Normal, Knockout simples ou Knockout progressivo (PKO) e o bounty por entrada.',
+              'Em Formato do torneio, toque no cartão do formato: Normal, Knockout simples ou Knockout progressivo (PKO). Cada cartão traz a regra escrita. No knockout, informe o bounty por entrada.',
               'No simples, quem elimina leva o bounty inteiro. No PKO, leva metade em dinheiro e a outra metade soma na própria cabeça. A tela mostra a conta do buy-in: quanto é bounty e quanto vai para o prize pool.',
             ],
             image: 'estrutura-knockout',
-            imageAlt: 'Formato do torneio com Knockout progressivo (PKO) escolhido e o bounty de R$ 25,00 por entrada',
+            imageAlt: 'Formato do torneio em cartões com a regra de cada um, o Knockout progressivo (PKO) escolhido e o bounty de R$ 25,00 por entrada',
           },
           {
             title: 'Salve',
@@ -283,7 +303,7 @@ export const MANUAL_MODULES = [
           {
             title: 'Crie o torneio',
             text: [
-              'Na aba Torneios, toque em Novo Torneio. Dê um nome, a data e escolha a estrutura: valores, custos e formato vêm preenchidos (e dá para mudar só neste torneio).',
+              'Na aba Torneios, toque em Novo Torneio. Dê um nome, a data e escolha a estrutura: valores, limites de rebuy e add-on, custos e formato vêm preenchidos (e dá para mudar só neste torneio).',
               'Escolha também o ranking da temporada, se houver, e toque em Criar torneio.',
             ],
             image: 'torneio-novo',
@@ -384,20 +404,29 @@ export const MANUAL_MODULES = [
             title: 'A tela da mesa',
             text: [
               'No topo ficam o relógio, o nível e os controles: Anterior, Pausar e Próximo. Toque no nome da mesa para trocar de mesa.',
-              'Cada jogador tem um card com foto, rebuys, add-on e quanto deve, e os botões Rebuy, Add-on, Pagar e Eliminar.',
+              'Cada jogador tem um card com foto, rebuys, add-ons e quanto deve, e os botões Rebuy, Add-on, Pagar e Eliminar.',
             ],
             tip: 'Mesas desequilibradas? O terminal avisa e sugere quem muda (Sortear quem muda ou Escolher eu mesmo).',
             image: 'terminal-mesa',
             imageAlt: 'Terminal do dealer no celular: relógio, controles do nível e os cards dos jogadores da Mesa 1',
           },
           {
-            title: 'Rebuy e add-on',
+            title: 'Rebuy',
             text: [
-              'Toque em Rebuy (ou Add-on) no card do jogador. A confirmação mostra a foto e o nome, para conferir que é a pessoa certa, e o valor.',
+              'Toque em Rebuy no card do jogador. A confirmação mostra a foto e o nome, para conferir que é a pessoa certa, e o valor.',
               'Confirme: o valor entra no que o jogador deve.',
             ],
             image: 'terminal-rebuy',
             imageAlt: 'Confirmação do rebuy com a foto redonda e o nome do jogador e o valor de R$ 50,00',
+          },
+          {
+            title: 'Add-on',
+            text: [
+              'Toque em Add-on no card. A confirmação mostra a foto, quantos add-ons o jogador já comprou e o máximo do torneio (0 = sem limite, em Max add-ons).',
+              'Quando cabe mais de um, escolha a quantidade com − e + antes de confirmar. Quem chegou ao máximo fica com o botão Add-on apagado.',
+            ],
+            image: 'terminal-addon',
+            imageAlt: 'Confirmação do add-on com a foto redonda, Já comprou 0 de 2 add-ons, a quantidade 2 e Confirmar 2 add-ons por R$ 100,00',
           },
           {
             title: 'Receba o pagamento',

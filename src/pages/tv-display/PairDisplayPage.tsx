@@ -102,8 +102,8 @@ export function PairDisplayPage() {
           <Button onClick={() => navigate(tournamentDashboardPath(paired.tournamentId))}>
             Abrir o painel do torneio
           </Button>
-          <Button variant="ghost" onClick={() => navigate(ROUTES.HOME)}>
-            Ir para o início
+          <Button variant="ghost" onClick={() => navigate(ROUTES.HOME_GAMES)}>
+            Ir para o painel
           </Button>
         </div>
       </div>,
@@ -142,7 +142,7 @@ export function PairDisplayPage() {
         <Button type="submit" disabled={normalizeCode(typed).length !== 6}>
           Continuar
         </Button>
-        <Link to={ROUTES.HOME} className="text-center text-sm text-text-secondary hover:underline">
+        <Link to={ROUTES.HOME_GAMES} className="text-center text-sm text-text-secondary hover:underline">
           Cancelar
         </Link>
       </form>,
@@ -221,7 +221,7 @@ export function PairDisplayPage() {
       {claim.isError && (
         <p className="rounded-lg bg-accent-red-soft px-3 py-2 text-sm text-accent-red-deep">{errorMessage(claim.error)}</p>
       )}
-      <Link to={ROUTES.HOME} className="text-center text-sm text-text-secondary hover:underline">
+      <Link to={ROUTES.HOME_GAMES} className="text-center text-sm text-text-secondary hover:underline">
         Cancelar
       </Link>
     </>,

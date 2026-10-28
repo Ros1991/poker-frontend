@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import * as entriesApi from '../../api/entries.api'
 import { Modal } from '../ui/Modal'
 import { PlayerPicker } from '../players/PlayerPicker'
+import { usePickerLayout } from '../players/usePickerLayout'
 import { SeatingChangesDialog } from './SeatingChangesDialog'
 import { seatCountsText } from './seatingText'
 import type { BulkCreateEntriesResult, SeatingResult, TournamentEntry } from '../../types/entry.types'
@@ -26,6 +27,30 @@ function addedToast({ entries, seating }: BulkCreateEntriesResult): string {
   if (seated.length === 0) return count
   if (n === 1) return `${count} — ${seated[0].tableName}, lugar ${seated[0].seatNumber}`
   return `${count} — ${seatCountsText(seated)}`
+}
+
+/**
+ * Modal do picker (montada só aberta): a moldura acompanha o teclado e a altura (SPEC-20261027-1311) — com o teclado
+ * aberto ou menos de 480 px visíveis (celular deitado), margens e cabeçalho mais baixos; com menos de 300 px visíveis e o
+ * teclado aberto, sem o cabeçalho e o X vem para a barra de cima do PlayerPicker (o mesmo usePickerLayout dos dois lados).
+ */
+function AddPlayerDialog({ onClose, tournamentId, entries, onAdded }: {
+  onClose: () => void
+  tournamentId: string
+  entries: TournamentEntry[] | undefined
+  onAdded: (result: BulkCreateEntriesResult) => void
+}) {
+  const { short, compact, minimal } = usePickerLayout()
+  const chrome = minimal ? 'none' : compact || short ? 'tight' : 'normal'
+  // fill: a altura acompanha a área visível (teclado aberto inclusive); 40rem é só a altura preferida — o contêiner
+  // encolhe junto com a modal e só a lista do PlayerPicker rola, com o rodapé dele sempre à vista
+  return (
+    <Modal isOpen onClose={onClose} title="Adicionar jogadores" size="xl" fill chrome={chrome}>
+      <div className="flex h-[40rem] min-h-0 flex-col">
+        <PlayerPicker tournamentId={tournamentId} entries={entries} variant="panel" onAdded={onAdded} onClose={onClose} />
+      </div>
+    </Modal>
+  )
 }
 
 /**
@@ -56,13 +81,7 @@ export function AddPlayerModal({ isOpen, onClose, tournamentId, entries }: AddPl
 
   return (
     <>
-      {/* fill: a altura acompanha a área visível (teclado aberto inclusive); 40rem é só a altura preferida — o
-          contêiner encolhe junto com a modal e só a lista do PlayerPicker rola, com o rodapé dele sempre à vista */}
-      <Modal isOpen={isOpen} onClose={onClose} title="Adicionar jogadores" size="xl" fill>
-        <div className="flex h-[40rem] min-h-0 flex-col">
-          <PlayerPicker tournamentId={tournamentId} entries={entries ?? fetched} variant="panel" onAdded={handleAdded} />
-        </div>
-      </Modal>
+      {isOpen && <AddPlayerDialog onClose={onClose} tournamentId={tournamentId} entries={entries ?? fetched} onAdded={handleAdded} />}
       <SeatingChangesDialog seating={changes} onClose={() => setChanges(null)} />
     </>
   )

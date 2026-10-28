@@ -102,7 +102,7 @@ export function LoginPage() {
 
   // Volta para onde a pessoa estava (ex.: o QR da TV abriu /parear/CODIGO)
   const from = (location.state as { from?: Location } | null)?.from
-  const returnTo = from ? `${from.pathname}${from.search}` : ROUTES.HOME
+  const returnTo = from ? `${from.pathname}${from.search}` : ROUTES.HOME_GAMES
   // Login com Google (SPEC-20261023-1210): mesmo retorno do login por senha
   const google = useGoogleSignIn(returnTo)
 

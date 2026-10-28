@@ -25,8 +25,8 @@ interface KnockoutFieldsProps {
 
 /**
  * Formato do torneio (SPEC-20261026-1909): Normal, Knockout simples ou Knockout progressivo (PKO) e o valor do bounty —
- * o mesmo bloco na estrutura de blinds (padrão) e no formulário do torneio (herdado, pode trocar). Mostra a conta do
- * buy-in (bounty + prize pool) e as regras do formato escolhido.
+ * o mesmo bloco na estrutura de blinds (padrão) e no formulário do torneio (herdado, pode trocar). Cada formato é um
+ * cartão com o nome e a regra dentro (SPEC-20261027-1311); mostra a conta do buy-in (bounty + prize pool).
  */
 export function KnockoutFields({
   idPrefix,
@@ -54,8 +54,9 @@ export function KnockoutFields({
         Formato do torneio
       </h2>
       {description && <p className="mb-3 text-xs text-text-secondary">{description}</p>}
-      {/* Botões do tamanho do texto, crescendo para ocupar a linha (o "Knockout progressivo (PKO)" não quebra em 3 linhas) */}
-      <div role="radiogroup" aria-label="Formato do torneio" className="flex flex-wrap gap-2">
+      {/* Cartões de seleção (SPEC-20261027-1311): nome + descrição curta DENTRO do cartão, texto quebrando linha (nunca
+          passa da borda). Empilhados e de largura total no celular; lado a lado a partir de 640 px, onde cabem. */}
+      <div role="radiogroup" aria-label="Formato do torneio" className="grid gap-2 sm:grid-cols-3">
         {KNOCKOUT_TYPES.map((k) => {
           const selected = type === k
           return (
@@ -64,22 +65,52 @@ export function KnockoutFields({
               type="button"
               role="radio"
               aria-checked={selected}
+              aria-labelledby={`${idPrefix}-knockout-${k}-nome`}
+              aria-describedby={`${idPrefix}-knockout-${k}-desc`}
               data-knockout-option={k}
               onClick={() => onTypeChange(k)}
               className={cn(
-                'flex min-h-[44px] flex-auto items-center justify-center gap-2 whitespace-nowrap rounded-lg border px-4 py-2 text-sm font-medium transition-colors',
+                'flex min-h-[44px] w-full min-w-0 items-start gap-3 rounded-lg border-2 px-3 py-3 text-left transition-colors',
                 selected
-                  ? 'border-accent-blue bg-accent-blue-soft text-accent-blue'
-                  : 'border-border-input bg-bg-input text-text-secondary hover:bg-bg-tertiary',
+                  ? 'border-accent-blue bg-accent-blue-soft'
+                  : 'border-border-input bg-bg-input hover:bg-bg-tertiary',
               )}
             >
-              {k !== 'None' && <Crosshair className="h-4 w-4 shrink-0" aria-hidden />}
-              {KNOCKOUT_LABELS[k]}
+              {/* Bolinha de rádio: o escolhido fica marcado também sem depender só da cor */}
+              <span
+                aria-hidden
+                className={cn(
+                  'mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2',
+                  selected ? 'border-accent-blue' : 'border-border-input bg-bg-card',
+                )}
+              >
+                {selected && <span className="h-2.5 w-2.5 rounded-full bg-accent-blue" />}
+              </span>
+              <span className="flex min-w-0 flex-1 flex-col gap-1">
+                <span
+                  className={cn(
+                    'flex min-w-0 items-start gap-1.5 break-words text-sm font-semibold leading-snug',
+                    selected ? 'text-accent-blue-deep' : 'text-text-primary',
+                  )}
+                  data-knockout-option-name
+                >
+                  {k !== 'None' && <Crosshair className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />}
+                  <span id={`${idPrefix}-knockout-${k}-nome`} className="min-w-0">
+                    {KNOCKOUT_LABELS[k]}
+                  </span>
+                </span>
+                <span
+                  id={`${idPrefix}-knockout-${k}-desc`}
+                  className="break-words text-xs leading-snug text-text-secondary"
+                  data-knockout-option-desc
+                >
+                  {KNOCKOUT_HINTS[k]}
+                </span>
+              </span>
             </button>
           )
         })}
       </div>
-      <p className="mt-2 text-xs text-text-secondary">{KNOCKOUT_HINTS[type]}</p>
 
       {knockout && (
         <div className="mt-3 grid gap-3 sm:grid-cols-2">

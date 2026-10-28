@@ -27,7 +27,8 @@ export interface Tournament {
   addonStack: number | null
   maxRebuys: number
   addonAllowed: boolean
-  addonDoubleAllowed: boolean
+  /** Máximo de add-ons por jogador (SPEC-20261027-1311): 0 = ilimitado; o antigo duplo virou 2 */
+  maxAddons: number
   currentLevel: number
   isTimerRunning: boolean
   totalEntries: number
@@ -75,7 +76,8 @@ export interface CreateTournamentRequest {
   addonStack?: number
   maxRebuys: number
   addonAllowed: boolean
-  addonDoubleAllowed?: boolean
+  /** Máximo de add-ons por jogador (0 = ilimitado); na criação, ausente = herdar da estrutura (sem estrutura: 1) */
+  maxAddons?: number
   blindStructureId?: string
   seatsPerTable?: number
   responsiblePixKey?: string | null

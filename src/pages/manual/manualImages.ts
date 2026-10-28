@@ -23,6 +23,8 @@ import imgDealerPedido400 from '../../assets/manual/dealer-pedido-400.webp'
 import imgDealerPedido750 from '../../assets/manual/dealer-pedido-750.webp'
 import imgDealerQr400 from '../../assets/manual/dealer-qr-400.webp'
 import imgDealerQr750 from '../../assets/manual/dealer-qr-750.webp'
+import imgEstruturaAddon400 from '../../assets/manual/estrutura-addon-400.webp'
+import imgEstruturaAddon750 from '../../assets/manual/estrutura-addon-750.webp'
 import imgEstruturaCustos400 from '../../assets/manual/estrutura-custos-400.webp'
 import imgEstruturaCustos750 from '../../assets/manual/estrutura-custos-750.webp'
 import imgEstruturaDealer400 from '../../assets/manual/estrutura-dealer-400.webp'
@@ -37,6 +39,8 @@ import imgHomeGamePix400 from '../../assets/manual/home-game-pix-400.webp'
 import imgHomeGamePix750 from '../../assets/manual/home-game-pix-750.webp'
 import imgHomeGameTorneios400 from '../../assets/manual/home-game-torneios-400.webp'
 import imgHomeGameTorneios750 from '../../assets/manual/home-game-torneios-750.webp'
+import imgJogadorFoto400 from '../../assets/manual/jogador-foto-400.webp'
+import imgJogadorFoto750 from '../../assets/manual/jogador-foto-750.webp'
 import imgJogadorNovo400 from '../../assets/manual/jogador-novo-400.webp'
 import imgJogadorNovo750 from '../../assets/manual/jogador-novo-750.webp'
 import imgJogadoresLista400 from '../../assets/manual/jogadores-lista-400.webp'
@@ -71,6 +75,8 @@ import imgRankingPublico400 from '../../assets/manual/ranking-publico-400.webp'
 import imgRankingPublico750 from '../../assets/manual/ranking-publico-750.webp'
 import imgRankingTemporada400 from '../../assets/manual/ranking-temporada-400.webp'
 import imgRankingTemporada750 from '../../assets/manual/ranking-temporada-750.webp'
+import imgTerminalAddon400 from '../../assets/manual/terminal-addon-400.webp'
+import imgTerminalAddon750 from '../../assets/manual/terminal-addon-750.webp'
 import imgTerminalAdicionar400 from '../../assets/manual/terminal-adicionar-400.webp'
 import imgTerminalAdicionar750 from '../../assets/manual/terminal-adicionar-750.webp'
 import imgTerminalEliminar400 from '../../assets/manual/terminal-eliminar-400.webp'
@@ -184,6 +190,14 @@ export const MANUAL_IMAGES = {
     height: 1520,
     kind: 'phone',
   },
+  'estrutura-addon': {
+    src: imgEstruturaAddon400,
+    full: imgEstruturaAddon750,
+    srcSet: `${imgEstruturaAddon400} 400w, ${imgEstruturaAddon750} 750w`,
+    width: 750,
+    height: 1520,
+    kind: 'phone',
+  },
   'estrutura-custos': {
     src: imgEstruturaCustos400,
     full: imgEstruturaCustos750,
@@ -236,6 +250,14 @@ export const MANUAL_IMAGES = {
     src: imgHomeGameTorneios400,
     full: imgHomeGameTorneios750,
     srcSet: `${imgHomeGameTorneios400} 400w, ${imgHomeGameTorneios750} 750w`,
+    width: 750,
+    height: 1520,
+    kind: 'phone',
+  },
+  'jogador-foto': {
+    src: imgJogadorFoto400,
+    full: imgJogadorFoto750,
+    srcSet: `${imgJogadorFoto400} 400w, ${imgJogadorFoto750} 750w`,
     width: 750,
     height: 1520,
     kind: 'phone',
@@ -372,6 +394,14 @@ export const MANUAL_IMAGES = {
     src: imgRankingTemporada400,
     full: imgRankingTemporada750,
     srcSet: `${imgRankingTemporada400} 400w, ${imgRankingTemporada750} 750w`,
+    width: 750,
+    height: 1520,
+    kind: 'phone',
+  },
+  'terminal-addon': {
+    src: imgTerminalAddon400,
+    full: imgTerminalAddon750,
+    srcSet: `${imgTerminalAddon400} 400w, ${imgTerminalAddon750} 750w`,
     width: 750,
     height: 1520,
     kind: 'phone',

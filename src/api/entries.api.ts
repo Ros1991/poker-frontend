@@ -5,6 +5,7 @@ import type {
   EliminateRequest,
   AvailablePlayer,
   BulkCreateEntriesResult,
+  AddonRequest,
 } from '../types/entry.types'
 
 const base = (tournamentId: string) =>
@@ -57,14 +58,15 @@ export async function rebuy(
   return response.data
 }
 
+/** Add-on (SPEC-20261027-1311): `quantity` add-ons de uma vez (1 a 10), até o máximo do torneio (400 acima dele) */
 export async function addon(
   tournamentId: string,
   entryId: string,
-  data?: { isDouble?: boolean },
+  data?: AddonRequest,
 ): Promise<TournamentEntry> {
   const response = await apiClient.post<TournamentEntry>(
     `${base(tournamentId)}/${entryId}/addon`,
-    data ?? {},
+    data ?? { quantity: 1 },
   )
   return response.data
 }

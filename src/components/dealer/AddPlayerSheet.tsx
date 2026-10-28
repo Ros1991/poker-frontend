@@ -5,6 +5,7 @@ import * as historyApi from '../../api/history.api'
 import { Avatar } from '../ui/Avatar'
 import { Button } from '../ui/Button'
 import { PlayerPicker } from '../players/PlayerPicker'
+import { usePickerLayout } from '../players/usePickerLayout'
 import { SeatingMovesList } from '../tournament/SeatingChangesDialog'
 import { seatingAdvice, seatingTitle } from '../tournament/seatingText'
 import type { Table } from '../../api/tables.api'
@@ -58,6 +59,9 @@ function AddPlayerContent({ onClose, tournamentId, entries, tables, showTables =
   const [undoing, setUndoing] = useState<string | null>(null)
   // Remonta o picker (busca e seleção limpas) a cada "Adicionar mais"
   const [round, setRound] = useState(0)
+  // Celular deitado com o teclado aberto (< 300 px visíveis): sem o cabeçalho do Sheet; o "Voltar" vem para a barra de
+  // cima do PlayerPicker (o mesmo usePickerLayout dos dois lados — SPEC-20261027-1311)
+  const { minimal } = usePickerLayout()
 
   async function undo(entry: TournamentEntry) {
     setUndoing(entry.id)
@@ -164,7 +168,7 @@ function AddPlayerContent({ onClose, tournamentId, entries, tables, showTables =
   }
 
   return (
-    <Sheet isOpen onClose={onClose} title="Adicionar jogadores" scrollable={false}>
+    <Sheet isOpen onClose={onClose} title="Adicionar jogadores" scrollable={false} chrome={minimal ? 'none' : 'normal'}>
       <PlayerPicker
         key={round}
         tournamentId={tournamentId}
@@ -174,6 +178,7 @@ function AddPlayerContent({ onClose, tournamentId, entries, tables, showTables =
           setResult(res)
           onChanged()
         }}
+        onClose={onClose}
       />
     </Sheet>
   )

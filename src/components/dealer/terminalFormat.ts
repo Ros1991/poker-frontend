@@ -10,16 +10,33 @@ export { isActiveStatus, tableLabel } from '../../utils/tableBalance'
 // Busca sem acento: utilitário único em utils/text.ts (SPEC-20261023-1213)
 export { normalizeText } from '../../utils/text'
 
-/** Rebuy até o limite do torneio (0 = sem limite); add-on só se o torneio tem e o jogador ainda não comprou */
+/**
+ * Rebuy até o limite do torneio (0 = sem limite); add-on só se o torneio tem e o jogador ainda não chegou ao máximo de
+ * add-ons (SPEC-20261027-1311; 0 = sem limite) — no máximo o botão fica desabilitado.
+ */
 export function playerActionRules(
-  tournament: Pick<Tournament, 'maxRebuys' | 'addonAllowed'> | undefined,
-  entry: Pick<TournamentEntry, 'rebuyCount' | 'addonPurchased'>,
+  tournament: Pick<Tournament, 'maxRebuys' | 'addonAllowed' | 'maxAddons'> | undefined,
+  entry: Pick<TournamentEntry, 'rebuyCount' | 'addonCount'>,
 ): PlayerActionRules {
   const maxRebuys = tournament?.maxRebuys ?? 0
   return {
     canRebuy: !(maxRebuys > 0 && entry.rebuyCount >= maxRebuys),
-    canAddon: !entry.addonPurchased && (tournament?.addonAllowed ?? false),
+    canAddon: (tournament?.addonAllowed ?? false) && addonsLeft(tournament, entry) !== 0,
   }
+}
+
+/** Quantos add-ons o jogador ainda pode comprar (SPEC-20261027-1311); null = sem limite (máximo 0) */
+export function addonsLeft(
+  tournament: Pick<Tournament, 'maxAddons'> | undefined,
+  entry: Pick<TournamentEntry, 'addonCount'>,
+): number | null {
+  const max = tournament?.maxAddons ?? 1
+  return max > 0 ? Math.max(0, max - (entry.addonCount ?? 0)) : null
+}
+
+/** "Sem add-on" / "Add-on" / "3 add-ons" */
+export function addonCountLabel(count: number): string {
+  return count <= 0 ? 'Sem add-on' : count === 1 ? 'Add-on' : `${count} add-ons`
 }
 
 /** Busca por nome completo e apelido, sem acento e sem diferença de maiúsculas ("jose" acha "José") */
@@ -83,12 +100,12 @@ export function groupActiveByTable(entries: TournamentEntry[], tables: Table[]):
 export function entryTotalBreakdown(
   entry: Pick<
     TournamentEntry,
-    'buyInAmount' | 'rebuyCount' | 'rebuyTotal' | 'addonPurchased' | 'addonDouble' | 'addonAmount' | 'totalDue'
+    'buyInAmount' | 'rebuyCount' | 'rebuyTotal' | 'addonCount' | 'addonAmount' | 'totalDue'
   >,
   tournament: Pick<Tournament, 'staffAmount' | 'rankingContribMode' | 'rankingContribValue'> | undefined,
 ): string {
   const parts = [`buy-in ${formatCurrency(entry.buyInAmount)}`]
-  const addonPart = entry.addonPurchased ? entry.addonAmount : 0
+  const addonPart = entry.addonCount > 0 ? entry.addonAmount : 0
   const other = Math.round((entry.totalDue - entry.buyInAmount - entry.rebuyTotal - addonPart) * 100) / 100
   if (other > 0) {
     const staff = tournament?.staffAmount ?? 0
@@ -106,7 +123,8 @@ export function entryTotalBreakdown(
   }
   if (entry.rebuyCount > 0)
     parts.push(`${entry.rebuyCount} rebuy${entry.rebuyCount > 1 ? 's' : ''} ${formatCurrency(entry.rebuyTotal)}`)
-  if (entry.addonPurchased) parts.push(`${entry.addonDouble ? 'add-on duplo' : 'add-on'} ${formatCurrency(entry.addonAmount)}`)
+  if (entry.addonCount > 0)
+    parts.push(`${entry.addonCount === 1 ? 'add-on' : `${entry.addonCount} add-ons`} ${formatCurrency(entry.addonAmount)}`)
   return parts.join(' + ')
 }
 

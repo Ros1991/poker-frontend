@@ -42,6 +42,7 @@ import {
   TOURNAMENT_STATUS_COLORS,
 } from '../../constants/statuses'
 import {
+  ROUTES,
   dealerTerminalPath,
   tvDisplayPath,
   tournamentEditPath,
@@ -272,7 +273,7 @@ export function TournamentDashboardPage() {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-4">
         <p className="text-text-secondary">Torneio não encontrado.</p>
-        <Link to="/" className="text-accent-blue hover:underline">
+        <Link to={ROUTES.HOME_GAMES} className="text-accent-blue hover:underline">
           Voltar
         </Link>
       </div>

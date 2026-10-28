@@ -34,7 +34,7 @@ interface PlayerActionDialogsOptions {
 
 /**
  * Diálogos de ação do jogador compartilhados pelo terminal do dealer e pela aba Jogadores do painel
- * (SPEC-20261023-1217, L14): confirmação de rebuy, AddonDialog (simples/duplo), EliminateDialog ("Quem eliminou?"),
+ * (SPEC-20261023-1217, L14): confirmação de rebuy, AddonDialog (quantidade até o máximo — SPEC-20261027-1311), EliminateDialog ("Quem eliminou?"),
  * confirmação de desfazer eliminação e o PaymentModal. Devolve as funções que abrem cada um e o JSX (`dialogs`) para
  * quem usa pôr no fim da tela. Os toasts com "Desfazer" vêm do `useTerminalActions` de quem chama. Toda confirmação abre
  * com a foto redonda e o nome do jogador no topo (SPEC-20261026-2103), para o dealer conferir quem é.
@@ -85,10 +85,10 @@ export function usePlayerActionDialogs({
         tournament={tournament}
         loading={actions.addonMutation.isPending}
         onClose={() => setAddonEntry(null)}
-        onConfirm={(isDouble) =>
+        onConfirm={(quantity) =>
           addonEntry &&
           actions.addonMutation.mutate(
-            { entry: addonEntry, isDouble },
+            { entry: addonEntry, quantity },
             { onSettled: () => setAddonEntry(null) },
           )
         }

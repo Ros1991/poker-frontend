@@ -312,7 +312,7 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
         {canRemove && (
           <div className="rounded-lg border border-accent-red/30 bg-accent-red-soft p-3" data-remove-entry-area>
             <p className="mb-2 text-xs text-text-secondary">
-              Tira {playerName(entry)} do torneio e apaga {canPay ? 'os pagamentos, rebuys e add-on' : 'os rebuys e o add-on'}{' '}
+              Tira {playerName(entry)} do torneio e apaga {canPay ? 'os pagamentos, rebuys e add-ons' : 'os rebuys e add-ons'}{' '}
               dele. Fica registrado no histórico.
             </p>
             <Button variant="danger" className="w-full" onClick={() => setRemoveConfirm(entry)}>

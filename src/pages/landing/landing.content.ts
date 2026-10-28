@@ -37,6 +37,9 @@ export const HEADER = {
   navLabel: 'Principal',
   skipLink: 'Pular para o conteúdo',
   login: 'Entrar',
+  /** Logado: "Painel" no celular, "Abrir painel" a partir de `sm` */
+  panelShort: 'Painel',
+  panel: 'Abrir painel',
   /** No celular o botão mostra só "Telão" (o resto aparece a partir de `sm`). */
   tvBefore: 'Abrir o ',
   tvShort: 'Telão',
@@ -50,6 +53,7 @@ export const HERO = {
   title: 'O home game organizado, do buy-in ao campeão.',
   text: 'Relógio de blinds no telão da TV, inscrições e rebuys na palma da mão, PIX conferido e o ranking da temporada com link para o grupo.',
   login: 'Entrar',
+  panel: 'Abrir painel',
   tv: 'Abrir o Telão da TV',
   free: 'Grátis para começar. Sem cartão.',
   signupQuestion: 'Ainda não tem conta?',
@@ -171,6 +175,8 @@ export const PRICING = {
   /** Jogadores da conta "por cabeça" (o home game semanal típico do plano) */
   perHeadPlayers: 15,
   freeCta: 'Criar conta grátis',
+  /** Logado (SPEC-20261027-1311): o plano grátis leva ao painel em vez do convite para criar conta */
+  panelCta: 'Abrir painel',
   paidCta: 'Falar com o suporte',
   /** Mensagem pronta do WhatsApp do suporte */
   supportMessage: (planName: string) =>
@@ -223,6 +229,7 @@ export const FINAL_CTA = {
   title: 'Bora organizar o próximo torneio?',
   text: 'Crie a conta, monte a estrutura de blinds e ligue o telão. Leva poucos minutos e não pede cartão.',
   login: 'Entrar',
+  panel: 'Abrir painel',
   tv: 'Abrir o Telão da TV',
   signupQuestion: 'Primeira vez por aqui?',
   signup: 'Criar conta grátis',
@@ -232,6 +239,7 @@ export const FOOTER = {
   navLabel: 'Rodapé',
   links: {
     login: 'Entrar',
+    panel: 'Painel',
     tv: 'Telão',
     pricing: 'Planos',
     /** Manual de uso (SPEC-20261026-1910) */

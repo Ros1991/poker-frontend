@@ -23,7 +23,7 @@ export const KNOCKOUT_BADGES: Record<KnockoutType, string> = {
   Progressive: 'PKO',
 }
 
-/** Uma linha sobre o formato, para o formulário */
+/** Descrição curta de cada formato, dentro do cartão de seleção do formulário (SPEC-20261027-1311) */
 export const KNOCKOUT_HINTS: Record<KnockoutType, string> = {
   None: 'Sem bounty: todo o buy-in vai para o prize pool.',
   Simple: 'Quem elimina leva o bounty inteiro do eliminado.',

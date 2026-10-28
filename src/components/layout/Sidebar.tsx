@@ -9,6 +9,7 @@ import {
   Plus,
   Check,
   Crown,
+  Sparkles,
   UserRound,
 } from 'lucide-react'
 import { cn } from '../../utils/cn'
@@ -24,6 +25,8 @@ interface SidebarProps {
 
 const adminItems = [
   { to: ROUTES.USERS, label: 'Administração', icon: Shield },
+  // SPEC-20261027-1312: chave da Anthropic, limite, recursos (ex.: "Tirar o fundo"), uso e preços
+  { to: ROUTES.ADMIN_AI, label: 'Inteligência artificial', icon: Sparkles },
 ]
 
 export function Sidebar({ className, onNavigate }: SidebarProps) {
@@ -190,6 +193,8 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
                 <li key={item.to}>
                   <NavLink
                     to={item.to}
+                    onClick={onNavigate}
+                    title={collapsed ? item.label : undefined}
                     className={({ isActive }) =>
                       cn(
                         'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors min-h-[44px]',

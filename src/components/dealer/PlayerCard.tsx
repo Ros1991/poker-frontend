@@ -4,7 +4,7 @@ import { Avatar } from '../ui/Avatar'
 import { cn } from '../../utils/cn'
 import type { KnockoutType } from '../../utils/knockout'
 import type { TournamentEntry } from '../../types/entry.types'
-import { amountDue, eliminationsText, formatCurrency, playerName } from './terminalFormat'
+import { addonCountLabel, amountDue, eliminationsText, formatCurrency, playerName } from './terminalFormat'
 
 export interface PlayerActionRules {
   canRebuy: boolean
@@ -195,7 +195,7 @@ export function PlayerCard({
           <span className="text-text-secondary">
             {entry.rebuyCount > 0 ? `${entry.rebuyCount} rebuy${entry.rebuyCount > 1 ? 's' : ''}` : 'Sem rebuy'}
             {' · '}
-            {entry.addonPurchased ? (entry.addonDouble ? 'Add-on duplo' : 'Add-on') : 'Sem add-on'}
+            {addonCountLabel(entry.addonCount)}
           </span>
           <EliminationsLabel entry={entry} />
           <BountyLabel entry={entry} knockout={knockout} />

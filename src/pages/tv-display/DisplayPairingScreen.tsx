@@ -26,13 +26,22 @@ export function DisplayPairingScreen({ code, connectionError }: DisplayPairingSc
           <div className="flex items-center gap-4">
             <BrandLogo variant="lockup" className="h-11 lg:h-14" />
           </div>
-          <Link
-            to={ROUTES.LOGIN}
-            className="hidden items-center gap-2 rounded-lg bg-accent-blue px-5 py-2.5 text-base font-semibold text-white transition-colors hover:bg-accent-blue-hover focus:outline-none focus:ring-4 focus:ring-accent-blue/40 lg:flex"
-          >
-            <LogIn className="h-5 w-5" />
-            Entrar
-          </Link>
+          <div className="hidden items-center gap-4 lg:flex">
+            {/* Discreto: a TV não precisa, mas o computador usado como telão chega à landing por aqui */}
+            <Link
+              to={ROUTES.HOME}
+              className="inline-flex min-h-[44px] items-center rounded-lg px-3 text-base font-medium text-text-secondary hover:text-text-primary hover:underline focus:outline-none focus:ring-4 focus:ring-accent-blue/40"
+            >
+              Ir para o site
+            </Link>
+            <Link
+              to={ROUTES.LOGIN}
+              className="flex items-center gap-2 rounded-lg bg-accent-blue px-5 py-2.5 text-base font-semibold text-white transition-colors hover:bg-accent-blue-hover focus:outline-none focus:ring-4 focus:ring-accent-blue/40"
+            >
+              <LogIn className="h-5 w-5" />
+              Entrar
+            </Link>
+          </div>
         </header>
 
         <main className="flex flex-1 flex-col gap-8 py-8 lg:flex-row lg:items-center lg:gap-16">

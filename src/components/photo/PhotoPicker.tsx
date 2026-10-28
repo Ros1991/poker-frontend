@@ -11,6 +11,9 @@ import { PhotoCropDialog } from './PhotoCropDialog'
 import { WebcamCapture } from './WebcamCapture'
 import { canUseWebcam, isTouchDevice } from './photoDevice'
 
+/** Câmera do celular (input com capture), webcam do computador ou galeria/arquivo */
+type PhotoOrigin = 'camera' | 'webcam' | 'gallery'
+
 interface PhotoPickerProps {
   /** Nome para as iniciais do círculo sem foto */
   name: string
@@ -34,7 +37,8 @@ interface PhotoPickerProps {
  * Prévia redonda + botões de foto (SPEC-20261023-1213, F4). Celular: "Tirar foto" (câmera traseira — quem
  * fotografa é o organizador/dealer apontando para o jogador) e "Escolher da galeria". Computador: "Usar a câmera"
  * (webcam, quando o navegador oferece) e "Escolher arquivo". Toda foto passa pelo recorte quadrado e sai como JPEG
- * 512 × 512; nada é enviado daqui.
+ * 512 × 512; nada é enviado daqui. Foto da câmera (celular ou webcam): o recorte oferece "Tirar outra", que reabre a
+ * câmera direto; da galeria, "Escolher outra" (SPEC-20261027-1312).
  */
 export function PhotoPicker({
   name,
@@ -55,6 +59,8 @@ export function PhotoPicker({
   const [webcamOpen, setWebcamOpen] = useState(false)
   const [opening, setOpening] = useState(false)
   const [image, setImage] = useState<DecodedImage | null>(null)
+  // De onde veio a foto aberta no recorte (SPEC-20261027-1312): da câmera, o recorte oferece "Tirar outra"
+  const [origin, setOrigin] = useState<PhotoOrigin>('gallery')
   // Prévia da foto nova (ainda não enviada)
   const previewUrl = value ? previewUrlOf(value) : null
 
@@ -62,13 +68,15 @@ export function PhotoPicker({
   const shownUrl = previewUrl ?? (removed ? null : currentUrl ?? null)
   const canRemove = !!value || (allowRemove && !!currentUrl && !removed)
 
-  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>, from: PhotoOrigin) {
     const file = e.target.files?.[0]
     e.target.value = ''
     if (!file) return
     setOpening(true)
     try {
-      setImage(await decodeImage(file))
+      const decoded = await decodeImage(file)
+      setOrigin(from)
+      setImage(decoded)
     } catch (err) {
       toast.error(imageErrorMessage(err))
     } finally {
@@ -79,6 +87,13 @@ export function PhotoPicker({
   function chooseAnother() {
     setImage(null)
     galleryInput.current?.click()
+  }
+
+  /** "Tirar outra": reabre a câmera de onde a foto veio (input com capture no celular, webcam no computador) */
+  function retake() {
+    setImage(null)
+    if (origin === 'webcam') setWebcamOpen(true)
+    else cameraInput.current?.click()
   }
 
   function remove() {
@@ -125,14 +140,15 @@ export function PhotoPicker({
       </div>
 
       {/* capture="environment": no celular abre direto a câmera traseira; no computador é ignorado */}
-      <input ref={cameraInput} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => void handleFile(e)} />
-      <input ref={galleryInput} type="file" accept="image/*" className="hidden" onChange={(e) => void handleFile(e)} />
+      <input ref={cameraInput} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => void handleFile(e, 'camera')} data-photo-input="camera" />
+      <input ref={galleryInput} type="file" accept="image/*" className="hidden" onChange={(e) => void handleFile(e, 'gallery')} data-photo-input="gallery" />
 
       <WebcamCapture
         isOpen={webcamOpen}
         onClose={() => setWebcamOpen(false)}
         onCapture={(frame) => {
           setWebcamOpen(false)
+          setOrigin('webcam')
           setImage(frame)
         }}
       />
@@ -140,6 +156,8 @@ export function PhotoPicker({
         image={image}
         onCancel={() => setImage(null)}
         onChooseAnother={chooseAnother}
+        source={origin === 'gallery' ? 'gallery' : 'camera'}
+        onRetake={retake}
         onConfirm={(blob) => {
           setImage(null)
           onChange(blob)

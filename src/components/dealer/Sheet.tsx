@@ -9,7 +9,7 @@ import { useFocusedFieldIntoView } from '../../hooks/useFocusedFieldIntoView'
 
 interface SheetProps {
   isOpen: boolean
-  /** Chamado só pelo "Voltar" (ESC não fecha a tela cheia) */
+  /** Chamado só pelo "Voltar" (ESC não fecha a tela cheia); com `chrome="none"`, pelo "Voltar" de quem está dentro */
   onClose: () => void
   title: string
   children: ReactNode
@@ -22,6 +22,12 @@ interface SheetProps {
    * rolagem e manter um rodapé fixo (ex.: PlayerPicker do "Adicionar jogadores", SPEC-20261023-1213)
    */
   scrollable?: boolean
+  /**
+   * `none`: sem o cabeçalho ("Voltar" e título) — quem está dentro desenha o próprio "Voltar" (PlayerPicker com o
+   * celular deitado e o teclado aberto: sobram 150–240 px; SPEC-20261027-1311, lacuna da onda 14). O título continua
+   * como nome do diálogo (aria-label). Padrão `normal`.
+   */
+  chrome?: 'normal' | 'none'
 }
 
 /**
@@ -34,7 +40,7 @@ export function Sheet(props: SheetProps) {
   return <OpenSheet {...props} />
 }
 
-function OpenSheet({ onClose, title, children, toolbar, elevated, scrollable = true }: SheetProps) {
+function OpenSheet({ onClose, title, children, toolbar, elevated, scrollable = true, chrome = 'normal' }: SheetProps) {
   const viewport = useVisualViewport()
   const handleFocus = useFocusedFieldIntoView()
 
@@ -55,22 +61,24 @@ function OpenSheet({ onClose, title, children, toolbar, elevated, scrollable = t
       aria-modal="true"
       aria-label={title}
     >
-      <header data-dialog-header className="shrink-0 border-b border-border-default bg-bg-secondary px-2 py-2">
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex min-h-[44px] items-center gap-1.5 rounded-lg px-2 text-sm font-medium text-accent-blue hover:bg-bg-tertiary"
-          >
-            <ArrowLeft className="h-5 w-5" />
-            Voltar
-          </button>
-          <h2 className="min-w-0 flex-1 truncate pr-2 text-right text-base font-semibold text-text-primary">
-            {title}
-          </h2>
-        </div>
-        {toolbar && <div className="px-1 pb-1 pt-2">{toolbar}</div>}
-      </header>
+      {chrome !== 'none' && (
+        <header data-dialog-header className="shrink-0 border-b border-border-default bg-bg-secondary px-2 py-2">
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex min-h-[44px] items-center gap-1.5 rounded-lg px-2 text-sm font-medium text-accent-blue hover:bg-bg-tertiary"
+            >
+              <ArrowLeft className="h-5 w-5" />
+              Voltar
+            </button>
+            <h2 className="min-w-0 flex-1 truncate pr-2 text-right text-base font-semibold text-text-primary">
+              {title}
+            </h2>
+          </div>
+          {toolbar && <div className="px-1 pb-1 pt-2">{toolbar}</div>}
+        </header>
+      )}
       {scrollable ? (
         <div
           className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pt-3"
@@ -80,7 +88,7 @@ function OpenSheet({ onClose, title, children, toolbar, elevated, scrollable = t
           {children}
         </div>
       ) : (
-        <div className="flex min-h-0 flex-1 flex-col pt-3" onFocus={handleFocus}>
+        <div className={cn('flex min-h-0 flex-1 flex-col', chrome === 'none' ? 'pt-2' : 'pt-3')} onFocus={handleFocus}>
           {children}
         </div>
       )}

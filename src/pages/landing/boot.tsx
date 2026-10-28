@@ -1,6 +1,6 @@
 /**
  * Entrada do `index.html` (SPEC-20261023-1207). Decide, antes de baixar o app, se a visita é só da landing:
- * - visitante novo em `/` (sem sessão de login, de dealer ou de TV) → `standalone.tsx`: só a landing, com React,
+ * - `/` de quem está logado ou não tem sessão de dealer nem de TV → `standalone.tsx`: só a landing, com React,
  *   React Query e o cliente HTTP — sem o roteador e sem o pacote do painel, do telão e do terminal;
  * - `/manual` e `/manual/<módulo>`, com ou sem sessão → `pages/manual/standaloneManual.tsx`: só o manual de uso
  *   (SPEC-20261026-1910), também sem o roteador e sem o pacote do painel;

@@ -64,11 +64,14 @@ import { UserListPage } from './pages/users/UserListPage'
 import { UserDetailPage } from './pages/users/UserDetailPage'
 import { UserFormPage } from './pages/users/UserFormPage'
 
+// Administração → Inteligência artificial (SPEC-20261027-1312)
+import { AiSettingsPage } from './pages/ai/AiSettingsPage'
+
 export function Router() {
   return (
     <Routes>
       {/* Public routes */}
-      {/* "/": painel se logado; terminal se dealer; telão se TV pareada; senão a landing (SPEC-20261023-1207) */}
+      {/* "/": landing (com "Abrir painel" se logado); sem login, terminal se dealer e telão se TV pareada (SPEC-20261023-1207) */}
       <Route path={ROUTES.HOME} element={<RootGate />} />
       <Route path={ROUTES.LOGIN} element={<LoginPage />} />
       <Route path={ROUTES.REGISTER} element={<RegisterPage />} />
@@ -175,6 +178,15 @@ export function Router() {
             </ProtectedRoute>
           }
         />
+        {/* Administração → Inteligência artificial (SPEC-20261027-1312, só Admin; a API devolve 403 aos demais) */}
+        <Route
+          path={ROUTES.ADMIN_AI}
+          element={
+            <ProtectedRoute roles={['Admin']}>
+              <AiSettingsPage />
+            </ProtectedRoute>
+          }
+        />
       </Route>
 
       {/* Boas-vindas do primeiro acesso (SPEC-20261023-1212): logado, sem sidebar; depois volta para a origem */}
@@ -200,7 +212,7 @@ export function Router() {
       {/* Dealer terminal - QR do dealer (sem login) ou usuário logado; sem sidebar */}
       <Route path={ROUTES.DEALER_TERMINAL} element={<DealerTerminalRoute />} />
 
-      {/* Catch all: "/" decide (painel, terminal do dealer ou tela da TV) */}
+      {/* Catch all: "/" decide (landing, terminal do dealer ou tela da TV) */}
       <Route path="*" element={<Navigate to={ROUTES.HOME} replace />} />
     </Routes>
   )

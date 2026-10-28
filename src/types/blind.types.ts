@@ -34,7 +34,8 @@ export interface BlindStructure {
   defaultAddonStack?: number | null
   defaultMaxRebuys?: number | null
   defaultAddonAllowed?: boolean
-  defaultAddonDoubleAllowed?: boolean
+  /** Máximo de add-ons padrão (SPEC-20261027-1311): 0 = ilimitado, padrão 1 */
+  defaultMaxAddons?: number
   defaultLateRegistrationLevel?: number | null
   defaultRebuyUntilLevel?: number | null
   defaultSeatsPerTable?: number | null

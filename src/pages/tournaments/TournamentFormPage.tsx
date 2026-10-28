@@ -36,7 +36,9 @@ const tournamentSchema = z.object({
   addonStack: z.coerce.number().min(0, 'Valor inválido'),
   maxRebuys: z.coerce.number().min(0, 'Valor inválido'),
   addonAllowed: z.boolean(),
-  addonDoubleAllowed: z.boolean(),
+  // Máximo de add-ons por jogador (SPEC-20261027-1311): 0 = ilimitado, padrão 1; conferido abaixo só com add-on permitido.
+  // Campo vazio vira NaN (e não 0 = ilimitado sem aviso), igual ao formulário da estrutura de blinds
+  maxAddons: z.preprocess((v) => (v === '' || v == null ? Number.NaN : Number(v)), z.number().or(z.nan())),
   seatsPerTable: z.coerce.number().min(2, 'Mínimo 2').max(12, 'Máximo 12'),
   responsiblePixKey: z.string().optional(),
   staffAmount: z.coerce.number().min(0, 'Valor inválido'),
@@ -45,6 +47,10 @@ const tournamentSchema = z.object({
   // Knockout (SPEC-20261026-1909): formato e bounty (texto do campo; conferido no envio com bountyError)
   knockoutType: z.enum(['None', 'Simple', 'Progressive']),
   bountyAmount: z.string(),
+}).superRefine((v, ctx) => {
+  // Mesmo limite do servidor (0 a 99, inteiro); campo escondido (add-on desmarcado) não trava o envio
+  if (v.addonAllowed && (!Number.isInteger(v.maxAddons) || v.maxAddons < 0 || v.maxAddons > 99))
+    ctx.addIssue({ code: 'custom', path: ['maxAddons'], message: 'Use de 0 (ilimitado) a 99' })
 })
 
 type TournamentFormData = z.infer<typeof tournamentSchema>
@@ -101,7 +107,7 @@ export function TournamentFormPage() {
       addonStack: 0,
       maxRebuys: 0,
       addonAllowed: true,
-      addonDoubleAllowed: false,
+      maxAddons: 1,
       seatsPerTable: 9,
       responsiblePixKey: '',
       staffAmount: 0,
@@ -221,8 +227,8 @@ export function TournamentFormPage() {
       setValue('maxRebuys', structure.defaultMaxRebuys)
     if (structure.defaultAddonAllowed != null)
       setValue('addonAllowed', structure.defaultAddonAllowed)
-    if (structure.defaultAddonDoubleAllowed != null)
-      setValue('addonDoubleAllowed', structure.defaultAddonDoubleAllowed)
+    if (structure.defaultMaxAddons != null)
+      setValue('maxAddons', structure.defaultMaxAddons)
     if (structure.defaultSeatsPerTable != null)
       setValue('seatsPerTable', structure.defaultSeatsPerTable)
     if (structure.defaultStaffAmount != null)
@@ -272,7 +278,7 @@ export function TournamentFormPage() {
       addonStack: existingTournament.addonStack ?? 0,
       maxRebuys: existingTournament.maxRebuys,
       addonAllowed: existingTournament.addonAllowed,
-      addonDoubleAllowed: existingTournament.addonDoubleAllowed,
+      maxAddons: existingTournament.maxAddons ?? 1,
       seatsPerTable: existingTournament.seatsPerTable,
       responsiblePixKey: existingTournament.responsiblePixKey ?? '',
       staffAmount: existingTournament.staffAmount ?? 0,
@@ -361,6 +367,12 @@ export function TournamentFormPage() {
       // 0 = "não informado" → backend guarda null e o telão usa o stack inicial
       rebuyStack: data.rebuyStack || undefined,
       addonStack: data.addonStack || undefined,
+      // Máximo de add-ons (0 = ilimitado) só com add-on permitido e dentro do limite do servidor (0 a 99): com o
+      // campo escondido (add-on desmarcado) o valor guardado não vai — o servidor herda (criação) ou mantém (edição)
+      maxAddons:
+        data.addonAllowed && Number.isInteger(data.maxAddons) && data.maxAddons >= 0 && data.maxAddons <= 99
+          ? data.maxAddons
+          : undefined,
       // Sem ranking vinculado, não faz sentido contribuição acumulada.
       rankingContribMode: hasRanking ? data.rankingContribMode : undefined,
       rankingContribValue: hasRanking ? data.rankingContribValue : 0,
@@ -740,8 +752,9 @@ export function TournamentFormPage() {
               />
             )}
           </div>
-          <div className="mt-4 flex flex-col gap-2">
-            <label className="flex items-center gap-2 cursor-pointer">
+          {/* Add-on (SPEC-20261027-1311): "Permitir add-on" e, marcado, o máximo por jogador no estilo do Max Rebuys */}
+          <div className="mt-4 grid gap-4 sm:grid-cols-2" data-addon-rules>
+            <label className="flex min-h-[44px] cursor-pointer items-center gap-2 sm:col-span-2">
               <input
                 type="checkbox"
                 {...register('addonAllowed')}
@@ -752,16 +765,17 @@ export function TournamentFormPage() {
               </span>
             </label>
             {watch('addonAllowed') && (
-              <label className="flex items-center gap-2 cursor-pointer ml-7">
-                <input
-                  type="checkbox"
-                  {...register('addonDoubleAllowed')}
-                  className="h-5 w-5 rounded border-border-input bg-bg-input text-accent-blue focus:ring-accent-blue"
-                />
-                <span className="text-sm text-text-primary">
-                  Permitir addon duplo
-                </span>
-              </label>
+              <Input
+                id="torneio-max-addons"
+                label="Max add-ons (0 = ilimitado)"
+                type="number"
+                min={0}
+                max={99}
+                step={1}
+                inputMode="numeric"
+                {...register('maxAddons')}
+                error={errors.maxAddons?.message}
+              />
             )}
           </div>
         </div>
