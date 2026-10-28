@@ -6,6 +6,7 @@ import { ArrowLeft, Plus, Trash2, Coffee } from 'lucide-react'
 import * as blindStructuresApi from '../../api/blindStructures.api'
 import * as homeGamesApi from '../../api/homeGames.api'
 import { Button } from '../../components/ui/Button'
+import { FormPageBar } from '../../components/ui/FormTopBar'
 import { Input } from '../../components/ui/Input'
 import { PixKeyInput } from '../../components/pix/PixKeyInput'
 import { KnockoutFields } from '../../components/tournament/KnockoutFields'
@@ -433,7 +434,15 @@ export function BlindStructureFormPage() {
 
   return (
     <div className="mx-auto max-w-4xl">
-      <div className="flex items-center gap-3 mb-6">
+      {/* Celular (< sm, SPEC-20261027-2132): barra fixa no topo com X (= Cancelar), título e ✓ (= Salvar / Criar estrutura); o cabeçalho e o
+          rodapé da página somem e os campos ganham o espaço. Do sm para cima, como antes */}
+      <FormPageBar
+        title={isEdit ? 'Editar estrutura de torneio' : 'Nova estrutura de torneio'}
+        onCancel={() => navigate(-1)}
+        cancelDisabled={saveMutation.isPending}
+        submit={{ label: isEdit ? 'Salvar' : 'Criar estrutura', form: 'blind-structure-form', loading: saveMutation.isPending }}
+      />
+      <div className="mb-6 hidden items-center gap-3 sm:flex">
         <button
           onClick={() => navigate(-1)}
           className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors"
@@ -446,6 +455,7 @@ export function BlindStructureFormPage() {
       </div>
 
       <form
+        id="blind-structure-form"
         onSubmit={handleSubmit}
         className="flex flex-col gap-6 rounded-xl border border-border-default bg-bg-secondary p-6"
       >
@@ -935,7 +945,8 @@ export function BlindStructureFormPage() {
           </div>
         </div>
 
-        <div className="flex gap-3 justify-end border-t border-border-default pt-4">
+        {/* No celular, o X e o ✓ da barra do topo */}
+        <div className="hidden gap-3 justify-end border-t border-border-default pt-4 sm:flex">
           <Button
             type="button"
             variant="ghost"

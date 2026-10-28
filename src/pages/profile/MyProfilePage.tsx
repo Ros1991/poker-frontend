@@ -28,7 +28,8 @@ export function MyProfilePage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <div>
+      {/* No celular, com o perfil carregado, o título vai para a barra fixa do topo (X, título e ✓ — SPEC-20261027-2132) */}
+      <div className={profile.data ? 'hidden sm:block' : undefined}>
         <h1 className="text-2xl font-bold text-text-primary">Meu perfil</h1>
         <p className="mt-1 text-sm text-text-secondary">
           Seus dados, sua senha e onde a sua conta está aberta.

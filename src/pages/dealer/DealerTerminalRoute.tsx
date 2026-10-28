@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Clock, QrCode, ShieldOff } from 'lucide-react'
 import { ProtectedRoute } from '../../components/common/ProtectedRoute'
@@ -46,11 +46,19 @@ export function DealerTerminalRoute() {
   })
   const [ended, setEnded] = useState<EndedReason | null>(null)
 
+  // Token do dealer em efeito de LAYOUT: roda antes dos efeitos comuns dos filhos. No desmontar/remontar do StrictMode
+  // (desenvolvimento) a conexão do hub do terminal (useWebSocket, efeito do DealerTerminalPage) negociava sem o token
+  // (401, sem nova tentativa) e o aviso em tempo real das mesas (TablesUpdate — SPEC-20261027-2133) não chegava
+  useLayoutEffect(() => {
+    if (!session) return
+    setDealerScope({ token: session.accessToken, tournamentId: session.tournamentId })
+    return () => setDealerScope(null)
+  }, [session])
+
   useEffect(() => {
     if (!session) return
     let cancelled = false
     let reasonChecked = false
-    setDealerScope({ token: session.accessToken, tournamentId: session.tournamentId })
     setDealerExpiredHandler(() => {
       // 401 no terminal: desconectado pelo organizador, QR desativado, prazo vencido ou torneio encerrado.
       // Mostra a tela na hora e confere o motivo no pedido (anônimo, uma vez só) para acertar o texto.
@@ -71,7 +79,6 @@ export function DealerTerminalRoute() {
     })
     return () => {
       cancelled = true
-      setDealerScope(null)
       setDealerExpiredHandler(null)
     }
   }, [session])

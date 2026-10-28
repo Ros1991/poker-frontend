@@ -110,12 +110,16 @@ function ChangePlanForm({ onClose, user }: Omit<ChangePlanModalProps, 'isOpen'>)
     },
   })
 
+  // No celular o ✓ do cabeçalho faz o mesmo que o botão do rodapé e o rodapé some (SPEC-20261027-2132)
+  const submitAction = { label: 'Salvar plano', form: 'form-alterar-plano', loading: mutation.isPending }
+
   return (
     <Modal
       isOpen
       onClose={onClose}
       title="Alterar plano"
       size="lg"
+      submitAction={submitAction}
       footer={
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
           <Button variant="secondary" onClick={onClose} disabled={mutation.isPending}>

@@ -23,6 +23,8 @@ export type HistoryActivityType =
   | 'PlayerPhotoChanged'
   /** Mesa aberta pela inscrição (e quem mudou para ela) — SPEC-20261023-1214 */
   | 'TableOpened'
+  /** Mesa sem ninguém sentado excluída pelo organizador (dealer dela liberado) — SPEC-20261027-2133 */
+  | 'TableDeleted'
 
 export interface HistoryItem {
   /** "{kind}:{refId}" — único na lista */

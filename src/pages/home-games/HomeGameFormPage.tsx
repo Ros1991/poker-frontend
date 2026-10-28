@@ -22,6 +22,7 @@ import {
 } from './homeGameForm'
 import { Textarea } from '../../components/ui/Textarea'
 import { Button } from '../../components/ui/Button'
+import { FormPageBar } from '../../components/ui/FormTopBar'
 import { LogoPicker } from '../../components/photo/LogoPicker'
 import { ROUTES, homeGameDetailPath } from '../../constants/routes'
 import { useHomeGame } from '../../hooks/useHomeGame'
@@ -175,7 +176,15 @@ export function HomeGameFormPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <div>
+      {/* Celular (< sm, SPEC-20261027-2132): barra fixa no topo com X (= Cancelar), título e ✓ (= Salvar alterações / Criar home game); o cabeçalho e o
+          rodapé da página somem e os campos ganham o espaço. Do sm para cima, como antes */}
+      <FormPageBar
+        title={isEditing ? 'Editar home game' : 'Novo home game'}
+        onCancel={() => navigate(-1)}
+        cancelDisabled={isSubmitting}
+        submit={{ label: isEditing ? 'Salvar alterações' : 'Criar home game', form: 'home-game-page-form', loading: isSubmitting }}
+      />
+      <div className="hidden sm:block">
         <button
           onClick={() => navigate(-1)}
           className="inline-flex items-center gap-1.5 text-sm text-text-secondary hover:text-text-primary transition-colors mb-4"
@@ -194,6 +203,7 @@ export function HomeGameFormPage() {
       </div>
 
       <form
+        id="home-game-page-form"
         onSubmit={handleSubmit(onSubmit)}
         className="space-y-6 rounded-xl border border-border-default bg-bg-secondary p-6"
       >
@@ -297,7 +307,8 @@ export function HomeGameFormPage() {
           </div>
         </div>
 
-        <div className="flex justify-end gap-3 border-t border-border-default pt-4">
+        {/* No celular, o X e o ✓ da barra do topo */}
+        <div className="hidden justify-end gap-3 border-t border-border-default pt-4 sm:flex">
           <Button
             type="button"
             variant="secondary"

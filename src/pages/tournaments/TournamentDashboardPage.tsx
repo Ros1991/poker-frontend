@@ -1,15 +1,8 @@
-import { useState } from 'react'
-import { useParams, Link, useNavigate } from 'react-router-dom'
+import { useRef, useState } from 'react'
+import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
-  Users,
-  Clock,
-  Trophy,
-  CreditCard,
-  LayoutGrid,
-  DollarSign,
-  BarChart3,
   Tv,
   Tablet,
   ArrowLeft,
@@ -29,7 +22,11 @@ import * as dealerAccessApi from '../../api/dealerAccess.api'
 import { useBlindTimer } from '../../hooks/useBlindTimer'
 import { hasFeature, MY_PLAN_QUERY_KEY } from '../../hooks/usePlan'
 import { usePlanGate } from '../../hooks/usePlanGate'
+import { useTabScrollReset } from '../../hooks/useTabScrollReset'
 import { PlanLock } from '../../components/plan'
+import { PlanTabLock } from '../../components/layout/PlanTabLock'
+import { TOURNAMENT_TABS, homeGameTabPath, isTabLocked, parseTournamentTab } from '../../components/layout/navTabs'
+import type { TournamentTabKey } from '../../components/layout/navTabs'
 import { useWebSocket } from '../../hooks/useWebSocket'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
@@ -60,27 +57,10 @@ import { isKnockout, KNOCKOUT_BADGES, knockoutTypeOf } from '../../utils/knockou
 import type { DealerRequest } from '../../types/display.types'
 import type { PlanFeature } from '../../types/plan.types'
 
-type TabKey =
-  | 'jogadores'
-  | 'mesas'
-  | 'blinds'
-  | 'premiacao'
-  | 'pagamentos'
-  | 'custos'
-  | 'financeiro'
-
-// `feature`: recurso do plano pago que a aba exige (SPEC-20261023-1205). Sem ele no plano do DONO
-// (`tournament.planFeatures`), a aba ganha o cadeado e mostra o PlanLock no lugar do conteúdo —
-// e a aba nem monta, então as consultas dela (que dariam 402) não saem.
-const tabs: { key: TabKey; label: string; icon: typeof Users; feature?: PlanFeature }[] = [
-  { key: 'jogadores', label: 'Jogadores', icon: Users },
-  { key: 'mesas', label: 'Mesas', icon: LayoutGrid, feature: 'Tables' },
-  { key: 'blinds', label: 'Blinds', icon: Clock },
-  { key: 'premiacao', label: 'Premiação', icon: Trophy, feature: 'Prizes' },
-  { key: 'pagamentos', label: 'Pagamentos', icon: CreditCard, feature: 'Payments' },
-  { key: 'custos', label: 'Custos', icon: DollarSign, feature: 'CostExtras' },
-  { key: 'financeiro', label: 'Financeiro', icon: BarChart3, feature: 'Financial' },
-]
+// Abas: TOURNAMENT_TABS (components/layout/navTabs.ts), a mesma definição da barra de baixo do celular. `feature`:
+// recurso do plano pago que a aba exige (SPEC-20261023-1205). Sem ele no plano do DONO (`tournament.planFeatures`), a
+// aba ganha o cadeado e mostra o PlanLock no lugar do conteúdo — e a aba nem monta, então as consultas dela (que dariam
+// 402) não saem.
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat('pt-BR', {
@@ -100,7 +80,14 @@ export function TournamentDashboardPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const gate = usePlanGate()
-  const [activeTab, setActiveTab] = useState<TabKey>('jogadores')
+  // Aba na URL (?tab=, SPEC-20261027-2132): a barra de baixo do celular, o voltar do navegador e o recarregar respeitam a
+  // aba. Trocar de aba substitui a entrada do histórico (como no detalhe do home game)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const activeTab: TournamentTabKey = parseTournamentTab(searchParams.get('tab'))
+  const setActiveTab = (tab: TournamentTabKey) => setSearchParams({ tab }, { replace: true })
+  // Trocar de aba (barra de baixo ou abas do topo) com a página rolada abre a aba nova do começo dela (revisão da onda 15)
+  const tabContentRef = useRef<HTMLDivElement>(null)
+  useTabScrollReset(activeTab, id, tabContentRef)
   const [dealerQrOpen, setDealerQrOpen] = useState(false)
   const [statusConfirm, setStatusConfirm] = useState<{
     status: TournamentStatus
@@ -293,7 +280,7 @@ export function TournamentDashboardPage() {
     ? 'Deseja finalizar o torneio? Certifique-se de que a premiação está confirmada.'
     : 'Deseja finalizar o torneio?'
 
-  const activeTabFeature = tabs.find((t) => t.key === activeTab)?.feature
+  const activeTabFeature = TOURNAMENT_TABS.find((t) => t.key === activeTab)?.feature
   const activeTabLocked = !!activeTabFeature && !hasFeature(planFeatures, activeTabFeature)
 
   function getStatusActions() {
@@ -429,8 +416,11 @@ export function TournamentDashboardPage() {
       <div className="flex flex-col gap-4 rounded-xl border border-border-default bg-bg-secondary p-4 lg:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
+            {/* Voltar: o home game do torneio, na aba Torneios */}
             <Link
-              to={`/home-games/${tournament.homeGameId}?tab=torneios`}
+              to={homeGameTabPath(tournament.homeGameId, 'torneios')}
+              aria-label={`Voltar para ${tournament.homeGameName}`}
+              title="Voltar para o home game"
               className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors"
             >
               <ArrowLeft className="h-5 w-5" />
@@ -576,14 +566,15 @@ export function TournamentDashboardPage() {
           })()}
         </div>
 
-        {/* Quick Links */}
-        {/* Botões de 44 px (toque à mesa): o "Terminal do dealer" é a única porta para o terminal e para o QR que o dealer escaneia
-            (DL4), então é secondary — com borda, cara de ação, não de link apagado */}
-        <div className="flex flex-wrap items-center gap-2">
+        {/* Botões "TV" e "Dealer" (SPEC-20261027-2132; antes "TV Display" e "Terminal do dealer"): 44 px (toque à mesa) e,
+            no celular, lado a lado em duas colunas iguais (mesma linha a 320 px); do sm para cima, como antes. O do dealer é a
+            única porta para o terminal e para o QR que o dealer escaneia (DL4), então é secondary — com borda, cara de ação.
+            O aria-label diz o que cada um faz. */}
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
           <Link to={tvDisplayPath(tournament.id)} target="_blank">
-            <Button variant="gold">
+            <Button variant="gold" aria-label="Abrir o telão da TV" className="flex w-full px-2 sm:inline-flex sm:w-auto sm:px-4">
               <Tv className="h-4 w-4" />
-              TV Display
+              TV
             </Button>
           </Link>
           {/* Um botão só para o dealer (SPEC-20261023-1216, DL4): abre o QR para o dealer escanear
@@ -599,24 +590,35 @@ export function TournamentDashboardPage() {
                 })
               }
               title="Recurso de plano pago"
+              aria-label="Terminal do dealer (recurso de plano pago)"
+              className="flex w-full px-2 sm:inline-flex sm:w-auto sm:px-4"
             >
               <Lock className="h-4 w-4 text-accent-gold-deep" />
-              Terminal do dealer
+              Dealer
             </Button>
           ) : tournamentOver ? (
             <Link to={dealerTerminalPath(tournament.id)} target="_blank">
-              <Button variant="secondary">
+              <Button variant="secondary" aria-label="Terminal do dealer" className="flex w-full px-2 sm:inline-flex sm:w-auto sm:px-4">
                 <Tablet className="h-4 w-4" />
-                Terminal do dealer
+                Dealer
               </Button>
             </Link>
           ) : (
-            <Button variant="secondary" onClick={() => setDealerQrOpen(true)}>
+            <Button
+              variant="secondary"
+              onClick={() => setDealerQrOpen(true)}
+              aria-label={`Terminal do dealer${connectedDealers.length > 0 ? ` (${connectedDealers.length} ${connectedDealers.length === 1 ? 'conectado' : 'conectados'})` : ''}`}
+              className="flex w-full px-2 sm:inline-flex sm:w-auto sm:px-4"
+            >
               <Tablet className="h-4 w-4" />
-              Terminal do dealer
+              Dealer
+              {/* No celular só o número (cabe na meia linha); do sm para cima, "N conectado(s)" como antes */}
               {connectedDealers.length > 0 && (
                 <Badge color="green">
-                  {connectedDealers.length} {connectedDealers.length === 1 ? 'conectado' : 'conectados'}
+                  <span className="sm:hidden">{connectedDealers.length}</span>
+                  <span className="hidden sm:inline">
+                    {connectedDealers.length} {connectedDealers.length === 1 ? 'conectado' : 'conectados'}
+                  </span>
                 </Badge>
               )}
             </Button>
@@ -632,10 +634,10 @@ export function TournamentDashboardPage() {
         )}
       </div>
 
-      {/* Tabs */}
-      <div className="flex overflow-x-auto border-b border-border-default -mx-4 px-4 lg:mx-0 lg:px-0">
-        {tabs.map((tab) => {
-          const locked = !!tab.feature && !hasFeature(planFeatures, tab.feature)
+      {/* Abas do topo só no computador (lg+): no celular a navegação é a barra de baixo (SPEC-20261027-2132) */}
+      <div className="hidden overflow-x-auto border-b border-border-default -mx-4 px-4 lg:mx-0 lg:flex lg:px-0">
+        {TOURNAMENT_TABS.map((tab) => {
+          const locked = isTabLocked(tab, planFeatures)
           return (
             <button
               key={tab.key}
@@ -649,16 +651,15 @@ export function TournamentDashboardPage() {
             >
               <tab.icon className="h-4 w-4" />
               {tab.label}
-              {locked && (
-                <Lock className="h-3.5 w-3.5 text-accent-gold-deep" aria-label="bloqueado no plano atual" />
-              )}
+              {locked && <PlanTabLock />}
             </button>
           )
         })}
       </div>
 
-      {/* Tab Content */}
-      <div className="rounded-xl border border-border-default bg-bg-secondary p-4 lg:p-6">
+      {/* Tab Content (data-tab-content: começo da aba aberta — os prints do manual rolam até aqui no celular, e a troca de
+          aba com a página rolada volta para cá: useTabScrollReset) */}
+      <div ref={tabContentRef} className="rounded-xl border border-border-default bg-bg-secondary p-4 lg:p-6" data-tab-content={activeTab}>
         {activeTabLocked && activeTabFeature ? (
           <PlanLock
             feature={activeTabFeature}

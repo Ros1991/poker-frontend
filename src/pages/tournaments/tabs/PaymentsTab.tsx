@@ -324,6 +324,13 @@ export function PaymentsTab({ tournament, entries }: PaymentsTabProps) {
             </Button>
           </div>
         }
+        // No celular o ✓ do cabeçalho faz o mesmo que o botão do rodapé e o rodapé some (SPEC-20261027-2132)
+        submitAction={{
+          label: 'Salvar',
+          onClick: () => pixKeyMutation.mutate(),
+          loading: pixKeyMutation.isPending,
+          disabled: draftCheck.error !== null,
+        }}
       >
         <p className="mb-4 text-sm text-text-secondary">
           Aparece no telão com QR Code. Pode digitar o celular só com DDD (ex.: 61 99999-9999) — o sistema

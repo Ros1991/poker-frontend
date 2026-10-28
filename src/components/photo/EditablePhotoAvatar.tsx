@@ -80,6 +80,9 @@ export function EditablePhotoAvatar({
     }
   }
 
+  // Salvar foto: no celular o ✓ do cabeçalho faz o mesmo que este botão e o rodapé some (SPEC-20261027-2132)
+  const submitAction = { label: 'Salvar foto', onClick: () => void save(), loading: saving, disabled: !blob && !removed }
+
   const badge = size === 'sm' ? 'h-4 w-4' : size === 'md' ? 'h-5 w-5' : 'h-7 w-7'
   const icon = size === 'sm' || size === 'md' ? 'h-3 w-3' : 'h-4 w-4'
 
@@ -130,6 +133,7 @@ export function EditablePhotoAvatar({
         onClose={() => setOpen(false)}
         title={`Foto de ${name}`}
         size="sm"
+        submitAction={submitAction}
         footer={
           <div className="flex justify-end gap-2">
             <Button variant="secondary" onClick={() => setOpen(false)} disabled={saving}>

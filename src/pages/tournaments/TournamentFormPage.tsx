@@ -15,6 +15,7 @@ import { COST_TYPE_DEFAULT } from '../../types/costExtra.types'
 import { isPlanLimitError } from '../../api/client'
 import { hasFeature, MY_PLAN_QUERY_KEY } from '../../hooks/usePlan'
 import { Button } from '../../components/ui/Button'
+import { FormPageBar } from '../../components/ui/FormTopBar'
 import { Input } from '../../components/ui/Input'
 import { PixKeyInput } from '../../components/pix/PixKeyInput'
 import { KnockoutFields } from '../../components/tournament/KnockoutFields'
@@ -413,7 +414,16 @@ export function TournamentFormPage() {
 
   return (
     <div className="mx-auto max-w-2xl p-4 sm:p-6">
-      <div className="flex items-center gap-3 mb-6">
+      {/* Celular (< sm, SPEC-20261027-2132): barra fixa no topo com X (= Cancelar), título e ✓ (= Salvar alterações / Criar torneio); o cabeçalho e o
+          rodapé da página somem e os campos ganham o espaço. Do sm para cima, como antes */}
+      <FormPageBar
+        title={isEditMode ? 'Editar Torneio' : 'Novo Torneio'}
+        subtitle={homeGame?.name}
+        onCancel={() => navigate(-1)}
+        cancelDisabled={isPending}
+        submit={{ label: isEditMode ? 'Salvar alterações' : 'Criar torneio', form: 'tournament-form', loading: isPending }}
+      />
+      <div className="mb-6 hidden items-center gap-3 sm:flex">
         <button
           onClick={() => navigate(-1)}
           className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors"
@@ -431,6 +441,7 @@ export function TournamentFormPage() {
       </div>
 
       <form
+        id="tournament-form"
         onSubmit={handleSubmit(onSubmit)}
         className="flex flex-col gap-6 rounded-xl border border-border-default bg-bg-secondary p-6"
       >
@@ -780,8 +791,8 @@ export function TournamentFormPage() {
           </div>
         </div>
 
-        {/* Botoes */}
-        <div className="flex gap-3 justify-end border-t border-border-default pt-4">
+        {/* Botões (no celular, o X e o ✓ da barra do topo) */}
+        <div className="hidden gap-3 justify-end border-t border-border-default pt-4 sm:flex">
           <Button
             type="button"
             variant="ghost"

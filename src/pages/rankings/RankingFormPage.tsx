@@ -10,6 +10,7 @@ import * as rankingsApi from '../../api/rankings.api'
 import * as homeGamesApi from '../../api/homeGames.api'
 import { Input } from '../../components/ui/Input'
 import { Button } from '../../components/ui/Button'
+import { FormPageBar } from '../../components/ui/FormTopBar'
 import { AccessDeniedState } from '../../components/common/AccessDeniedState'
 import { isForbiddenError } from '../../utils/httpErrors'
 
@@ -223,7 +224,15 @@ export function RankingFormPage() {
 
   return (
     <div className="mx-auto max-w-2xl p-4 sm:p-6">
-      <div className="mb-6">
+      {/* Celular (< sm, SPEC-20261027-2132): barra fixa no topo com X (= Cancelar), título e ✓ (= Salvar / Criar Ranking); o cabeçalho e o
+          rodapé da página somem e os campos ganham o espaço. Do sm para cima, como antes */}
+      <FormPageBar
+        title={isEditing ? 'Editar Ranking' : 'Novo Ranking'}
+        subtitle={homeGame?.name}
+        onCancel={() => navigate(-1)}
+        submit={{ label: isEditing ? 'Salvar' : 'Criar Ranking', form: 'ranking-form', loading: isSubmitting }}
+      />
+      <div className="mb-6 hidden sm:block">
         <button
           onClick={() => navigate(-1)}
           className="flex items-center gap-2 text-sm text-text-secondary hover:text-text-primary transition-colors mb-4"
@@ -237,7 +246,7 @@ export function RankingFormPage() {
         {homeGame && <p className="text-sm text-text-secondary mt-1">{homeGame.name}</p>}
       </div>
 
-      <form onSubmit={(e) => void handleSubmit(onSubmit)(e)} className="flex flex-col gap-6">
+      <form id="ranking-form" onSubmit={(e) => void handleSubmit(onSubmit)(e)} className="flex flex-col gap-6">
         {/* Info basica */}
         <div className="rounded-xl border border-border-default bg-bg-secondary p-6">
           <h2 className="text-lg font-semibold text-text-primary mb-4">Informacoes</h2>
@@ -516,8 +525,8 @@ export function RankingFormPage() {
           )}
         </div>
 
-        {/* Acoes */}
-        <div className="flex items-center justify-end gap-3">
+        {/* Ações (no celular, o X e o ✓ da barra do topo) */}
+        <div className="hidden items-center justify-end gap-3 sm:flex">
           <Button type="button" variant="secondary" onClick={() => navigate(-1)}>
             Cancelar
           </Button>

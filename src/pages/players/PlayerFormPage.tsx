@@ -5,6 +5,7 @@ import { ArrowLeft, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import * as personsApi from '../../api/persons.api'
 import { Button } from '../../components/ui/Button'
+import { FormPageBar } from '../../components/ui/FormTopBar'
 import { LoadingSpinner } from '../../components/common/LoadingSpinner'
 import { PlayerFormFields } from '../../components/players/PlayerFormFields'
 import {
@@ -141,8 +142,16 @@ function PlayerForm({ person, homeGameId }: { person: Person | null; homeGameId:
 
   return (
     <div className="flex flex-col gap-6 p-4 sm:p-6">
+      {/* Celular (< sm, SPEC-20261027-2132): barra fixa no topo com X (= Cancelar), título e ✓ (= Salvar alterações / Cadastrar jogador); o cabeçalho e o
+          rodapé da página somem e os campos ganham o espaço. Do sm para cima, como antes */}
+      <FormPageBar
+        title={isEditing ? 'Editar jogador' : 'Novo jogador'}
+        onCancel={() => navigate(-1)}
+        cancelDisabled={saving}
+        submit={{ label: isEditing ? 'Salvar alterações' : 'Cadastrar jogador', form: 'player-form', loading: saving }}
+      />
       {/* Header */}
-      <div className="flex items-center gap-3">
+      <div className="hidden items-center gap-3 sm:flex">
         <button
           onClick={() => navigate(-1)}
           className="flex h-10 w-10 items-center justify-center rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors"
@@ -164,6 +173,7 @@ function PlayerForm({ person, homeGameId }: { person: Person | null; homeGameId:
 
       {/* Form */}
       <form
+        id="player-form"
         onSubmit={(e) => {
           e.preventDefault()
           void onSubmit()
@@ -182,7 +192,8 @@ function PlayerForm({ person, homeGameId }: { person: Person | null; homeGameId:
           idPrefix="pagina-jogador"
         />
 
-        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+        {/* No celular, o X e o ✓ da barra do topo */}
+        <div className="hidden gap-3 sm:flex sm:flex-row sm:justify-end">
           <Button type="button" variant="secondary" onClick={() => navigate(-1)} disabled={saving}>
             Cancelar
           </Button>

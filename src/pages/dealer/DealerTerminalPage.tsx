@@ -105,14 +105,26 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
     refetchInterval: 10000,
   })
 
+  const allEntries = useMemo(() => entries ?? [], [entries])
+  const allTables = useMemo(() => tables ?? [], [tables])
+
+  // Mesa escolhida; se ela sumiu (sorteio de novo, mesa quebrada ou excluída) cai na primeira
+  const selectedTable =
+    allTables.find((t) => t.id === selectedTableId) ?? allTables[0] ?? null
+
+  // Mudança de mesa em outro aparelho (TablesUpdate): o useWebSocket já recarrega mesas e inscrições. A mesa em que este
+  // terminal estava foi excluída no painel (SPEC-20261027-2133): ele cai em outra como na quebra e avisa o dealer.
   useWebSocket({
     tournamentId,
     enabled: !!tournamentId,
     onTimerUpdate: (state) => syncFromServer(state as TimerState),
+    onTablesUpdate: (event) => {
+      if (event.action !== 'deleted' || !selectedTable || event.tableId !== selectedTable.id) return
+      const name = event.tableName ?? tableLabel(selectedTable)
+      setSelectedTableId(null)
+      toast.info(`A ${name} foi excluída. Toque no nome da mesa, no topo, para escolher a sua.`)
+    },
   })
-
-  const allEntries = useMemo(() => entries ?? [], [entries])
-  const allTables = useMemo(() => tables ?? [], [tables])
 
   // Quebra/equilíbrio das mesas depois de eliminar (compartilhado com o painel — SPEC-20261026-1908); "Escolher eu
   // mesmo" abre a tela Mesas. Eliminação desfeita fecha o sorteio aberto (feito com as mesas de antes).
@@ -127,10 +139,6 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
 
   const actions = useTerminalActions(tournamentId, tournament, { onEliminationUndone: suggestions.close })
   const { invalidateAll } = actions
-
-  // Mesa escolhida; se ela sumiu (sorteio de novo, mesa quebrada) cai na primeira
-  const selectedTable =
-    allTables.find((t) => t.id === selectedTableId) ?? allTables[0] ?? null
 
   const activeEntries = useMemo(() => allEntries.filter((e) => isActiveStatus(e.status)), [allEntries])
 

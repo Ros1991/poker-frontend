@@ -9,8 +9,10 @@ import { PlanExpiryBanner } from '../plan/PlanExpiryBanner'
 export function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
+  // h-dvh (era h-screen): no celular a altura acompanha a barra de endereço do navegador, então a barra de baixo, que
+  // fica no fluxo da coluna, não some atrás dela (no computador dvh = vh)
   return (
-    <div className="flex h-screen bg-bg-primary">
+    <div className="flex h-dvh bg-bg-primary">
       <Sidebar className="hidden lg:flex" />
 
       {/* Mobile sidebar overlay */}
@@ -33,7 +35,8 @@ export function AppLayout() {
         {/* Plano pago vencendo em ≤ 7 dias ou vencido (SPEC-20261023-1205) */}
         <PlanExpiryBanner />
 
-        <main className="flex-1 overflow-y-auto p-4 pb-20 lg:p-6 lg:pb-6">
+        {/* Abaixo de lg a BottomNav vem logo depois, no fluxo da coluna (SPEC-20261027-2132): o main termina em cima dela */}
+        <main className="flex-1 overflow-y-auto p-4 lg:p-6">
           <Outlet />
         </main>
 

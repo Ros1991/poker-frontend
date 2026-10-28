@@ -146,12 +146,16 @@ export function HomeGameFormModal({
     }
   }
 
+  // No celular o ✓ do cabeçalho faz o mesmo que o botão do rodapé e o rodapé some (SPEC-20261027-2132)
+  const submitAction = { label: isEditing ? 'Salvar' : 'Criar home game', form: 'home-game-form', loading: isSubmitting }
+
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
       title={isEditing ? 'Editar home game' : 'Novo home game'}
       size="lg"
+      submitAction={submitAction}
       footer={
         <div className="flex justify-end gap-3">
           <Button

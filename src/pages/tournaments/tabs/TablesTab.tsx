@@ -1,10 +1,13 @@
-import { useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { LayoutGrid, Shuffle, Plus, Users } from 'lucide-react'
+import { ArrowRightLeft, LayoutGrid, Shuffle, Plus, Trash2, Users } from 'lucide-react'
 import * as tablesApi from '../../../api/tables.api'
-import type { Table } from '../../../api/tables.api'
+import type { Table, TablePlayer } from '../../../api/tables.api'
 import * as entriesApi from '../../../api/entries.api'
+import { Avatar } from '../../../components/ui/Avatar'
 import { Button } from '../../../components/ui/Button'
 import { Modal } from '../../../components/ui/Modal'
 import { ConfirmDialog } from '../../../components/ui/ConfirmDialog'
@@ -13,9 +16,63 @@ import { LoadingSpinner } from '../../../components/common/LoadingSpinner'
 import { PlayerConfirmHeader } from '../../../components/dealer/PlayerConfirmHeader'
 import type { ConfirmPerson } from '../../../components/dealer/PlayerConfirmHeader'
 import type { Tournament } from '../../../types/tournament.types'
+import { cn } from '../../../utils/cn'
+import { ghostPosition, useSeatDrag } from './useSeatDrag'
+import type { SeatDragSource, SeatRef } from './useSeatDrag'
+
+/**
+ * Fantasma de quem está sendo arrastado (SPEC-20261027-2133): centrado no dedo/mouse e acima dele, mas preso dentro da
+ * tela (revisão da onda 15: perto da borda esquerda a 320 px a foto e o nome saíam da tela). O tamanho muda com o texto
+ * ("Solte num lugar", "Mesa 2, lugar 4", "Trocar com …"), então a posição é medida a cada render, antes da pintura.
+ */
+function SeatDragGhost({ x, y, children }: { x: number; y: number; children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const { left, top } = ghostPosition(x, y, el.offsetWidth, el.offsetHeight, document.documentElement.clientWidth, window.innerHeight)
+    el.style.transform = `translate(${left}px, ${top}px)`
+  })
+  return createPortal(
+    <div
+      ref={ref}
+      aria-hidden="true"
+      data-seat-drag-ghost
+      className="pointer-events-none fixed left-0 top-0 z-[70] flex max-w-[16rem] items-center gap-2 rounded-full border border-accent-blue bg-bg-card py-1 pl-1 pr-3 shadow-lg"
+    >
+      {children}
+    </div>,
+    document.body,
+  )
+}
 
 interface TablesTabProps {
   tournament: Tournament
+}
+
+/** Soltar um jogador num lugar (SPEC-20261027-2133): vazio move, ocupado troca os dois */
+interface DropVars {
+  source: SeatDragSource
+  target: SeatRef
+  /** Quem estava no lugar de destino (troca) — null = lugar vazio (move) */
+  other: TablePlayer | null
+}
+
+function serverMessage(err: unknown): string | undefined {
+  return (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+}
+
+/** As mesas como ficam depois de soltar (atualização otimista; o erro do servidor desfaz) */
+function applyDrop(tables: Table[], { source, target, other }: DropVars): Table[] {
+  const moving = tables.flatMap((t) => t.players ?? []).find((p) => p.id === source.entryId)
+  if (!moving) return tables
+  return tables.map((t) => {
+    let players = (t.players ?? []).filter((p) => p.id !== source.entryId && p.id !== other?.id)
+    if (t.id === target.tableId) players = [...players, { ...moving, seatNumber: target.seatNumber }]
+    if (other && t.id === source.tableId) players = [...players, { ...other, seatNumber: source.seatNumber }]
+    players.sort((a, b) => a.seatNumber - b.seatNumber)
+    return { ...t, players, playerCount: players.length }
+  })
 }
 
 export function TablesTab({ tournament }: TablesTabProps) {
@@ -42,7 +99,7 @@ export function TablesTab({ tournament }: TablesTabProps) {
     tableNumber: number
     seatNumber: number
   } | null>(null)
-  const [draggedEntryId, setDraggedEntryId] = useState<string | null>(null)
+  const [confirmDeleteTable, setConfirmDeleteTable] = useState<Table | null>(null)
 
   const {
     data: tables,
@@ -62,6 +119,94 @@ export function TablesTab({ tournament }: TablesTabProps) {
   function personOf(p: { entryId: string; name: string }): ConfirmPerson {
     return entries.find((e) => e.id === p.entryId)?.person ?? { fullName: p.name, nickname: null, photoUrl: null }
   }
+  // Nome curto dos avisos do arrastar: apelido, senão o nome
+  function shortName(entryId: string, fallback: string): string {
+    const person = entries.find((e) => e.id === entryId)?.person
+    return person?.nickname?.trim() || person?.fullName || fallback
+  }
+  const tableNumberOf = (tableId: string) => tables?.find((t) => t.id === tableId)?.tableNumber
+
+  // Jogador ativo sentado na mesa (lista da mesa + inscrições ativas que apontam para ela): mesa vazia pode ser excluída
+  function seatedCount(table: Table): number {
+    const ids = new Set((table.players ?? []).map((p) => p.id))
+    for (const e of entries)
+      if (e.tableId === table.id && (e.status === 'Active' || e.status === 'Registered')) ids.add(e.id)
+    return ids.size
+  }
+
+  const invalidateSeating = () => {
+    void queryClient.invalidateQueries({ queryKey: ['tables', tournament.id] })
+    void queryClient.invalidateQueries({ queryKey: ['entries', tournament.id] })
+    void queryClient.invalidateQueries({ queryKey: ['history', tournament.id] })
+  }
+
+  // Arrastar e soltar (toque e mouse — SPEC-20261027-2133): vazio move (o servidor recusa se alguém sentou nele
+  // nesse meio-tempo), ocupado troca os dois numa operação só; a tela muda na hora e o erro devolve ao lugar
+  const dropMutation = useMutation({
+    mutationFn: async ({ source, target, other }: DropVars): Promise<void> => {
+      if (other)
+        await tablesApi.swapPlayers(tournament.id, {
+          entryId: source.entryId,
+          otherEntryId: other.id,
+          fromTableId: source.tableId,
+          fromSeat: source.seatNumber,
+          toTableId: target.tableId,
+          toSeat: target.seatNumber,
+        })
+      else
+        await tablesApi.movePlayer(tournament.id, {
+          entryId: source.entryId,
+          toTableId: target.tableId,
+          toSeat: target.seatNumber,
+          requireFreeSeat: true,
+        })
+    },
+    onMutate: async (vars): Promise<{ previous: Table[] | undefined }> => {
+      await queryClient.cancelQueries({ queryKey: ['tables', tournament.id] })
+      const previous = queryClient.getQueryData<Table[]>(['tables', tournament.id])
+      queryClient.setQueryData<Table[]>(['tables', tournament.id], (old) => (old ? applyDrop(old, vars) : old))
+      return { previous }
+    },
+    onSuccess: (_data, { source, target, other }) => {
+      const name = shortName(source.entryId, source.name)
+      toast.success(
+        other
+          ? `${name} e ${shortName(other.id, other.name)} trocaram de lugar`
+          : `${name} → Mesa ${tableNumberOf(target.tableId) ?? ''}, lugar ${target.seatNumber}`,
+      )
+    },
+    onError: (err, _vars, ctx) => {
+      // O jogador volta para o lugar dele
+      if (ctx?.previous) queryClient.setQueryData(['tables', tournament.id], ctx.previous)
+      toast.error(serverMessage(err) || 'Não foi possível mudar o jogador de lugar.')
+    },
+    onSettled: invalidateSeating,
+  })
+
+  const seatDrag = useSeatDrag((source, target) => {
+    const targetTable = tables?.find((t) => t.id === target.tableId)
+    if (!targetTable) return
+    const other = targetTable.players?.find((p) => p.seatNumber === target.seatNumber && p.id !== source.entryId) ?? null
+    dropMutation.mutate({ source, target, other })
+  })
+  const drag = seatDrag.drag
+  const dragOther = drag?.target
+    ? tables?.find((t) => t.id === drag.target!.tableId)?.players?.find((p) => p.seatNumber === drag.target!.seatNumber) ?? null
+    : null
+
+  const deleteTableMutation = useMutation({
+    mutationFn: (table: Table) => tablesApi.remove(tournament.id, table.id),
+    onSuccess: (_data, table) => {
+      toast.success(`Mesa ${table.tableNumber} excluída.`)
+      setConfirmDeleteTable(null)
+    },
+    onError: (err) => {
+      // 400 do servidor: alguém sentou nela em outro aparelho (a lista recarrega e o botão some)
+      toast.error(serverMessage(err) || 'Não foi possível excluir a mesa.')
+      setConfirmDeleteTable(null)
+    },
+    onSettled: invalidateSeating,
+  })
 
   const activePlayerCount = entries.filter((e) => e.status === 'Active' || e.status === 'Registered').length
   // As mesas nascem com as inscrições (SPEC-20261023-1214): sortear é "Sortear de novo" quando elas já existem
@@ -232,43 +377,63 @@ export function TablesTab({ tournament }: TablesTabProps) {
             <div
               key={table.id}
               className="rounded-xl border border-border-default bg-bg-primary p-4"
+              data-table-card={table.tableNumber}
             >
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between gap-2 mb-3">
                 <h3 className="font-semibold text-text-primary">
                   Mesa {table.tableNumber}
                 </h3>
-                <span className="text-xs text-text-secondary tabular-nums flex items-center gap-1">
-                  <Users className="h-3 w-3" />
-                  {(table.players?.length ?? 0)}/
-                  {table.maxSeats}
-                </span>
+                <div className="flex items-center gap-1">
+                  <span className="text-xs text-text-secondary tabular-nums flex items-center gap-1">
+                    <Users className="h-3 w-3" />
+                    {(table.players?.length ?? 0)}/
+                    {table.maxSeats}
+                  </span>
+                  {/* Só mesa sem ninguém sentado (SPEC-20261027-2133); o servidor confere de novo (corrida entre aparelhos) */}
+                  {seatedCount(table) === 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDeleteTable(table)}
+                      aria-label={`Excluir a Mesa ${table.tableNumber}`}
+                      title="Excluir mesa"
+                      data-delete-table={table.tableNumber}
+                      className="-my-2 -mr-2 flex h-11 w-11 items-center justify-center rounded-lg text-text-secondary transition-colors hover:bg-accent-red-soft hover:text-accent-red-deep"
+                    >
+                      <Trash2 className="h-5 w-5" aria-hidden="true" />
+                    </button>
+                  )}
+                </div>
               </div>
 
-
+              {/* Segurar e arrastar (toque) ou arrastar (mouse) um jogador até outro lugar: vazio move, ocupado troca */}
               <div className="grid grid-cols-3 gap-2">
                 {Array.from({ length: table.maxSeats }, (_, i) => i + 1).map((seatNum) => {
                   const player = table.players?.find((p) => p.seatNumber === seatNum)
+                  const isSource = !!drag && drag.source.tableId === table.id && drag.source.seatNumber === seatNum
+                  const isTarget = !!drag?.target && drag.target.tableId === table.id && drag.target.seatNumber === seatNum
                   return (
                     <button
                       type="button"
                       key={seatNum}
-                      draggable={!!player}
-                      onDragStart={() => player && setDraggedEntryId(player.id)}
-                      onDragEnd={() => setDraggedEntryId(null)}
-                      onDragOver={(e) => {
-                        if (draggedEntryId) e.preventDefault()
-                      }}
-                      onDrop={() => {
-                        if (draggedEntryId && draggedEntryId !== player?.id) {
-                          moveMutation.mutate({
-                            entryId: draggedEntryId,
-                            toTableId: table.id,
-                            toSeat: seatNum,
-                          })
-                        }
-                        setDraggedEntryId(null)
-                      }}
+                      data-seat={seatNum}
+                      data-table-id={table.id}
+                      data-seat-player={player?.id}
+                      data-drop-target={isTarget ? (player ? 'swap' : 'move') : undefined}
+                      onPointerDown={
+                        player
+                          ? (e) =>
+                              seatDrag.onPointerDown(e, {
+                                entryId: player.id,
+                                name: shortName(player.id, player.name),
+                                photo: player.photo,
+                                tableId: table.id,
+                                seatNumber: seatNum,
+                              })
+                          : undefined
+                      }
                       onClick={() => {
+                        // O clique que vem logo depois de soltar um arrasto não abre nada
+                        if (seatDrag.consumeClick()) return
                         if (player) {
                           setMovePlayerEntry({
                             entryId: player.id,
@@ -286,11 +451,17 @@ export function TablesTab({ tournament }: TablesTabProps) {
                           })
                         }
                       }}
-                      className={`rounded-lg p-2 text-center text-xs transition-colors cursor-pointer ${
+                      className={cn(
+                        // select-none / sem o menu do toque longo: segurar é o começo do arrastar
+                        'min-h-[44px] select-none rounded-lg p-2 text-center text-xs transition-colors cursor-pointer [-webkit-touch-callout:none]',
                         player
                           ? 'bg-accent-blue-soft border border-accent-blue/30 hover:bg-accent-blue/20'
-                          : 'bg-bg-tertiary border border-dashed border-border-default hover:border-accent-blue/50 hover:bg-bg-secondary'
-                      }`}
+                          : 'bg-bg-tertiary border border-dashed border-border-default hover:border-accent-blue/50 hover:bg-bg-secondary',
+                        isSource && 'border-dashed border-accent-blue bg-bg-tertiary',
+                        isTarget && (player
+                          ? 'border-accent-gold bg-accent-gold-soft ring-2 ring-accent-gold'
+                          : 'border-accent-blue bg-accent-blue-soft ring-2 ring-accent-blue'),
+                      )}
                     >
                       <p className="text-text-secondary text-[10px]">
                         Posição {seatNum}
@@ -373,12 +544,18 @@ export function TablesTab({ tournament }: TablesTabProps) {
         </div>
       </Modal>
 
-      {/* Create table modal */}
+      {/* Create table modal — formulário Cancelar + Criar: no celular, X/✓ no topo (SPEC-20261027-2132). "Sortear" e
+          "Mover" têm verbo próprio e continuam escritos */}
       <Modal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         title="Criar Mesa"
         size="sm"
+        submitAction={{
+          label: 'Criar mesa',
+          onClick: () => createTableMutation.mutate(),
+          loading: createTableMutation.isPending,
+        }}
         footer={
           <div className="flex gap-3 justify-end">
             <Button
@@ -606,6 +783,44 @@ export function TablesTab({ tournament }: TablesTabProps) {
           )
         })()}
       </Modal>
+
+      {/* Excluir mesa vazia (SPEC-20261027-2133) */}
+      <ConfirmDialog
+        isOpen={!!confirmDeleteTable}
+        onClose={() => setConfirmDeleteTable(null)}
+        onConfirm={() => {
+          if (confirmDeleteTable) deleteTableMutation.mutate(confirmDeleteTable)
+        }}
+        title={`Excluir a Mesa ${confirmDeleteTable?.tableNumber ?? ''}?`}
+        message={`A mesa sai do painel, do telão e do terminal do dealer.${
+          confirmDeleteTable?.dealerName ? ` O dealer ${confirmDeleteTable.dealerName} fica livre.` : ''
+        } Dá para criar de novo pelo "Criar Mesa".`}
+        confirmLabel="Excluir"
+        variant="danger"
+        loading={deleteTableMutation.isPending}
+      />
+
+      {/* Fantasma de quem está sendo arrastado: segue o dedo/mouse, acima dele (o dedo não cobre), sempre dentro da tela */}
+      {drag && (
+        <SeatDragGhost x={drag.x} y={drag.y}>
+          <Avatar src={drag.source.photo} name={drag.source.name} size="md" />
+          <span className="flex min-w-0 flex-col">
+            <span className="truncate text-sm font-semibold text-text-primary">{drag.source.name}</span>
+            <span className="flex items-center gap-1 truncate text-xs text-text-secondary">
+              {!drag.target ? (
+                'Solte num lugar'
+              ) : dragOther ? (
+                <>
+                  <ArrowRightLeft className="h-3 w-3 shrink-0" aria-hidden="true" />
+                  Trocar com {shortName(dragOther.id, dragOther.name)}
+                </>
+              ) : (
+                `Mesa ${tableNumberOf(drag.target.tableId) ?? ''}, lugar ${drag.target.seatNumber}`
+              )}
+            </span>
+          </span>
+        </SeatDragGhost>
+      )}
 
       <ConfirmDialog
         isOpen={confirmUnseat && !!movePlayerEntry}

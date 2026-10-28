@@ -95,9 +95,13 @@ function PriceModal({ price, onClose }: { price: AiModelPrice; onClose: () => vo
     />
   )
 
+  // No celular o ✓ do cabeçalho faz o mesmo que o botão do rodapé e o rodapé some (SPEC-20261027-2132)
+  const submitAction = { label: 'Salvar preços', onClick: () => void save(), loading: saving, disabled: invalid }
+
   return (
     <Modal
       isOpen
+      submitAction={submitAction}
       onClose={onClose}
       title={`Preços do ${price.displayName}`}
       size="md"

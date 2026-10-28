@@ -181,6 +181,8 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
     },
     onError: (err) => toast.error(apiErrorMessage(err, 'Erro ao salvar bônus.')),
   })
+  // O Salvar do rodapé (computador) e o ✓ do topo (celular) chamam a mesma função
+  const saveBonus = () => bonusMutation.mutate({ count: Number(bonusCount) || 0, chips: Number(bonusChips) || 0 })
 
   // Excluir inscrição (L5): só na Ficha, só para quem joga; deixa "Inscrição excluída" no histórico
   const removeMutation = useMutation({
@@ -612,7 +614,8 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
         entries={entries}
       />
 
-      {/* Bônus de Pontualidade (Modal do kit: fecha só no X/Cancelar — SPEC-20261023-1216) */}
+      {/* Bônus de Pontualidade (Modal do kit: fecha só no X/Cancelar — SPEC-20261023-1216). Formulário Cancelar +
+          Salvar: no celular, X/✓ no topo com o mesmo efeito e sem rodapé (SPEC-20261027-2132) */}
       <Modal
         isOpen={showBonusModal}
         onClose={() => setShowBonusModal(false)}
@@ -623,19 +626,12 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
             <Button variant="ghost" onClick={() => setShowBonusModal(false)} disabled={bonusMutation.isPending}>
               Cancelar
             </Button>
-            <Button
-              onClick={() =>
-                bonusMutation.mutate({
-                  count: Number(bonusCount) || 0,
-                  chips: Number(bonusChips) || 0,
-                })
-              }
-              loading={bonusMutation.isPending}
-            >
+            <Button onClick={saveBonus} loading={bonusMutation.isPending}>
               Salvar
             </Button>
           </div>
         }
+        submitAction={{ label: 'Salvar', onClick: saveBonus, loading: bonusMutation.isPending }}
       >
         <p className="mb-4 text-sm text-text-secondary">
           Fichas extras pra quem chegou no horário. Entram no total de fichas exibido no telão.

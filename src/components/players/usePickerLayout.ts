@@ -38,6 +38,22 @@ function subscribeWidth(onChange: () => void): () => void {
 const wideSnapshot = () => window.innerWidth >= ROW_MIN_WIDTH_PX
 const wideServerSnapshot = () => true
 
+/**
+ * `sm` do Tailwind (40rem = 640 px): abaixo disto (celular em pé) o cadastro de jogador novo usa o X/✓ no topo, o padrão
+ * dos formulários no celular (SPEC-20261027-2132) — o ✓ ao lado do título faz o mesmo que o botão principal e o rodapé
+ * some. A mesma media query das classes `sm:`, para o JS e o CSS concordarem na mesma largura.
+ */
+const SM_QUERY = '(min-width: 40rem)'
+
+function subscribeSm(onChange: () => void): () => void {
+  const mq = window.matchMedia(SM_QUERY)
+  mq.addEventListener('change', onChange)
+  return () => mq.removeEventListener('change', onChange)
+}
+
+const phoneSnapshot = () => !window.matchMedia(SM_QUERY).matches
+const phoneServerSnapshot = () => false
+
 export interface PickerLayout {
   /** Área visível < 480 px, com ou sem teclado (celular deitado) */
   short: boolean
@@ -47,6 +63,8 @@ export interface PickerLayout {
   minimal: boolean
   /** Mínimo com largura de sobra (celular deitado): os botões ficam na barra de cima, sem rodapé */
   row: boolean
+  /** Abaixo de `sm` (640 px): cadastro com o X/✓ no topo (SPEC-20261027-2132), sem rodapé */
+  phone: boolean
   /** Altura da área visível (px) */
   visibleHeight: number
 }
@@ -60,8 +78,9 @@ export function usePickerLayout(): PickerLayout {
   const viewport = useVisualViewport()
   const keyboardOpen = useVirtualKeyboardOpen()
   const wide = useSyncExternalStore(subscribeWidth, wideSnapshot, wideServerSnapshot)
+  const phone = useSyncExternalStore(subscribeSm, phoneSnapshot, phoneServerSnapshot)
   const visibleHeight = viewport?.height ?? (typeof window !== 'undefined' ? window.innerHeight : 800)
   const compact = keyboardOpen && visibleHeight < COMPACT_BELOW_PX
   const minimal = compact && visibleHeight < MINIMAL_BELOW_PX
-  return { short: visibleHeight < SHORT_BELOW_PX, compact, minimal, row: minimal && wide, visibleHeight }
+  return { short: visibleHeight < SHORT_BELOW_PX, compact, minimal, row: minimal && wide, phone, visibleHeight }
 }

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import {
   HubConnectionBuilder,
   HubConnectionState,
@@ -6,6 +7,7 @@ import {
 } from '@microsoft/signalr'
 import type { HubConnection } from '@microsoft/signalr'
 import apiClient, { getAccessToken } from '../api/client'
+import type { TablesUpdateEvent } from '../api/tables.api'
 
 interface UseWebSocketOptions {
   tournamentId: string
@@ -13,6 +15,12 @@ interface UseWebSocketOptions {
   onEntryUpdate?: (entry: unknown) => void
   onTournamentUpdate?: (tournament: unknown) => void
   onEliminationUpdate?: (data: unknown) => void
+  /**
+   * Mudança de mesa/lugar (TablesController: criar, sortear, balancear, mover, trocar, quebrar, tirar da mesa, dealer,
+   * excluir — SPEC-20261027-2133). As consultas de mesas, inscrições e histórico do torneio já são recarregadas aqui
+   * (painel e terminal); o callback é para a tela reagir além disso (ex.: o terminal que estava na mesa excluída).
+   */
+  onTablesUpdate?: (event: TablesUpdateEvent) => void
   enabled?: boolean
 }
 
@@ -22,8 +30,10 @@ export function useWebSocket({
   onEntryUpdate,
   onTournamentUpdate,
   onEliminationUpdate,
+  onTablesUpdate,
   enabled = true,
 }: UseWebSocketOptions) {
+  const queryClient = useQueryClient()
   const connectionRef = useRef<HubConnection | null>(null)
   const [isConnected, setIsConnected] = useState(false)
 
@@ -32,6 +42,7 @@ export function useWebSocket({
   const onEntryUpdateRef = useRef(onEntryUpdate)
   const onTournamentUpdateRef = useRef(onTournamentUpdate)
   const onEliminationUpdateRef = useRef(onEliminationUpdate)
+  const onTablesUpdateRef = useRef(onTablesUpdate)
 
   // Atualizar refs sempre que callbacks mudarem (sem causar reconexão)
   useEffect(() => {
@@ -39,7 +50,8 @@ export function useWebSocket({
     onEntryUpdateRef.current = onEntryUpdate
     onTournamentUpdateRef.current = onTournamentUpdate
     onEliminationUpdateRef.current = onEliminationUpdate
-  }, [onTimerUpdate, onEntryUpdate, onTournamentUpdate, onEliminationUpdate])
+    onTablesUpdateRef.current = onTablesUpdate
+  }, [onTimerUpdate, onEntryUpdate, onTournamentUpdate, onEliminationUpdate, onTablesUpdate])
 
   useEffect(() => {
     if (!enabled || !tournamentId) return
@@ -74,6 +86,15 @@ export function useWebSocket({
     })
     connection.on('EliminationUpdate', (data: unknown) => {
       onEliminationUpdateRef.current?.(data)
+    })
+    // Outro aparelho (ou esta mesma tela) mudou mesas/lugares: mesas, inscrições (mesa/lugar de cada um) e histórico
+    // de novo, em qualquer tela conectada ao torneio — sem esperar a próxima consulta periódica
+    connection.on('TablesUpdate', (event: TablesUpdateEvent) => {
+      if (cancelled) return
+      void queryClient.invalidateQueries({ queryKey: ['tables', tournamentId] })
+      void queryClient.invalidateQueries({ queryKey: ['entries', tournamentId] })
+      void queryClient.invalidateQueries({ queryKey: ['history', tournamentId] })
+      onTablesUpdateRef.current?.(event)
     })
 
     // Dealer por QR desconectado pelo organizador (ou QR desativado): o servidor tira a
@@ -133,7 +154,7 @@ export function useWebSocket({
       connectionRef.current = null
       setIsConnected(false)
     }
-  }, [enabled, tournamentId])
+  }, [enabled, tournamentId, queryClient])
 
   return { isConnected }
 }

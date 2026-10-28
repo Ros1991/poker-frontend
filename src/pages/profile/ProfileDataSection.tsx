@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import type { FormEvent } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Copy, Mail, UserRound } from 'lucide-react'
@@ -7,8 +8,10 @@ import * as meApi from '../../api/me.api'
 import { EditablePhotoAvatar } from '../../components/photo/EditablePhotoAvatar'
 import { photoHint } from '../../components/photo/photoHint'
 import { Button } from '../../components/ui/Button'
+import { FormPageBar } from '../../components/ui/FormTopBar'
 import { Input } from '../../components/ui/Input'
 import { useAuth } from '../../hooks/useAuth'
+import { ROUTES } from '../../constants/routes'
 import type { Profile } from '../../types/profile.types'
 import { copyToClipboard } from '../../utils/clipboard'
 import { errorMessage } from '../../utils/httpErrors'
@@ -53,6 +56,8 @@ export function ProfileDataSection({ profile }: { profile: Profile }) {
   const [value, setValue] = useState<FormValue>(() => initialValue(profile))
   const [errors, setErrors] = useState<FormErrors>({})
   const [saving, setSaving] = useState(false)
+  const navigate = useNavigate()
+  const location = useLocation()
 
   const saved = initialValue(profile)
   const dirty =
@@ -103,7 +108,15 @@ export function ProfileDataSection({ profile }: { profile: Profile }) {
       title="Foto e dados"
       description="Seu nome e sua foto aparecem no cabeçalho e para os organizadores dos home games de que você participa."
     >
-      <form className="flex flex-col gap-5" onSubmit={(e) => void submit(e)} noValidate>
+      {/* Celular (< sm, SPEC-20261027-2132): barra fixa no topo com X (sai da tela, como fechar), o título e o ✓ (= Salvar
+          dados, desabilitado sem alteração como o botão); o botão de baixo some. Do sm para cima, como antes */}
+      <FormPageBar
+        title="Meu perfil"
+        cancelLabel="Fechar"
+        onCancel={() => (location.key === 'default' ? navigate(ROUTES.HOME_GAMES) : navigate(-1))}
+        submit={{ label: 'Salvar dados', form: 'perfil-dados-form', loading: saving, disabled: !dirty || saving }}
+      />
+      <form id="perfil-dados-form" className="flex flex-col gap-5" onSubmit={(e) => void submit(e)} noValidate>
         <div className="flex flex-col items-center gap-3 sm:flex-row sm:items-center sm:gap-4">
           <EditablePhotoAvatar
             src={profile.photoUrl}
@@ -158,7 +171,8 @@ export function ProfileDataSection({ profile }: { profile: Profile }) {
           />
         </div>
 
-        <div className="flex justify-end">
+        {/* No celular, o ✓ da barra do topo */}
+        <div className="hidden justify-end sm:flex">
           <Button type="submit" loading={saving} disabled={!dirty || saving} className="w-full sm:w-auto">
             Salvar dados
           </Button>

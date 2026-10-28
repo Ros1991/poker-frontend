@@ -189,6 +189,7 @@ export const MANUAL_MODULES = [
               'Toque em Criar Home Game no menu (ou em + Criar, na barra de baixo do celular).',
               'Dê um nome ao grupo e, se quiser, uma descrição, o local e a logo do clube. Toque em Criar home game.',
             ],
+            tip: 'No celular, os formulários têm o X (cancelar) e o ✓ (salvar) no topo da tela, no lugar dos botões de baixo.',
             image: 'home-game-novo',
             imageAlt: 'Formulário Novo home game com nome, descrição e local preenchidos e o campo da logo do clube',
           },
@@ -292,7 +293,7 @@ export const MANUAL_MODULES = [
           },
           {
             title: 'Salve',
-            text: ['Toque em Criar estrutura (ou Salvar, quando estiver editando).'],
+            text: ['Toque em Criar estrutura (ou Salvar, quando estiver editando). No celular, é o ✓ no topo da tela; o X cancela.'],
           },
         ],
       },
@@ -304,7 +305,7 @@ export const MANUAL_MODULES = [
             title: 'Crie o torneio',
             text: [
               'Na aba Torneios, toque em Novo Torneio. Dê um nome, a data e escolha a estrutura: valores, limites de rebuy e add-on, custos e formato vêm preenchidos (e dá para mudar só neste torneio).',
-              'Escolha também o ranking da temporada, se houver, e toque em Criar torneio.',
+              'Escolha também o ranking da temporada, se houver, e toque em Criar torneio (no celular, o ✓ no topo).',
             ],
             image: 'torneio-novo',
             imageAlt: 'Formulário Novo Torneio com nome, data, PIX do dia e a estrutura Sexta 20 min escolhida',
@@ -365,7 +366,7 @@ export const MANUAL_MODULES = [
           {
             title: 'Abra o QR do terminal',
             text: [
-              'No painel do torneio, toque em Terminal do dealer. Aparece um QR para o dealer ler com a câmera do celular.',
+              'No painel do torneio, toque em Dealer. Aparece um QR para o dealer ler com a câmera do celular.',
               'Também dá para mandar o link pelo WhatsApp ou abrir o terminal no seu próprio aparelho (Abrir o terminal aqui).',
             ],
             image: 'dealer-qr',
@@ -472,8 +473,8 @@ export const MANUAL_MODULES = [
           {
             title: 'Inscreva quem chegou',
             text: [
-              'Em Adicionar jogador, marque quem chegou e toque em Adicionar selecionados — ou em Cadastrar jogador novo.',
-              'Com o torneio em andamento, o sistema já diz a mesa e o lugar de quem entrou.',
+              'Em Adicionar jogador, marque quem chegou e toque em Adicionar selecionados. Quem não tem cadastro: digite o nome na busca e toque em Cadastrar jogador novo — o nome já vem preenchido.',
+              'Sem ninguém marcado, Cadastrar e adicionar (no celular, o ✓ no topo) cadastra e já põe no torneio. Com o torneio em andamento, o sistema diz a mesa e o lugar de quem entrou.',
             ],
             image: 'terminal-adicionar',
             imageAlt: 'Adicionar jogadores no terminal, com um jogador marcado e o botão Adicionar selecionados',
@@ -483,6 +484,7 @@ export const MANUAL_MODULES = [
             text: [
               'Em Mesas você vê os lugares de cada mesa, sorteia de novo e move jogadores: toque num jogador para mudar de mesa ou de lugar.',
             ],
+            tip: 'Se o organizador excluir a mesa em que o terminal está, ele passa sozinho para outra mesa e avisa.',
             feature: 'Tables',
             image: 'terminal-mesas',
             imageAlt: 'Tela Mesas do terminal com a Mesa 1 e a Mesa 2, os lugares numerados e o botão Sortear de novo',
@@ -518,7 +520,7 @@ export const MANUAL_MODULES = [
           {
             title: 'A página do home game',
             text: [
-              'Abra o grupo em Meus Home Games (no menu) ou na barra de baixo do celular. As abas são Torneios, Rankings, Estruturas, Jogadores e Membros.',
+              'Abra o grupo em Meus Home Games (no menu) ou na barra de baixo do celular. As abas são Torneios, Rankings, Estruturas, Jogadores e Membros — no celular, elas ficam na barra de baixo.',
               'Em Torneios ficam todos os torneios, com status, data, entradas e premiação. Toque num torneio para abrir o painel.',
             ],
             image: 'home-game-torneios',
@@ -534,7 +536,7 @@ export const MANUAL_MODULES = [
             title: 'Visão geral',
             text: [
               'No topo: status, relógio, jogadores, rebuys, add-ons, premiação e total. Os botões mudam conforme o torneio anda: Iniciar Torneio, Pausar, Encerrar Rebuys e Finalizar (para encerrar antes da hora; quando sobra o campeão, ele se finaliza sozinho).',
-              'Ao lado ficam o TV Display (o telão) e o Terminal do dealer. Abaixo, as abas.',
+              'Ao lado ficam TV (abre o telão) e Dealer (o QR do terminal do dealer). Abaixo, as abas; no celular, elas ficam na barra de baixo, que rola de lado.',
             ],
             image: 'pc-painel-torneio',
             imageAlt: 'Painel do torneio no computador: resumo no topo, botões, abas e os cards dos jogadores da Mesa 1',
@@ -542,9 +544,10 @@ export const MANUAL_MODULES = [
           {
             title: 'Inscreva os jogadores',
             text: [
-              'Na aba Jogadores, toque em Adicionar, marque quem vai jogar e toque em Adicionar selecionados. Quem não está cadastrado entra por Cadastrar jogador novo.',
+              'Na aba Jogadores, toque em Adicionar, marque quem vai jogar e toque em Adicionar selecionados. Quem não está cadastrado: digite o nome na busca e toque em Cadastrar jogador novo (o nome já vem preenchido).',
               'Depois toque em Iniciar Torneio. Quem chegar atrasado entra do mesmo jeito e já ganha mesa e lugar.',
             ],
+            tip: 'Sem ninguém marcado, Cadastrar e adicionar cadastra o jogador novo e já põe no torneio. Com alguém marcado, Cadastrar e selecionar junta o novo aos marcados.',
             image: 'painel-adicionar',
             imageAlt: 'Janela Adicionar jogadores do painel com um jogador marcado',
           },
@@ -560,7 +563,8 @@ export const MANUAL_MODULES = [
           {
             title: 'Mesas',
             text: [
-              'Cada mesa com os lugares. Crie mesa, sorteie de novo e mova jogadores. Quando as mesas desequilibram, o aviso sugere quem muda.',
+              'Cada mesa com os lugares. Crie mesa, sorteie de novo e mova jogadores: toque no jogador para escolher o lugar ou arraste até outro lugar (no celular, segure o dedo um instante). Soltar em cima de outro jogador troca os dois.',
+              'Mesa vazia ganha a lixeira para excluir. Quando as mesas desequilibram, o aviso sugere quem muda.',
             ],
             feature: 'Tables',
             image: 'painel-mesas',
@@ -614,7 +618,7 @@ export const MANUAL_MODULES = [
           },
           {
             title: 'Telão',
-            text: ['O botão TV Display abre o telão deste torneio. Para mostrar na TV da sala, sem login, use o QR da TV.'],
+            text: ['O botão TV abre o telão deste torneio. Para mostrar na TV da sala, sem login, use o QR da TV.'],
             see: { slug: 'telao-na-tv', label: 'Telão na TV' },
           },
           {

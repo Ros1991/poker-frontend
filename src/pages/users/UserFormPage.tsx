@@ -9,6 +9,7 @@ import * as usersApi from '../../api/users.api'
 import { Input } from '../../components/ui/Input'
 import { Select } from '../../components/ui/Select'
 import { Button } from '../../components/ui/Button'
+import { FormPageBar } from '../../components/ui/FormTopBar'
 import { LoadingSpinner } from '../../components/common/LoadingSpinner'
 import { ROUTES, userDetailPath } from '../../constants/routes'
 import { useAuth } from '../../hooks/useAuth'
@@ -125,7 +126,15 @@ export function UserFormPage() {
 
   return (
     <div className="flex flex-col gap-6 p-4 sm:p-6">
-      <div className="flex items-center gap-3">
+      {/* Celular (< sm, SPEC-20261027-2132): barra fixa no topo com X (= Cancelar), título e ✓ (= Salvar alterações); o
+          cabeçalho e o rodapé da página somem e os campos ganham o espaço. Do sm para cima, como antes */}
+      <FormPageBar
+        title="Editar dados"
+        subtitle={user.fullName}
+        onCancel={goBack}
+        submit={{ label: 'Salvar alterações', form: 'user-form', loading: mutation.isPending, disabled: !isDirty }}
+      />
+      <div className="hidden items-center gap-3 sm:flex">
         <button
           type="button"
           onClick={goBack}
@@ -141,6 +150,7 @@ export function UserFormPage() {
       </div>
 
       <form
+        id="user-form"
         onSubmit={(e) => void handleSubmit((data) => mutation.mutate(data))(e)}
         className="flex max-w-2xl flex-col gap-6 rounded-xl border border-border-default bg-bg-card p-4 shadow-sm sm:p-6"
       >
@@ -212,7 +222,8 @@ export function UserFormPage() {
           </p>
         </div>
 
-        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+        {/* No celular, o X e o ✓ da barra do topo */}
+        <div className="hidden gap-3 sm:flex sm:flex-row sm:justify-end">
           <Button type="button" variant="secondary" onClick={goBack}>
             Cancelar
           </Button>

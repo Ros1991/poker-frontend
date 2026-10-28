@@ -8,6 +8,7 @@ import { Avatar } from '../ui/Avatar'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
 import { SearchInput } from '../ui/SearchInput'
+import { SubmitCheckButton } from '../ui/FormTopBar'
 import { LoadingSpinner } from '../common/LoadingSpinner'
 import { EditablePhotoAvatar } from '../photo/EditablePhotoAvatar'
 import type { AvailablePlayer, BulkCreateEntriesResult, TournamentEntry } from '../../types/entry.types'
@@ -51,9 +52,14 @@ const SEARCH_TEXT = '[&_input]:text-base sm:[&_input]:text-sm'
 /**
  * "Adicionar jogadores" — o MESMO componente no painel (AddPlayerModal) e no terminal do dealer (AddPlayerSheet)
  * (SPEC-20261023-1213, F8–F12): busca sem acento, lista com foto e multi-seleção, "Selecionar todos"/"Limpar",
- * rodapé fixo com "Adicionar selecionados (N)" e, separado da busca, "Cadastrar jogador novo" (formulário vazio;
- * o texto da busca só vira nome pelo "Cadastrar 'Fulano'" do estado vazio). Inscreve pelo lote (POST entries/bulk):
- * toda inscrição nasce Pendente, sem "buy-in pago". Ocupa a coluna flex de quem o monta (Sheet sem rolagem no terminal,
+ * rodapé fixo com "Adicionar selecionados (N)" e, separado da busca, "Cadastrar jogador novo". Inscreve pelo lote (POST
+ * entries/bulk): toda inscrição nasce Pendente, sem "buy-in pago". SPEC-20261027-2133: qualquer "Cadastrar jogador novo"
+ * ("Novo", o botão do rodapé e o "Cadastrar 'Fulano'" do estado vazio) abre o formulário com o texto da busca como nome
+ * (espaços normalizados, editável, cursor no fim; busca vazia = formulário vazio). Cadastrar com NINGUÉM selecionado
+ * ("Cadastrar e adicionar") cria no home game, envia a foto e já inscreve pelo mesmo lote — quem abriga fecha com o
+ * mesmo resultado do "Adicionar selecionados" (assentos, avisos de mudança de lugar); se a inscrição falhar, ele fica
+ * cadastrado e selecionado com a mensagem do servidor para tentar de novo. Com selecionados ("Cadastrar e selecionar"),
+ * volta para a lista selecionado junto com os demais. Ocupa a coluna flex de quem o monta (Sheet sem rolagem no terminal,
  * Modal `fill` no painel), que já acompanha a área visível com o teclado aberto: só a lista/o formulário rola e o
  * rodapé (com os avisos de nome repetido e de erro do servidor) fica sempre à vista. Com pouca altura (teclado aberto —
  * SPEC-20261027-1311) o layout fica compacto: rodapé numa linha só ("Novo" + "Adicionar (N)"; no cadastro, só o botão
@@ -63,15 +69,23 @@ const SEARCH_TEXT = '[&_input]:text-base sm:[&_input]:text-sm'
  * teclado: sobram 150–240 px) o layout é mínimo: quem abriga esconde o cabeçalho, o fechar dele vem para a barra de cima
  * daqui e, com largura de sobra, os botões sobem para a mesma linha da busca/do título (sem rodapé) — usePickerLayout.
  * A busca e os campos do cadastro ficam no mesmo lugar da árvore em todos os layouts: trocar de layout com o teclado
- * aberto não tira o foco do campo (o teclado não fecha).
+ * aberto não tira o foco do campo (o teclado não fecha). No celular em pé (< sm) o cadastro segue o X/✓ dos formulários
+ * (SPEC-20261027-2132, integração da onda 15): barra de cima com o voltar, o título e o ✓ (nome acessível com o verbo:
+ * "Cadastrar e adicionar ao torneio" / "Cadastrar e selecionar"), sem rodapé e com os avisos logo abaixo da barra.
  */
 export function PlayerPicker({ tournamentId, entries, variant, onAdded, onClose }: PlayerPickerProps) {
   const queryClient = useQueryClient()
   const terminal = variant === 'terminal'
-  const { short, compact, minimal, row, visibleHeight } = usePickerLayout()
+  const { short, compact, minimal, row, phone, visibleHeight } = usePickerLayout()
+  // Cadastro no celular (< sm, 640 px) — fora da linha única do layout mínimo largo, que já tem o botão principal escrito
+  // na barra de cima —: X/✓ no topo (padrão dos formulários no celular, SPEC-20261027-2132). O ✓ ao lado do título faz o
+  // mesmo que o botão principal (mesma função, validação e estado girando) e o rodapé some; os avisos vão para baixo da
+  // barra. No computador nada muda.
+  const checkTop = phone && !row
   // Cadastro com a linha única "voltar + título" no topo (e só o botão principal no rodapé): teclado aberto ou pouca
-  // altura (celular deitado, mesmo sem teclado — senão o formulário fica sem altura entre o topo e o rodapé)
-  const titleRow = compact || short
+  // altura (celular deitado, mesmo sem teclado — senão o formulário fica sem altura entre o topo e o rodapé); no celular
+  // em pé, sempre (é a barra do X/✓)
+  const titleRow = compact || short || checkTop
   // Área que rola (lista ou formulário): o campo em foco volta para a vista quando o teclado abre/fecha ou o layout muda
   const scrollRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -113,6 +127,10 @@ export function PlayerPicker({ tournamentId, entries, variant, onAdded, onClose 
   const newIds = useMemo(() => new Set(created.map((p) => p.id)), [created])
   const selectedIds = selected.filter((id) => availableIds.has(id))
   const selectedSet = new Set(selectedIds)
+  // Cadastro com ninguém selecionado: o jogador novo já entra no torneio ("Cadastrar e adicionar")
+  const direct = selectedIds.length === 0
+  // Barra da busca: o texto do campo na hora do toque (o onChange da busca chega com 150 ms de atraso)
+  const searchBarRef = useRef<HTMLDivElement>(null)
 
   const term = normalizeText(search.trim())
   const filtered = term ? available.filter((p) => matches(term, p)) : available
@@ -128,8 +146,10 @@ export function PlayerPicker({ tournamentId, entries, variant, onAdded, onClose 
     setSelected((prev) => [...prev, ...filtered.map((p) => p.id).filter((id) => !prev.includes(id))])
   }
 
-  function openNew(prefill = '') {
-    setForm({ ...EMPTY_PLAYER_FORM, fullName: prefill })
+  // O texto da busca vira a sugestão de nome em qualquer "Cadastrar jogador novo" (SPEC-20261027-2133)
+  function openNew() {
+    const live = searchBarRef.current?.querySelector<HTMLInputElement>('input')?.value
+    setForm({ ...EMPTY_PLAYER_FORM, fullName: normalizeSpaces(live ?? search) })
     setFormErrors({})
     setDuplicate(null)
     setFormError(null)
@@ -211,13 +231,25 @@ export function PlayerPicker({ tournamentId, entries, variant, onAdded, onClose 
         toast.error('Jogador cadastrado, mas a foto não foi enviada. Toque na câmera da linha para tentar de novo.')
       }
     }
+    setCreated((prev) => [player, ...prev.filter((p) => p.id !== player.id)])
+    void queryClient.invalidateQueries({ queryKey: ['availablePlayers', tournamentId] })
+    if (direct) {
+      // Ninguém selecionado: entra direto no torneio pelo mesmo lote do "Adicionar selecionados"; deu certo → quem abriga
+      // fecha/mostra o resultado (onAdded). Falhou → o onError do lote já pôs a mensagem do servidor (addError) e ele fica
+      // cadastrado e selecionado na lista para tentar de novo
+      try {
+        await addMutation.mutateAsync([player.id])
+        setSaving(false)
+        return
+      } catch {
+        /* mensagem no addError */
+      }
+    }
     setSaving(false)
     toast.success(`${label(player)} cadastrado`)
-    setCreated((prev) => [player, ...prev.filter((p) => p.id !== player.id)])
     setSelected((prev) => (prev.includes(player.id) ? prev : [...prev, player.id]))
     setSearch('')
     setMode('list')
-    void queryClient.invalidateQueries({ queryKey: ['availablePlayers', tournamentId] })
   }
 
   const addMutation = useMutation({
@@ -270,7 +302,7 @@ export function PlayerPicker({ tournamentId, entries, variant, onAdded, onClose 
   // ------------------------------------------------------------------ passo "novo jogador"
   if (mode === 'new') {
     const hasAlerts = !!(duplicate || formError)
-    // Nome repetido e erro do servidor ficam junto de "Cadastrar e selecionar" (no rodapé fixo; no layout em linha, logo
+    // Nome repetido e erro do servidor ficam junto do botão principal — "Cadastrar e adicionar" ou "Cadastrar e selecionar" — (no rodapé fixo; no layout em linha, logo
     // abaixo da barra de cima): a área do formulário rola e um aviso desenhado lá embaixo ficaria fora da vista
     const alerts = hasAlerts && (
       <div role="alert" className="mb-2 flex flex-col gap-2">
@@ -299,14 +331,26 @@ export function PlayerPicker({ tournamentId, entries, variant, onAdded, onClose 
         loading={saving}
         data-picker-primary
       >
-        <UserPlus className="h-4 w-4" /> Cadastrar e selecionar
+        <UserPlus className="h-4 w-4" /> {direct ? 'Cadastrar e adicionar' : 'Cadastrar e selecionar'}
       </Button>
+    )
+    // ✓ do topo no celular: o verbo do caso no nome acessível (o ícone sozinho não diz que o jogador já entra no torneio)
+    const check = checkTop && (
+      <SubmitCheckButton
+        action={{
+          label: direct ? 'Cadastrar e adicionar ao torneio' : 'Cadastrar e selecionar',
+          onClick: () => void submitNew(),
+          loading: saving,
+        }}
+        data-picker-primary
+      />
     )
     return (
       <div className="flex min-h-0 flex-1 flex-col" data-player-picker="new" data-picker-compact={compact || undefined} data-picker-minimal={minimal || undefined}>
         {titleRow ? (
-          // Teclado aberto ou pouca altura: voltar (ícone, 44 px) e o título numa linha só; no layout mínimo também o X
-          // da modal e, com largura de sobra (celular deitado), "Cadastrar e selecionar" — o formulário fica com o resto
+          // Teclado aberto, pouca altura ou celular em pé: voltar (ícone, 44 px) e o título numa linha só; no celular em pé
+          // também o ✓; no layout mínimo também o X da modal e, com largura de sobra (celular deitado), o botão principal
+          // escrito — o formulário fica com o resto
           <div className={cn('flex shrink-0 items-center gap-2 pb-2', pad)} data-dialog-toolbar={minimal || undefined}>
             <button
               type="button"
@@ -317,9 +361,14 @@ export function PlayerPicker({ tournamentId, entries, variant, onAdded, onClose 
             >
               <ArrowLeft className="h-5 w-5" />
             </button>
-            <h3 className="min-w-0 flex-1 truncate text-base font-semibold text-text-primary">Cadastrar jogador novo</h3>
+            {/* Até 2 linhas, sem cortar (a 320–375 px, com voltar, X e ✓ na barra, não cabe numa linha); 2 linhas de
+                leading-tight (40 px) cabem na altura dos botões de 44 px, então a barra não cresce */}
+            <h3 className="line-clamp-2 min-w-0 flex-1 break-words text-base font-semibold leading-tight text-text-primary">Cadastrar jogador novo</h3>
             {row && primary}
+            {/* X antes do ✓, que fica no canto: a mesma ordem do Modal com submitAction e da FormPageBar ([X][✓]) — quem
+                salva no canto de cima à direita não fecha o picker sem querer (revisão da onda 15) */}
             {minimal && !terminal && exitButton}
+            {check}
           </div>
         ) : (
           <div className={cn('shrink-0 pb-2', pad)}>
@@ -334,7 +383,8 @@ export function PlayerPicker({ tournamentId, entries, variant, onAdded, onClose 
             <h3 className="mt-1 text-base font-semibold text-text-primary">Cadastrar jogador novo</h3>
           </div>
         )}
-        {row && alerts && <div className={cn('shrink-0', pad)}>{alerts}</div>}
+        {/* Sem rodapé (linha única larga ou X/✓ do celular): os avisos ficam logo abaixo da barra de cima */}
+        {(row || checkTop) && alerts && <div className={cn('shrink-0', pad)}>{alerts}</div>}
         {/* scroll-py-3: o campo rolado para a vista (teclado abre/fecha) fica com folga embaixo — borda e anel de foco inteiros */}
         <div ref={scrollRef} className={cn('min-h-0 flex-1 overflow-y-auto overscroll-contain scroll-py-3 pb-3', pad)} data-picker-scroll>
           <form
@@ -347,7 +397,8 @@ export function PlayerPicker({ tournamentId, entries, variant, onAdded, onClose 
               value={form}
               onChange={patchForm}
               errors={formErrors}
-              autoFocusName={!form.fullName}
+              // Também com o nome sugerido pela busca: o foco fica no Nome (cursor no fim) para corrigir ou seguir
+              autoFocusName
               disabled={saving}
               idPrefix={`novo-${variant}`}
               whatsappHint={terminal ? 'Opcional. Fica só com o organizador.' : 'Opcional.'}
@@ -355,7 +406,7 @@ export function PlayerPicker({ tournamentId, entries, variant, onAdded, onClose 
             <button type="submit" className="hidden" aria-hidden="true" tabIndex={-1} />
           </form>
         </div>
-        {!row && (
+        {!row && !checkTop && (
           <div
             className={cn('shrink-0 border-t border-border-default pt-3', pad)}
             style={terminal ? { paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' } : undefined}
@@ -414,7 +465,7 @@ export function PlayerPicker({ tournamentId, entries, variant, onAdded, onClose 
       {/* Barra de cima: a busca (sempre no mesmo lugar da árvore — trocar de layout não tira o foco) e, no layout mínimo,
           o fechar de quem abriga e (com largura de sobra) os botões; no mínimo ela faz as vezes de cabeçalho
           (data-dialog-toolbar: o toast desvia dela antes de desviar da lista — useToasterPlacement) */}
-      <div className={cn('flex shrink-0 items-center gap-2 pb-2', pad)} data-dialog-toolbar={minimal || undefined}>
+      <div ref={searchBarRef} className={cn('flex shrink-0 items-center gap-2 pb-2', pad)} data-dialog-toolbar={minimal || undefined}>
         {minimal && terminal && exitButton}
         <SearchInput
           value={search}
@@ -522,7 +573,7 @@ export function PlayerPicker({ tournamentId, entries, variant, onAdded, onClose 
                 <p className="text-sm text-text-secondary">
                   Nenhum jogador encontrado para “{search.trim()}”.
                 </p>
-                <Button variant="secondary" onClick={() => openNew(normalizeSpaces(search))}>
+                <Button variant="secondary" onClick={() => openNew()}>
                   <UserPlus className="h-4 w-4" /> Cadastrar “{normalizeSpaces(search)}”
                 </Button>
               </li>

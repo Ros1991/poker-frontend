@@ -145,12 +145,16 @@ export function AddMemberModal({
     addMutation.mutate()
   }
 
+  // No celular o ✓ do cabeçalho faz o mesmo que o botão do rodapé e o rodapé some (SPEC-20261027-2132)
+  const submitAction = { label: 'Adicionar', onClick: handleAdd, loading: addMutation.isPending, disabled: !found || alreadyMember }
+
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
       title="Adicionar Membro"
       size="md"
+      submitAction={submitAction}
       footer={
         <div className="flex justify-end gap-3">
           <Button

@@ -59,12 +59,59 @@ export async function movePlayer(
     toSeat: number
     /** 'balance' = movido pelo aviso de mesas desequilibradas (aparece no histórico) */
     reason?: 'balance'
+    /**
+     * Arrastar até um lugar vazio (SPEC-20261027-2133): se alguém sentou nele nesse meio-tempo, o servidor recusa (400)
+     * em vez de trocar com quem chegou. Sem o campo, lugar ocupado troca os dois (o "Mover jogador" de sempre).
+     */
+    requireFreeSeat?: boolean
   },
 ): Promise<void> {
   await apiClient.post(
     `/tournaments/${tournamentId}/tables/move`,
     data,
   )
+}
+
+export interface SwapPlayersResult {
+  /** "Fulano e Beltrano trocaram de lugar." */
+  message: string
+  entry: { id: string; name: string; tableId: string; tableName: string; seatNumber: number }
+  other: { id: string; name: string; tableId: string; tableName: string; seatNumber: number }
+}
+
+/**
+ * Troca dois jogadores sentados de lugar numa operação só (SPEC-20261027-2133: soltar um jogador no lugar de outro).
+ * `from`/`to` = onde o painel via cada um ao soltar: se um deles mudou de lugar nesse meio-tempo, 400 sem mexer em ninguém.
+ */
+export async function swapPlayers(
+  tournamentId: string,
+  data: {
+    entryId: string
+    otherEntryId: string
+    fromTableId?: string
+    fromSeat?: number
+    toTableId?: string
+    toSeat?: number
+  },
+): Promise<SwapPlayersResult> {
+  const response = await apiClient.post<SwapPlayersResult>(`/tournaments/${tournamentId}/tables/swap`, data)
+  return response.data
+}
+
+/**
+ * Exclui uma mesa sem ninguém sentado (SPEC-20261027-2133). Com jogador sentado o servidor recusa com 400 e a mensagem
+ * em pt-BR; o dealer da mesa fica livre e a mesa some do painel, do telão e do terminal.
+ */
+export async function remove(tournamentId: string, tableId: string): Promise<void> {
+  await apiClient.delete(`/tournaments/${tournamentId}/tables/${tableId}`)
+}
+
+/** Evento SignalR `TablesUpdate` (TablesController, depois do commit de toda mudança de mesa/lugar) */
+export interface TablesUpdateEvent {
+  tournamentId: string
+  action: 'created' | 'drawn' | 'balanced' | 'moved' | 'swapped' | 'broken' | 'unseated' | 'dealer' | 'deleted'
+  tableId: string | null
+  tableName: string | null
 }
 
 export async function unseatPlayer(

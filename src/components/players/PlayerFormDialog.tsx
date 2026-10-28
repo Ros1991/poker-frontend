@@ -101,12 +101,16 @@ function PlayerFormDialogContent({ onClose, homeGameId, person, existing = [], o
     onClose()
   }
 
+  // No celular o ✓ do cabeçalho faz o mesmo que este botão e o rodapé some (SPEC-20261027-2132)
+  const submitAction = { label: editing ? 'Salvar' : 'Cadastrar jogador', onClick: () => void save(), loading: saving }
+
   return (
     <Modal
       isOpen
       onClose={onClose}
       title={editing ? 'Editar jogador' : 'Novo jogador'}
       size="lg"
+      submitAction={submitAction}
       footer={
         <div className="flex justify-end gap-2">
           <Button variant="secondary" onClick={onClose} disabled={saving}>

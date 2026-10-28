@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
@@ -47,15 +47,18 @@ import { AccessDeniedState } from '../../components/common/AccessDeniedState'
 import { isForbiddenError } from '../../utils/httpErrors'
 import { useHomeGame } from '../../hooks/useHomeGame'
 import { useAuth } from '../../hooks/useAuth'
+import { useTabScrollReset } from '../../hooks/useTabScrollReset'
 import { hasFeature, MY_PLAN_QUERY_KEY } from '../../hooks/usePlan'
 import { NewTournamentButton } from '../../components/tournament/NewTournamentButton'
 import { RankingLockedPreview } from '../rankings/RankingLockedPreview'
+import { HOME_GAME_TABS, parseHomeGameTab } from '../../components/layout/navTabs'
+import type { HomeGameTabKey } from '../../components/layout/navTabs'
 import type { PlanName } from '../../types/plan.types'
 import type { TournamentStatus } from '../../types/tournament.types'
 import type { Person } from '../../types/person.types'
 import type { HomeGameMember } from '../../types/homeGame.types'
 
-type Tab = 'torneios' | 'rankings' | 'blinds' | 'membros' | 'jogadores'
+type Tab = HomeGameTabKey
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat('pt-BR', {
@@ -79,12 +82,14 @@ export function HomeGameDetailPage() {
   const { selectHomeGame, selectedHomeGame, refreshHomeGames } = useHomeGame()
   const { user } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
-  // O dealer entra pelo QR (SPEC-20261023-1216): sem aba de dealers; um link antigo com a aba
-  // removida cai em Torneios
-  const validTabs: Tab[] = ['torneios', 'rankings', 'jogadores', 'membros', 'blinds']
-  const tabParam = searchParams.get('tab') as Tab | null
-  const activeTab: Tab = tabParam && validTabs.includes(tabParam) ? tabParam : 'torneios'
+  // Aba na URL (?tab=); a mesma definição das abas serve a barra de baixo do celular (SPEC-20261027-2132). O dealer
+  // entra pelo QR (SPEC-20261023-1216): sem aba de dealers; um link antigo com a aba removida cai em Torneios
+  const activeTab: Tab = parseHomeGameTab(searchParams.get('tab'))
   const setActiveTab = (tab: Tab) => setSearchParams({ tab }, { replace: true })
+  // Trocar de aba com a página rolada abre a aba nova do começo dela; vindo de outra tela (barra de baixo, menu) com o
+  // <main> ainda rolado, abre do topo (revisão da onda 15)
+  const tabContentRef = useRef<HTMLDivElement>(null)
+  useTabScrollReset(activeTab, id, tabContentRef)
   const [isEditOpen, setIsEditOpen] = useState(false)
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false)
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
@@ -181,14 +186,6 @@ export function HomeGameDetailPage() {
   const tournaments = (tournamentsData?.data ?? []).filter(
     (t) => t.status !== 'Cancelled',
   )
-
-  const tabs: { key: Tab; label: string; icon: typeof Trophy }[] = [
-    { key: 'torneios', label: 'Torneios', icon: Trophy },
-    { key: 'rankings', label: 'Rankings', icon: Crown },
-    { key: 'blinds', label: 'Estruturas', icon: Timer },
-    { key: 'jogadores', label: 'Jogadores', icon: Gamepad2 },
-    { key: 'membros', label: 'Membros', icon: Users },
-  ]
 
   if (isLoading) {
     return (
@@ -294,10 +291,10 @@ export function HomeGameDetailPage() {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="border-b border-border-default">
+      {/* Abas do topo só no computador (lg+): no celular a navegação é a barra de baixo (SPEC-20261027-2132) */}
+      <div className="hidden border-b border-border-default lg:block">
         <nav className="flex gap-0 -mb-px overflow-x-auto">
-          {tabs.map((tab) => {
+          {HOME_GAME_TABS.map((tab) => {
             const Icon = tab.icon
             return (
               <button
@@ -318,54 +315,57 @@ export function HomeGameDetailPage() {
         </nav>
       </div>
 
-      {/* Tab Content */}
-      {activeTab === 'torneios' && (
-        <TorneiosTab
-          homeGameId={id!}
-          ownerId={homeGame.ownerId}
-          homeGameName={homeGame.name}
-          tournaments={tournaments}
-          isLoading={tournamentsLoading}
-          search={tournamentSearch}
-          onSearchChange={setTournamentSearch}
-        />
-      )}
-      {activeTab === 'rankings' && (
-        <RankingsTab
-          rankings={rankings ?? []}
-          isLoading={rankingsLoading}
-          homeGameId={id!}
-          canManage={canManage}
-          locked={!canRankings}
-          ownerPlan={homeGame.ownerPlan ?? null}
-          homeGameName={homeGame.name}
-        />
-      )}
-      {activeTab === 'blinds' && (
-        <BlindsTab
-          homeGameId={id!}
-          structures={blindStructures ?? []}
-          isLoading={blindsLoading}
-          canManage={canManage}
-        />
-      )}
-      {activeTab === 'jogadores' && (
-        <PersonsTab
-          homeGameId={id!}
-          persons={jogadoresData ?? []}
-          isLoading={jogadoresLoading}
-          canManage={canManage}
-        />
-      )}
-      {activeTab === 'membros' && (
-        <MembrosTab
-          homeGameId={id!}
-          members={members ?? []}
-          isLoading={membersLoading}
-          onAddMember={() => setIsAddMemberOpen(true)}
-          canManage={canManage}
-        />
-      )}
+      {/* Tab Content (data-tab-content: começo da aba aberta — a troca de aba com a página rolada volta para cá:
+          useTabScrollReset) */}
+      <div ref={tabContentRef} data-tab-content={activeTab}>
+        {activeTab === 'torneios' && (
+          <TorneiosTab
+            homeGameId={id!}
+            ownerId={homeGame.ownerId}
+            homeGameName={homeGame.name}
+            tournaments={tournaments}
+            isLoading={tournamentsLoading}
+            search={tournamentSearch}
+            onSearchChange={setTournamentSearch}
+          />
+        )}
+        {activeTab === 'rankings' && (
+          <RankingsTab
+            rankings={rankings ?? []}
+            isLoading={rankingsLoading}
+            homeGameId={id!}
+            canManage={canManage}
+            locked={!canRankings}
+            ownerPlan={homeGame.ownerPlan ?? null}
+            homeGameName={homeGame.name}
+          />
+        )}
+        {activeTab === 'blinds' && (
+          <BlindsTab
+            homeGameId={id!}
+            structures={blindStructures ?? []}
+            isLoading={blindsLoading}
+            canManage={canManage}
+          />
+        )}
+        {activeTab === 'jogadores' && (
+          <PersonsTab
+            homeGameId={id!}
+            persons={jogadoresData ?? []}
+            isLoading={jogadoresLoading}
+            canManage={canManage}
+          />
+        )}
+        {activeTab === 'membros' && (
+          <MembrosTab
+            homeGameId={id!}
+            members={members ?? []}
+            isLoading={membersLoading}
+            onAddMember={() => setIsAddMemberOpen(true)}
+            canManage={canManage}
+          />
+        )}
+      </div>
 
       {/* Edit Modal */}
       <HomeGameFormModal

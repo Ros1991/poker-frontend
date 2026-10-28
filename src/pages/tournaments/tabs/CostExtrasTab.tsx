@@ -367,6 +367,12 @@ export function CostExtrasTab({ tournament }: CostExtrasTabProps) {
         }}
         title={editingCost ? 'Editar Custo Extra' : 'Adicionar Custo Extra'}
         size="sm"
+        // No celular o ✓ do cabeçalho faz o mesmo que o botão do rodapé e o rodapé some (SPEC-20261027-2132)
+        submitAction={{
+          label: editingCost ? 'Salvar' : 'Adicionar',
+          form: 'cost-extra-form',
+          loading: createMutation.isPending || editMutation.isPending,
+        }}
         footer={
           <div className="flex gap-3 justify-end">
             <Button

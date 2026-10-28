@@ -89,6 +89,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
               <li key={homeGame.id}>
                 <button
                   onClick={() => handleSelectHomeGame(homeGame)}
+                  aria-current={selectedHomeGame?.id === homeGame.id ? 'true' : undefined}
                   className={cn(
                     'w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors min-h-[44px] text-left',
                     selectedHomeGame?.id === homeGame.id
@@ -113,6 +114,8 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
           <li>
             <NavLink
               to={ROUTES.HOME_GAME_NEW}
+              // No celular o menu ☰ fecha ao tocar (como os outros itens; antes ficava aberto por cima da tela nova)
+              onClick={onNavigate}
               className={({ isActive }) =>
                 cn(
                   'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors min-h-[44px]',

@@ -6,6 +6,8 @@ import { cn } from '../../utils/cn'
 import { lockBodyScroll } from '../../utils/scrollLock'
 import { useVisualViewport } from '../../hooks/useVisualViewport'
 import { useFocusedFieldIntoView } from '../../hooks/useFocusedFieldIntoView'
+import { SubmitCheckButton } from './FormTopBar'
+import type { SubmitAction } from './FormTopBar'
 
 interface ModalProps {
   isOpen: boolean
@@ -30,6 +32,12 @@ interface ModalProps {
    * deitado com o teclado aberto: sobram 150–240 px). Padrão `normal`.
    */
   chrome?: 'normal' | 'tight' | 'none'
+  /**
+   * Formulário com rodapé Cancelar + Salvar/Criar/Cadastrar (SPEC-20261027-2132): no celular (< sm) o ✓ entra no
+   * cabeçalho, ao lado do X (que já faz o mesmo que o Cancelar), com o mesmo efeito, validação e estado do botão do
+   * rodapé — e o rodapé some. No computador (sm+) nada muda. Confirmações e diálogos com verbo próprio não passam.
+   */
+  submitAction?: SubmitAction
 }
 
 const sizeClasses = {
@@ -50,12 +58,33 @@ export function Modal(props: ModalProps) {
   return <OpenModal {...props} />
 }
 
-function OpenModal({ onClose, title, children, footer, className, size = 'md', fill = false, chrome = 'normal' }: ModalProps) {
+function OpenModal({
+  onClose,
+  title,
+  children,
+  footer,
+  className,
+  size = 'md',
+  fill = false,
+  chrome = 'normal',
+  submitAction,
+}: ModalProps) {
   const titleId = useId()
   const viewport = useVisualViewport()
   const handleFocus = useFocusedFieldIntoView()
 
   useEffect(() => lockBodyScroll(), [])
+
+  const closeButton = (
+    <button
+      type="button"
+      onClick={onClose}
+      className="flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-lg text-text-secondary transition-colors hover:bg-bg-tertiary hover:text-text-primary"
+      aria-label="Fechar"
+    >
+      <X className="h-5 w-5" />
+    </button>
+  )
 
   return createPortal(
     <div
@@ -93,17 +122,25 @@ function OpenModal({ onClose, title, children, footer, className, size = 'md', f
               chrome === 'tight' ? 'py-0' : 'py-3 sm:py-4',
             )}
           >
-            <h2 id={titleId} className="min-w-0 truncate text-lg font-semibold text-text-primary">
+            {/* Com o ✓ (celular): o X + ✓ ocupam 88 px e o título pode quebrar em até 2 linhas, sem cortar a 320 px
+                (revisão da onda 15); do sm para cima, uma linha como sempre */}
+            <h2
+              id={titleId}
+              className={cn(
+                'min-w-0 truncate text-lg font-semibold text-text-primary',
+                submitAction && 'max-sm:line-clamp-2 max-sm:whitespace-normal max-sm:break-words max-sm:leading-tight',
+              )}
+            >
               {title}
             </h2>
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-lg text-text-secondary transition-colors hover:bg-bg-tertiary hover:text-text-primary"
-              aria-label="Fechar"
-            >
-              <X className="h-5 w-5" />
-            </button>
+            {submitAction ? (
+              <div className="flex shrink-0 items-center gap-1">
+                {closeButton}
+                <SubmitCheckButton action={submitAction} className="sm:hidden" />
+              </div>
+            ) : (
+              closeButton
+            )}
           </div>
         )}
         <div
@@ -120,7 +157,7 @@ function OpenModal({ onClose, title, children, footer, className, size = 'md', f
         {footer && (
           <div
             data-modal-footer
-            className="shrink-0 border-t border-border-default px-4 pt-3 sm:px-6"
+            className={cn('shrink-0 border-t border-border-default px-4 pt-3 sm:px-6', submitAction && 'hidden sm:block')}
             style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
           >
             {footer}
