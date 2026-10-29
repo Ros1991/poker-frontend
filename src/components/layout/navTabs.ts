@@ -77,13 +77,19 @@ export interface SectionsSource {
   canManage?: boolean
   /** Membros além do dono (um ex-Clube rebaixado para o Mesa continua vendo os membros que tem) */
   memberCount?: number
+  /** Principal da conta do dono (SPEC-20261029-1723) */
+  isPrimary?: boolean
+  /** Quem está logado é o DONO do home game */
+  isOwner?: boolean
 }
 
 /**
  * Seções que o menu mostra para o home game (SPEC-20261029-1724):
  * - Mesa (plano do dono): Torneios · Estruturas · Jogadores — sem rankings, membros nem configurações (sem financeiro,
- *   logo ou membros não há o que configurar). Exceção: o Mesa que ainda tem membros (veio de um plano pago) vê Membros
- *   para poder tirá-los.
+ *   logo ou membros não há o que configurar). Exceções de quem veio de um plano pago: o Mesa que ainda tem membros vê
+ *   Membros para poder tirá-los; e o DONO vê Configurações num home game que NÃO é o principal (ex-Liga com home games
+ *   extras), a única tela onde ele os exclui — sem isso o "Excluir conta" recusa ("Exclua-os antes…"). No principal do
+ *   Mesa continua sem Configurações.
  * - Clube e Liga: Torneios · Rankings · Estruturas · Jogadores · Membros · Configurações, com Membros e Configurações só
  *   para quem gerencia.
  * Plano do dono ainda desconhecido (carregando): o conjunto do Mesa, que nunca mostra o que pode não existir.
@@ -102,7 +108,7 @@ export function visibleHomeGameSections(source: SectionsSource | null | undefine
       case 'membros':
         return manage && (paid || (source?.memberCount ?? 0) > 0)
       case 'configuracoes':
-        return paid && manage
+        return (paid && manage) || (!!source?.isOwner && source.isPrimary === false)
     }
   }).map((t) => t.key)
 }

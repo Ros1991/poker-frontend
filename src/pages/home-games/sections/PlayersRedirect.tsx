@@ -5,7 +5,8 @@ import { ROUTES, homeGameSectionPath } from '../../../constants/routes'
 
 /**
  * `/players` (a lista de jogadores do home game ativo, de antes da SPEC-20261029-1724) → a seção Jogadores do home game
- * selecionado; sem nenhum, o Início.
+ * selecionado; sem nenhum, o Início. Espera a primeira carga da lista (`isLoading` do contexto já começa true para quem
+ * está logado): aberto direto, sem isso caía no Início antes de a lista chegar.
  */
 export function PlayersRedirect() {
   const { selectedHomeGame, isLoading } = useHomeGame()

@@ -57,7 +57,8 @@ export function HomeGameSelector({ className }: { className?: string }) {
   function choose(homeGame: HomeGame) {
     setOpen(false)
     selectHomeGame(homeGame)
-    const keep = route.section && visibleHomeGameSections(homeGame).includes(route.section) ? route.section : 'torneios'
+    const sections = visibleHomeGameSections({ ...homeGame, isOwner: homeGame.ownerId === user?.id })
+    const keep = route.section && sections.includes(route.section) ? route.section : 'torneios'
     navigate(homeGameSectionPath(homeGame.id, keep))
   }
 

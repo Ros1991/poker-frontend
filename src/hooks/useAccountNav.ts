@@ -153,7 +153,7 @@ export function useAccountNav(): AccountNav {
     route,
     current,
     currentId,
-    sections: visibleHomeGameSections(current),
+    sections: visibleHomeGameSections(current && { ...current, isOwner: !!user && current.ownerId === user.id }),
     isLiga,
     showSelector: isLiga || homeGames.length > 1,
     homeGames,

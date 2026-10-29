@@ -19,7 +19,7 @@ import type { HomeGameShellContext } from './sections/homeGameShell'
  * Casca do home game (SPEC-20261029-1724): as abas de antes viraram seções por rota (`/home-games/:id/<seção>`, ver
  * `navTabs.ts`), abertas pelo `<Outlet>`. A casca carrega o home game, confere o acesso (403 → AccessDeniedState),
  * manda para Torneios a seção que este home game não mostra (ex.: Membros para quem não gerencia, Configurações no
- * Mesa) e desenha o cabeçalho de UMA linha: o nome da seção — e, quando "home game" aparece como conceito (Liga, ou
+ * principal do Mesa) e desenha o cabeçalho de UMA linha: o nome da seção — e, quando "home game" aparece como conceito (Liga, ou
  * conta que acessa mais de um), o nome do home game e o selo Inativo —, com "⋯" → Configurações no celular. Nome do
  * clube, descrição, local, contagens, Editar e Excluir ficam em Configurações (`HomeGameSettingsPage`).
  */
@@ -71,7 +71,7 @@ export function HomeGameDetailPage() {
   const isOwner = homeGame.ownerId === user?.id
   // canManage vem da API (dono, membro administrador ou Admin do sistema); sem o campo, o que dá para saber aqui
   const canManage = homeGame.canManage ?? (user?.role === 'Admin' || isOwner)
-  const visible = visibleHomeGameSections({ ...homeGame, canManage })
+  const visible = visibleHomeGameSections({ ...homeGame, canManage, isOwner })
   // Seção que este home game não mostra: Torneios (a URL antiga ou digitada não cai numa tela vazia)
   if (!visible.includes(section)) {
     return <Navigate to={homeGameSectionPath(homeGame.id, 'torneios')} replace />

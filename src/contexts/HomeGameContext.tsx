@@ -55,7 +55,11 @@ export function HomeGameProvider({ children }: HomeGameProviderProps) {
   const { isAuthenticated, user } = useAuth()
   const [homeGames, setHomeGames] = useState<HomeGame[]>([])
   const [selectedHomeGame, setSelectedHomeGame] = useState<HomeGame | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
+  const [isFetching, setIsFetching] = useState(false)
+  // Conta cuja lista já carregou ao menos uma vez (com sucesso ou não). Até lá `isLoading` é true: quem decide pelo
+  // home game selecionado (o `/players` aberto direto, por exemplo) espera a primeira carga em vez de cair no Início —
+  // inclusive no render logo depois do login, antes de o efeito da carga começar.
+  const [loadedFor, setLoadedFor] = useState<string | null>(null)
 
   const userId = user?.id
   const loadHomeGames = useCallback(async () => {
@@ -65,7 +69,7 @@ export function HomeGameProvider({ children }: HomeGameProviderProps) {
       return
     }
 
-    setIsLoading(true)
+    setIsFetching(true)
     try {
       const data = await homeGamesApi.getAll()
       setHomeGames(data)
@@ -82,9 +86,12 @@ export function HomeGameProvider({ children }: HomeGameProviderProps) {
     } catch {
       setHomeGames([])
     } finally {
-      setIsLoading(false)
+      setIsFetching(false)
+      setLoadedFor(userId)
     }
   }, [isAuthenticated, userId])
+
+  const isLoading = isFetching || (isAuthenticated && !!userId && loadedFor !== userId)
 
   useEffect(() => {
     void loadHomeGames()

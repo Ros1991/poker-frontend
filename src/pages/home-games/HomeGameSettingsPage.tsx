@@ -49,9 +49,10 @@ function Field({ label, value }: { label: string; value: ReactNode }) {
 /**
  * Configurações do clube (SPEC-20261029-1724, Clube e Liga): o que ficava no cabeçalho enorme do home game — nome do
  * clube, descrição, local, contagens, logo, PIX e valores padrão, Editar (o modal de sempre) e Excluir (só na Liga e
- * nunca o principal; `DeleteHomeGameModal`). No Mesa não existe (o menu nem mostra: sem financeiro, logo ou membros não
- * há o que configurar). Quem gerencia sem ser o dono (membro administrador) vê, mas só o dono edita (o PUT só aceita o
- * dono).
+ * nunca o principal; `DeleteHomeGameModal`). No principal do Mesa não existe (o menu nem mostra: sem financeiro, logo ou
+ * membros não há o que configurar); num home game extra de dono Mesa (ex-Liga rebaixada) o dono vê, para poder
+ * excluí-lo (`visibleHomeGameSections`). Quem gerencia sem ser o dono (membro administrador) vê, mas só o dono edita (o
+ * PUT só aceita o dono).
  */
 export function HomeGameSettingsPage() {
   const { homeGame, isOwner, canDelete, label, showsHomeGames, markDeleted } = useHomeGameShell()
