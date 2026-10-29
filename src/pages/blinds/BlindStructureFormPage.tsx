@@ -10,6 +10,8 @@ import { FormPageBar } from '../../components/ui/FormTopBar'
 import { Input } from '../../components/ui/Input'
 import { PixKeyInput } from '../../components/pix/PixKeyInput'
 import { KnockoutFields } from '../../components/tournament/KnockoutFields'
+import { TimebankFields } from '../../components/tournament/TimebankFields'
+import { TIMEBANK_DEFAULT_SECONDS, timebankFieldErrors } from '../../utils/timebank'
 import { checkPixKey, toPixKeyPayload, type PixKeyType } from '../../utils/pix'
 import { bountyError, knockoutTypeOf, type KnockoutType } from '../../utils/knockout'
 import { LoadingSpinner } from '../../components/common/LoadingSpinner'
@@ -122,6 +124,11 @@ export function BlindStructureFormPage() {
   const [knockoutType, setKnockoutType] = useState<KnockoutType>('None')
   const [bountyAmount, setBountyAmount] = useState<string>('')
   const [bountyFieldError, setBountyFieldError] = useState<string | null>(null)
+  // Timebank padrão (SPEC-20261029-1722): o torneio criado com a estrutura herda (em qualquer plano)
+  const [timebankOn, setTimebankOn] = useState(false)
+  const [timebankCount, setTimebankCount] = useState<string>('3')
+  const [timebankSecs, setTimebankSecs] = useState<string>(String(TIMEBANK_DEFAULT_SECONDS))
+  const [timebankErrors, setTimebankErrors] = useState<{ count: string | null; seconds: string | null }>({ count: null, seconds: null })
 
   const {
     data: existing,
@@ -186,6 +193,9 @@ export function BlindStructureFormPage() {
       setDealerFee(existing.defaultDealerFee != null ? String(existing.defaultDealerFee) : '')
       setKnockoutType(knockoutTypeOf({ knockoutType: existing.defaultKnockoutType }))
       setBountyAmount(existing.defaultBountyAmount != null ? String(existing.defaultBountyAmount) : '')
+      setTimebankOn((existing.defaultTimebankCount ?? 0) > 0)
+      setTimebankCount(String(existing.defaultTimebankCount ?? 3))
+      setTimebankSecs(String(existing.defaultTimebankSeconds ?? TIMEBANK_DEFAULT_SECONDS))
       setLevels(
         existing.levels.map((l: BlindLevel, i: number) => ({
           key: i + 1,
@@ -237,6 +247,9 @@ export function BlindStructureFormPage() {
         // Knockout padrão (SPEC-20261026-1909): sempre explícito; Normal apaga o valor
         defaultKnockoutType: knockoutType,
         defaultBountyAmount: knockoutType !== 'None' ? Number(bountyAmount) : null,
+        // Timebank padrão (SPEC-20261029-1722): sempre explícito; 0 = sem timebank
+        defaultTimebankCount: timebankOn ? Number(timebankCount) : 0,
+        defaultTimebankSeconds: timebankOn ? Number(timebankSecs) : undefined,
         levels: levels.map((l, i) => ({
           levelNumber: i + 1,
           smallBlind: l.isBreak ? 0 : l.smallBlind,
@@ -377,6 +390,16 @@ export function BlindStructureFormPage() {
       toast.error(msg)
       document.getElementById('estrutura-max-addons')?.focus()
       return
+    }
+    // Timebank padrão (SPEC-20261029-1722): ligado, 1 a 99 por jogador e 5 a 300 segundos
+    if (timebankOn) {
+      const tb = timebankFieldErrors(timebankCount, timebankSecs)
+      if (tb.count || tb.seconds) {
+        setTimebankErrors(tb)
+        toast.error(`Timebank: ${(tb.count ?? tb.seconds ?? '').toLowerCase()}.`)
+        document.getElementById(tb.count ? 'estrutura-timebank-quantidade' : 'estrutura-timebank-segundos')?.focus()
+        return
+      }
     }
     // Knockout padrão: bounty obrigatório e, com buy-in padrão, menor que ele (e até o rebuy padrão)
     if (knockoutType !== 'None') {
@@ -644,6 +667,29 @@ export function BlindStructureFormPage() {
           buyIn={Number(defaultBuyIn) || 0}
           rebuy={Number(defaultRebuy) || 0}
           error={bountyFieldError}
+        />
+
+        {/* Timebank padrão (SPEC-20261029-1722) */}
+        <TimebankFields
+          idPrefix="estrutura"
+          description="Padrão dos torneios criados com esta estrutura (dá para trocar no torneio). O dealer conta o tempo no celular, pelo terminal."
+          enabled={timebankOn}
+          onEnabledChange={(v) => {
+            setTimebankOn(v)
+            setTimebankErrors({ count: null, seconds: null })
+          }}
+          count={timebankCount}
+          onCountChange={(v) => {
+            setTimebankCount(v)
+            setTimebankErrors((e) => ({ ...e, count: null }))
+          }}
+          seconds={timebankSecs}
+          onSecondsChange={(v) => {
+            setTimebankSecs(v)
+            setTimebankErrors((e) => ({ ...e, seconds: null }))
+          }}
+          countError={timebankErrors.count}
+          secondsError={timebankErrors.seconds}
         />
 
         {/* Custos padrão do torneio (SPEC-20261023-1215) */}

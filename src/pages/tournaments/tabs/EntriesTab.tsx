@@ -27,6 +27,7 @@ import { TableAlerts } from '../../../components/dealer/TableAlerts'
 import { TablesOverview } from '../../../components/dealer/TablesSheet'
 import { useTableSuggestions } from '../../../components/dealer/useTableSuggestions'
 import { useTerminalActions } from '../../../components/dealer/useTerminalActions'
+import { useTimebank } from '../../../components/dealer/useTimebank'
 import {
   amountDue,
   apiErrorMessage,
@@ -136,6 +137,8 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
     onChooseMyself: () => setTablesOpen(true),
   })
   const actions = useTerminalActions(tid, tournament, { onEliminationUndone: suggestions.close })
+  // Timebank virtual (SPEC-20261029-1722): chip "⏱ N" e +1/−1 (sheet pelo chip e na Ficha); a contagem fica no terminal
+  const timebank = useTimebank({ tournamentId: tid, tournament, entries, invalidateAll: actions.invalidateAll, allowUse: false })
   const activeEntries = useMemo(() => entries.filter((e) => isActiveStatus(e.status)), [entries])
   const unseatedCount = useMemo(() => countUnseated(allTables, entries), [allTables, entries])
   // Avisos de mesa do topo só com o jogo valendo (torneio encerrado ou caixa fechado não mexe em mesa)
@@ -272,6 +275,7 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
         showPayment={canPay}
         showSeat={canTables}
         knockout={knockout}
+        timebank={timebank.enabled ? { onOpen: () => timebank.open(entry) } : undefined}
       />
     )
   }
@@ -531,12 +535,24 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
             organizerActions={organizerActions(fichaEntry)}
             removePhoto={() => personsApi.removePhoto(fichaEntry.personId)}
             onPhotoChanged={() => void queryClient.invalidateQueries({ queryKey: ['persons', tournament.homeGameId] })}
+            timebank={
+              timebank.enabled
+                ? {
+                    onOpen: () => timebank.open(fichaEntry),
+                    onAdjust: (delta) => void timebank.adjust(fichaEntry, delta),
+                    adjusting: timebank.adjusting,
+                  }
+                : undefined
+            }
           />
         )}
       </Modal>
 
       {/* ── Ações do jogador (os mesmos diálogos do terminal) ── */}
       {flows.dialogs}
+
+      {/* ── Timebank: sheet com +1/−1 (só com o timebank ligado; a contagem fica no terminal) ── */}
+      {timebank.dialogs}
 
       {/* ── Mesas como no terminal: as mesas com os lugares, sortear de novo, quebrar e o sorteio de equilíbrio ── */}
       {canTables && (

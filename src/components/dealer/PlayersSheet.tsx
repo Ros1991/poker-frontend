@@ -9,6 +9,7 @@ import type { TournamentEntry } from '../../types/entry.types'
 import type { KnockoutType } from '../../utils/knockout'
 import { BountyLabel, DueLabel, EliminationsLabel } from './PlayerCard'
 import { Sheet } from './Sheet'
+import { TimebankChip } from './TimebankChip'
 import { isActiveStatus, matchesPlayerSearch, playerName, seatLabel, statusLabel } from './terminalFormat'
 
 interface PlayersSheetProps {
@@ -24,6 +25,11 @@ interface PlayersSheetProps {
   showTables?: boolean
   /** Formato do torneio (SPEC-20261026-1909): bounties de cada um */
   knockout?: KnockoutType
+  /**
+   * Timebank ligado no torneio (SPEC-20261029-1722): o chip "⏱ N" de quem ainda joga, na ponta da linha; tocar abre a
+   * TimebankSheet. Ausente = a lista fica como antes.
+   */
+  timebank?: { onOpen: (entry: TournamentEntry) => void }
 }
 
 /** Todos os jogadores do torneio: ativos primeiro (por nome), depois eliminados */
@@ -37,6 +43,7 @@ export function PlayersSheet({
   showPayments = true,
   showTables = true,
   knockout = 'None',
+  timebank,
 }: PlayersSheetProps) {
   const [search, setSearch] = useState('')
 
@@ -69,15 +76,24 @@ export function PlayersSheet({
         <ul className="flex flex-col gap-1.5">
           {list.map((e) => {
             const active = isActiveStatus(e.status)
+            // Timebank (SPEC-20261029-1722): a linha vira [abrir a Ficha][⏱ N] — dois botões lado a lado, sem aninhar
+            const chip = timebank && active
             return (
-              <li key={e.id}>
+              <li
+                key={e.id}
+                className={cn(
+                  chip && 'flex items-center gap-1 rounded-lg border border-border-default pr-2',
+                  chip && (active ? 'bg-bg-secondary' : 'bg-bg-zebra'),
+                )}
+              >
                 <button
                   type="button"
                   onClick={() => onOpenPlayer(e)}
                   className={cn(
                     // Inativo: fundo zebra e nome em text-secondary, sem opacidade (que derrubava o texto abaixo de AA)
-                    'flex min-h-[56px] w-full items-center gap-2.5 rounded-lg border border-border-default p-2 text-left',
-                    active ? 'bg-bg-secondary' : 'bg-bg-zebra',
+                    'flex min-h-[56px] w-full items-center gap-2.5 rounded-lg p-2 text-left',
+                    chip ? 'min-w-0 flex-1' : 'border border-border-default',
+                    !chip && (active ? 'bg-bg-secondary' : 'bg-bg-zebra'),
                   )}
                 >
                   <Avatar src={e.person.photoUrl} name={e.person.fullName} size="sm" />
@@ -95,6 +111,14 @@ export function PlayersSheet({
                   {showPayments && <DueLabel entry={e} className="shrink-0 text-xs" />}
                   <ChevronRight className="h-4 w-4 shrink-0 text-text-muted" />
                 </button>
+                {chip && (
+                  <TimebankChip
+                    remaining={e.timebanksRemaining ?? 0}
+                    onClick={() => timebank.onOpen(e)}
+                    playerName={playerName(e)}
+                    className="my-0"
+                  />
+                )}
               </li>
             )
           })}

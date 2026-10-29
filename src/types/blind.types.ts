@@ -57,6 +57,13 @@ export interface BlindStructure {
    */
   defaultKnockoutType?: KnockoutType
   defaultBountyAmount?: number | null
+  /**
+   * Timebank padrão (SPEC-20261029-1722): null = sem timebank; 1 a 99 por jogador. No pedido, 0 desliga e ausente mantém
+   * (PUT). O torneio criado com a estrutura herda.
+   */
+  defaultTimebankCount?: number | null
+  /** Segundos de cada timebank padrão (5 a 300) */
+  defaultTimebankSeconds?: number | null
 }
 
 export interface BlindLevel {

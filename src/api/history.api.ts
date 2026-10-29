@@ -25,6 +25,17 @@ export async function undoTransaction(
   return response.data
 }
 
+/** Desfaz uma atividade do histórico — só as de timebank (SPEC-20261029-1722): devolve o timebank usado ou desfaz o ajuste */
+export async function undoActivity(
+  tournamentId: string,
+  activityId: string,
+): Promise<{ message: string }> {
+  const response = await apiClient.post<{ message: string }>(
+    `${base(tournamentId)}/activities/${activityId}/undo`,
+  )
+  return response.data
+}
+
 export async function undoElimination(
   tournamentId: string,
   eliminationId: string,

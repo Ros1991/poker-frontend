@@ -4,6 +4,7 @@ import type { HistoryItem } from '../../types/history.types'
 import type { Tournament } from '../../types/tournament.types'
 import type { PlayerActionRules } from './PlayerCard'
 import { PlayerDetails } from './PlayerDetails'
+import type { PlayerDetailsProps } from './PlayerDetails'
 import { Sheet } from './Sheet'
 
 interface PlayerSheetProps {
@@ -27,6 +28,8 @@ interface PlayerSheetProps {
   showTables?: boolean
   /** Inscrições do torneio: a Ficha diz quem este jogador eliminou (SPEC-20261026-1908) */
   entries?: TournamentEntry[]
+  /** Timebank ligado no torneio (SPEC-20261029-1722): chip "⏱ N" na Ficha, que abre a TimebankSheet */
+  timebank?: PlayerDetailsProps['timebank']
 }
 
 /**

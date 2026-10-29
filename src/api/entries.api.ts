@@ -6,6 +6,7 @@ import type {
   AvailablePlayer,
   BulkCreateEntriesResult,
   AddonRequest,
+  TimebankResult,
 } from '../types/entry.types'
 
 const base = (tournamentId: string) =>
@@ -68,6 +69,29 @@ export async function addon(
     `${base(tournamentId)}/${entryId}/addon`,
     data ?? { quantity: 1 },
   )
+  return response.data
+}
+
+/**
+ * Timebank (SPEC-20261029-1722): registra o uso (tira 1). `actionId` é gerado no celular para este uso: o "Tentar de novo"
+ * manda o mesmo e o servidor não desconta duas vezes. A contagem do tempo é local (não espera esta resposta).
+ */
+export async function useTimebank(
+  tournamentId: string,
+  entryId: string,
+  actionId: string,
+): Promise<TimebankResult> {
+  const response = await apiClient.post<TimebankResult>(`${base(tournamentId)}/${entryId}/timebank/use`, { actionId })
+  return response.data
+}
+
+/** Timebank (SPEC-20261029-1722): dá (+1) ou tira (−1) um timebank do jogador; nunca abaixo de 0 */
+export async function adjustTimebank(
+  tournamentId: string,
+  entryId: string,
+  delta: 1 | -1,
+): Promise<TimebankResult> {
+  const response = await apiClient.post<TimebankResult>(`${base(tournamentId)}/${entryId}/timebank/adjust`, { delta })
   return response.data
 }
 

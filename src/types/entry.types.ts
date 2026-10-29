@@ -40,10 +40,24 @@ export interface TournamentEntry {
   bountyHead: number
   /** Knockout: dinheiro de bounty que o jogador já ganhou eliminando os outros */
   bountyWon: number
+  /** Timebank (SPEC-20261029-1722): quantos o jogador ainda tem (0 no torneio sem timebank) */
+  timebanksRemaining: number
   prizeAmount: number
   prizePaid: boolean
   rankingPoints: number
   createdAt: string
+}
+
+/**
+ * Resposta de POST entries/{id}/timebank/use e /adjust (SPEC-20261029-1722): a inscrição com o novo número, a atividade
+ * gravada (o "Desfazer" do toast desfaz exatamente ela) e os segundos de cada timebank do torneio
+ */
+export interface TimebankResult {
+  entry: TournamentEntry
+  activityId: string
+  seconds: number
+  /** O mesmo actionId já estava registrado (o "Tentar de novo" não descontou outra vez) */
+  alreadyRegistered: boolean
 }
 
 /** Inscrição individual: nasce sempre Pendente (sem "buy-in pago") */

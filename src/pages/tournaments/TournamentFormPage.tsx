@@ -19,6 +19,8 @@ import { FormPageBar } from '../../components/ui/FormTopBar'
 import { Input } from '../../components/ui/Input'
 import { PixKeyInput } from '../../components/pix/PixKeyInput'
 import { KnockoutFields } from '../../components/tournament/KnockoutFields'
+import { TimebankFields } from '../../components/tournament/TimebankFields'
+import { TIMEBANK_DEFAULT_SECONDS, timebankFieldErrors } from '../../utils/timebank'
 import { checkPixKey, toPixKeyPayload, type PixKeyType } from '../../utils/pix'
 import { bountyError, knockoutTypeOf } from '../../utils/knockout'
 import { LoadingSpinner } from '../../components/common/LoadingSpinner'
@@ -48,6 +50,10 @@ const tournamentSchema = z.object({
   // Knockout (SPEC-20261026-1909): formato e bounty (texto do campo; conferido no envio com bountyError)
   knockoutType: z.enum(['None', 'Simple', 'Progressive']),
   bountyAmount: z.string(),
+  // Timebank (SPEC-20261029-1722): liga/desliga e o texto dos campos (conferidos no envio com timebankFieldErrors)
+  timebankEnabled: z.boolean(),
+  timebankCount: z.string(),
+  timebankSeconds: z.string(),
 }).superRefine((v, ctx) => {
   // Mesmo limite do servidor (0 a 99, inteiro); campo escondido (add-on desmarcado) não trava o envio
   if (v.addonAllowed && (!Number.isInteger(v.maxAddons) || v.maxAddons < 0 || v.maxAddons > 99))
@@ -116,6 +122,9 @@ export function TournamentFormPage() {
       rankingContribValue: 0,
       knockoutType: 'None',
       bountyAmount: '',
+      timebankEnabled: false,
+      timebankCount: '3',
+      timebankSeconds: String(TIMEBANK_DEFAULT_SECONDS),
     },
   })
 
@@ -247,6 +256,15 @@ export function TournamentFormPage() {
       setValue('bountyAmount', structure.defaultBountyAmount != null ? String(structure.defaultBountyAmount) : '')
       clearErrors('bountyAmount')
     }
+    // Timebank padrão da estrutura (SPEC-20261029-1722): ligado com a quantidade e os segundos dela; estrutura sem timebank
+    // desliga (o organizador pode ligar abaixo)
+    const tbCount = structure.defaultTimebankCount ?? 0
+    setValue('timebankEnabled', tbCount > 0)
+    if (tbCount > 0) {
+      setValue('timebankCount', String(tbCount))
+      setValue('timebankSeconds', String(structure.defaultTimebankSeconds ?? TIMEBANK_DEFAULT_SECONDS))
+    }
+    clearErrors(['timebankCount', 'timebankSeconds'])
   }, [selectedBlindStructureId, blindStructures, setValue, clearErrors])
 
   // O <select> só mostra o valor quando a opção já existe: se o torneio carregou antes da lista de estruturas, o
@@ -289,6 +307,9 @@ export function TournamentFormPage() {
       rankingContribValue: existingTournament.rankingContribValue ?? 0,
       knockoutType: knockoutTypeOf(existingTournament),
       bountyAmount: existingTournament.bountyAmount != null ? String(existingTournament.bountyAmount) : '',
+      timebankEnabled: (existingTournament.timebankCount ?? 0) > 0,
+      timebankCount: String(existingTournament.timebankCount ?? 3),
+      timebankSeconds: String(existingTournament.timebankSeconds ?? TIMEBANK_DEFAULT_SECONDS),
     })
   }, [isEditMode, existingTournament, reset])
 
@@ -361,6 +382,17 @@ export function TournamentFormPage() {
       toast.error(koError)
       return
     }
+    // Timebank (SPEC-20261029-1722): ligado, 1 a 99 por jogador e 5 a 300 segundos (o servidor confere de novo)
+    if (data.timebankEnabled) {
+      const tb = timebankFieldErrors(data.timebankCount, data.timebankSeconds)
+      if (tb.count || tb.seconds) {
+        if (tb.count) setError('timebankCount', { message: tb.count })
+        if (tb.seconds) setError('timebankSeconds', { message: tb.seconds })
+        document.getElementById(tb.count ? 'torneio-timebank-quantidade' : 'torneio-timebank-segundos')?.focus()
+        toast.error(`Timebank: ${(tb.count ?? tb.seconds ?? '').toLowerCase()}.`)
+        return
+      }
+    }
     const payload = {
       ...data,
       rankingId: hasRanking ? data.rankingId : undefined,
@@ -386,6 +418,10 @@ export function TournamentFormPage() {
       // Formato sempre explícito (o servidor só herda da estrutura quando o campo não vem)
       knockoutType: data.knockoutType,
       bountyAmount: data.knockoutType !== 'None' ? bounty : null,
+      // Timebank sempre explícito (0 = desligado); mudar a quantidade no rascunho reaplica nas inscrições
+      timebankEnabled: undefined,
+      timebankCount: data.timebankEnabled ? Number(data.timebankCount) : 0,
+      timebankSeconds: data.timebankEnabled ? Number(data.timebankSeconds) : undefined,
     }
     if (isEditMode) {
       updateMutation.mutate(payload as Record<string, unknown>)
@@ -790,6 +826,34 @@ export function TournamentFormPage() {
             )}
           </div>
         </div>
+
+        {/* Timebank virtual (SPEC-20261029-1722): herdado da estrutura, pode trocar; em todos os planos. Desligado, só o
+            liga/desliga aparece */}
+        <TimebankFields
+          idPrefix="torneio"
+          enabled={watch('timebankEnabled')}
+          onEnabledChange={(v) => {
+            setValue('timebankEnabled', v, { shouldDirty: true })
+            clearErrors(['timebankCount', 'timebankSeconds'])
+          }}
+          count={watch('timebankCount') ?? ''}
+          onCountChange={(v) => {
+            setValue('timebankCount', v, { shouldDirty: true })
+            clearErrors('timebankCount')
+          }}
+          seconds={watch('timebankSeconds') ?? ''}
+          onSecondsChange={(v) => {
+            setValue('timebankSeconds', v, { shouldDirty: true })
+            clearErrors('timebankSeconds')
+          }}
+          countError={errors.timebankCount?.message}
+          secondsError={errors.timebankSeconds?.message}
+          note={
+            isEditMode && (existingTournament?.totalEntries ?? 0) > 0
+              ? 'Mudar a quantidade vale para todos os inscritos: cada um volta a ter esse número de timebanks.'
+              : null
+          }
+        />
 
         {/* Botões (no celular, o X e o ✓ da barra do topo) */}
         <div className="hidden gap-3 justify-end border-t border-border-default pt-4 sm:flex">

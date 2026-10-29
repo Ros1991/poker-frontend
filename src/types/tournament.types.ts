@@ -44,6 +44,10 @@ export interface Tournament {
   knockoutType: KnockoutType
   /** Parte do buy-in (e de cada rebuy) que vira bounty; null no Normal */
   bountyAmount: number | null
+  /** Timebank virtual (SPEC-20261029-1722): timebanks por jogador; null = torneio sem timebank (nada muda nas telas) */
+  timebankCount: number | null
+  /** Segundos de cada timebank (null sem timebank) */
+  timebankSeconds: number | null
   prizeConfirmed: boolean
   settlementClosed: boolean
   blindStructureId: string | null
@@ -95,6 +99,13 @@ export interface CreateTournamentRequest {
   knockoutType?: KnockoutType
   /** Valor do bounty (parte do buy-in); null/ausente no Normal */
   bountyAmount?: number | null
+  /**
+   * Timebank (SPEC-20261029-1722): 0 = sem timebank, 1 a 99 por jogador; ausente = herdar da estrutura (criação) ou manter
+   * (edição). Mudar a quantidade no rascunho reaplica nas inscrições.
+   */
+  timebankCount?: number
+  /** Segundos de cada timebank (5 a 300); ausente = o da estrutura/o atual, senão 30 */
+  timebankSeconds?: number
 }
 
 export interface UpdateTournamentRequest extends Partial<CreateTournamentRequest> {

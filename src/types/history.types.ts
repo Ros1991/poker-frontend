@@ -25,6 +25,10 @@ export type HistoryActivityType =
   | 'TableOpened'
   /** Mesa sem ninguém sentado excluída pelo organizador (dealer dela liberado) — SPEC-20261027-2133 */
   | 'TableDeleted'
+  /** Jogador usou um timebank (−1, com os segundos) — SPEC-20261029-1722; desfaz pelo histórico */
+  | 'TimebankUsed'
+  /** Dealer/organizador deu ou tirou um timebank (+1/−1) — SPEC-20261029-1722; desfaz pelo histórico */
+  | 'TimebankAdjusted'
 
 export interface HistoryItem {
   /** "{kind}:{refId}" — único na lista */
@@ -56,4 +60,6 @@ export interface HistoryItem {
   position?: number | null
   /** Só na eliminação: quem eliminou (apelido, senão nome; null se não informado) */
   eliminatedByName?: string | null
+  /** Só no timebank (SPEC-20261029-1722): −1 no uso, +1/−1 no ajuste */
+  delta?: number | null
 }

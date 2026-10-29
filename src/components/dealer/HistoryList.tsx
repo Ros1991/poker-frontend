@@ -52,8 +52,24 @@ function undoTarget(item: HistoryItem): string {
   return item.playerName ? `${item.description} de ${item.playerName}` : item.description
 }
 
+/**
+ * Timebank (SPEC-20261029-1722): o que volta ao desfazer — o uso devolve o timebank; o ajuste faz o contrário. Texto
+ * neutro (serve para jogador e jogadora).
+ */
+function timebankConfirm(item: HistoryItem): string | null {
+  const who = item.playerName ?? 'o jogador'
+  if (item.activityType === 'TimebankUsed') return `Desfazer o timebank usado por ${who}? O timebank volta para ${who}.`
+  if (item.activityType === 'TimebankAdjusted')
+    return (item.delta ?? 0) > 0
+      ? `Desfazer o +1 timebank de ${who}? ${who} fica com um timebank a menos.`
+      : `Desfazer o −1 timebank de ${who}? O timebank volta para ${who}.`
+  return null
+}
+
 /** Texto da confirmação: o aviso do organizador (`undoWarning`, SPEC-20261023-1217 L4) vem antes da pergunta */
 function confirmMessage(item: HistoryItem): string {
+  const timebank = timebankConfirm(item)
+  if (timebank) return timebank
   const what = undoTarget(item)
   return item.undoWarning ? `${item.undoWarning} Desfazer ${what} mesmo assim?` : `Desfazer ${what}?`
 }

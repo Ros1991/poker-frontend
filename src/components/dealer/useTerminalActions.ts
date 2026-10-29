@@ -13,11 +13,14 @@ import { apiErrorMessage, formatCurrency, playerName } from './terminalFormat'
 const UNDO_TOAST_MS = 10000
 const PAYMENT_KINDS: HistoryKind[] = ['Payment', 'Settlement']
 
-/** Kind que desfaz pela rota de eliminação; o resto (dinheiro e inscrição) pela de transação */
+/**
+ * Kind que desfaz pela rota de eliminação; atividade (só o timebank se desfaz — SPEC-20261029-1722) pela de atividade; o
+ * resto (dinheiro e inscrição) pela de transação
+ */
 export function undoHistoryItem(tournamentId: string, item: HistoryItem) {
-  return item.kind === 'Elimination'
-    ? historyApi.undoElimination(tournamentId, item.refId)
-    : historyApi.undoTransaction(tournamentId, item.refId)
+  if (item.kind === 'Elimination') return historyApi.undoElimination(tournamentId, item.refId)
+  if (item.kind === 'Activity') return historyApi.undoActivity(tournamentId, item.refId)
+  return historyApi.undoTransaction(tournamentId, item.refId)
 }
 
 /** refIds do jogador nos tipos pedidos, antes da ação; null = não deu para consultar */

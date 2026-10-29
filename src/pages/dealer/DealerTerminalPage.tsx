@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { useQuery, useMutation } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ChevronDown, ChevronRight, Shuffle, UserPlus } from 'lucide-react'
 import { toast } from 'sonner'
 import * as tournamentsApi from '../../api/tournaments.api'
@@ -27,6 +27,7 @@ import { TablesSheet } from '../../components/dealer/TablesSheet'
 import { TableSelectDialog } from '../../components/dealer/TableSelectDialog'
 import { TerminalHeader } from '../../components/dealer/TerminalHeader'
 import { useTableSuggestions } from '../../components/dealer/useTableSuggestions'
+import { useTimebank } from '../../components/dealer/useTimebank'
 import { useRememberedTable } from '../../components/dealer/useRememberedTable'
 import { terminalFeatures, useTerminalActions } from '../../components/dealer/useTerminalActions'
 import {
@@ -59,6 +60,7 @@ interface DealerTerminalPageProps {
 export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {}) {
   const { tournamentId: routeTournamentId } = useParams<{ tournamentId: string }>()
   const tournamentId = routeTournamentId ?? ''
+  const queryClient = useQueryClient()
 
   // Lembrada por torneio nesta aba: a volta do telão no celular (SPEC-20261029-1721) cai na mesma mesa
   const [selectedTableId, setSelectedTableId] = useRememberedTable(tournamentId)
@@ -120,6 +122,11 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
     tournamentId,
     enabled: !!tournamentId,
     onTimerUpdate: (state) => syncFromServer(state as TimerState),
+    // Timebank usado/ajustado/desfeito em outro aparelho (SPEC-20261029-1722): o chip "⏱ N" e o histórico na hora
+    onEntryUpdate: () => {
+      void queryClient.invalidateQueries({ queryKey: ['entries', tournamentId] })
+      void queryClient.invalidateQueries({ queryKey: ['history', tournamentId] })
+    },
     onTablesUpdate: (event) => {
       if (event.action !== 'deleted' || !selectedTable || event.tableId !== selectedTable.id) return
       const name = event.tableName ?? tableLabel(selectedTable)
@@ -141,6 +148,11 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
 
   const actions = useTerminalActions(tournamentId, tournament, { onEliminationUndone: suggestions.close })
   const { invalidateAll } = actions
+
+  // Timebank virtual (SPEC-20261029-1722): só com o timebank ligado no torneio — o chip "⏱ N" no card, na Ficha e na
+  // lista "Jogadores", a sheet (Usar, +1, −1) e a contagem em tela cheia neste celular. Sem timebank, nada aparece.
+  const timebank = useTimebank({ tournamentId, tournament, entries: allEntries, invalidateAll, allowUse: true })
+  const timebankFor = (entry: TournamentEntry) => (timebank.enabled ? { onOpen: () => timebank.open(entry) } : undefined)
 
   const activeEntries = useMemo(() => allEntries.filter((e) => isActiveStatus(e.status)), [allEntries])
 
@@ -322,6 +334,7 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
                     showPayment={canPay}
                     showSeat={false}
                     knockout={knockout}
+                    timebank={timebankFor(entry)}
                   />
                 ))}
               </div>
@@ -362,6 +375,7 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
                     onEliminate={() => flows.askEliminate(entry)}
                     showPayment={canPay}
                     knockout={knockout}
+                    timebank={timebankFor(entry)}
                   />
                 ))}
               </div>
@@ -439,6 +453,7 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
         knockout={knockout}
         showPayments={canPay}
         showTables={canTables}
+        timebank={timebank.enabled ? { onOpen: timebank.open } : undefined}
       />
 
       {canTables && (
@@ -486,10 +501,14 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
         onUndo={actions.undoItem}
         showPayments={canPay}
         showTables={canTables}
+        timebank={fichaEntry ? timebankFor(fichaEntry) : undefined}
       />
 
       {/* ── Ações do jogador (diálogos compartilhados com o painel) ── */}
       {flows.dialogs}
+
+      {/* ── Timebank: sheet e contagem em tela cheia (só com o timebank ligado) ── */}
+      {timebank.dialogs}
 
       {/* ── Mesas (só com controle de mesas no plano) ── */}
       {canTables && moveEntry && (
