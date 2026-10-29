@@ -211,6 +211,8 @@ export function Router() {
 
       {/* Dealer terminal - QR do dealer (sem login) ou usuário logado; sem sidebar */}
       <Route path={ROUTES.DEALER_TERMINAL} element={<DealerTerminalRoute />} />
+      {/* Telão no celular (SPEC-20261029-1721): a mesma guarda do terminal */}
+      <Route path={ROUTES.DEALER_MINI_TV} element={<DealerTerminalRoute view="tv" />} />
 
       {/* Catch all: "/" decide (landing, terminal do dealer ou tela da TV) */}
       <Route path="*" element={<Navigate to={ROUTES.HOME} replace />} />

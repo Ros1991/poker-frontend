@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ChevronDown, Pause, Play, SkipBack, SkipForward } from 'lucide-react'
 import { Button } from '../ui/Button'
+import { TerminalViewSwitch } from './TerminalViewSwitch'
 import { getDealerSession } from '../../utils/deviceSessions'
 import { blindsSizeClass, blindsText, formatChips, isLastLevel } from '../../utils/timerDisplay'
 import type { BlindsSizes } from '../../utils/timerDisplay'
@@ -28,7 +29,7 @@ interface TerminalHeaderProps {
   onOpenMore: () => void
 }
 
-/** Topo fixo: torneio, mesa, relógio, controles do nível e o link "Mais" */
+/** Topo fixo: torneio, seletor "Terminal | Telão" (SPEC-20261029-1721), mesa, relógio, controles do nível e o link "Mais" */
 export function TerminalHeader({
   tournamentName,
   dealerMode,
@@ -64,6 +65,7 @@ export function TerminalHeader({
           )}
           {tournamentName}
         </p>
+        <TerminalViewSwitch current="terminal" />
         <button
           type="button"
           onClick={onOpenMore}

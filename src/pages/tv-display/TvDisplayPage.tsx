@@ -10,7 +10,18 @@ import * as publicDisplayApi from '../../api/publicDisplay.api'
 import { useBlindTimer } from '../../hooks/useBlindTimer'
 import { toggleFullscreen, useFullscreen } from '../../hooks/useFullscreen'
 import { FullscreenButton } from '../../components/tv/FullscreenButton'
-import { blindsSizeClass, blindsText, formatChips, isLastLevel, isStructureFinished } from '../../utils/timerDisplay'
+import {
+  averageStack,
+  blindsSizeClass,
+  blindsText,
+  chipsInPlay,
+  formatChips,
+  isLastLevel,
+  isStructureFinished,
+  nextBreakText,
+  secondsToBreak,
+  timerUrgencyClass,
+} from '../../utils/timerDisplay'
 import type { BlindsSizes } from '../../utils/timerDisplay'
 import { DUE_TONE_CLASS, dueStatus, entryStatusParts, ENTRY_STATUS_SEPARATOR } from '../../utils/entryStatusLine'
 import type { EntryStatusPart } from '../../utils/entryStatusLine'
@@ -94,14 +105,6 @@ function statusPartClass(part: EntryStatusPart): string {
   if (part.kind === 'head') return 'font-semibold text-accent-purple-deep'
   if (part.kind === 'due' && part.tone) return DUE_TONE_CLASS[part.tone]
   return ''
-}
-
-function formatDuration(totalSeconds: number): string {
-  const h = Math.floor(totalSeconds / 3600)
-  const m = Math.floor((totalSeconds % 3600) / 60)
-  const s = totalSeconds % 60
-  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 }
 
 const SCROLL_GAP = 16
@@ -335,20 +338,9 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
   const prizesList = snapshot?.prizes ?? []
   const premiacao = snapshot?.prizePool ?? 0
 
-  // Fichas em jogo (por entry: stack inicial + rebuys + add-ons × fichas do add-on — SPEC-20261027-1311; o antigo duplo = 2)
-  // + bônus de pontualidade (qtd de jogadores × fichas de bônus)
-  const startingStack = tournament?.startingStack ?? 0
-  const rebuyStack = tournament?.rebuyStack ?? startingStack
-  const addonStack = tournament?.addonStack ?? startingStack
-  const bonusChipsTotal =
-    (tournament?.punctualityBonusCount ?? 0) * (tournament?.punctualityBonusChips ?? 0)
-  const totalChips =
-    (entries?.reduce((sum, e) => {
-      const rebuyChips = (e.rebuyCount ?? 0) * rebuyStack
-      const addonChips = (e.addonCount ?? 0) * addonStack
-      return sum + startingStack + rebuyChips + addonChips
-    }, 0) ?? 0) + bonusChipsTotal
-  const avgStack = activeEntries.length > 0 ? Math.round(totalChips / activeEntries.length) : 0
+  // Fichas em jogo e média (utils/timerDisplay, a mesma conta do telão no celular — SPEC-20261029-1721)
+  const totalChips = chipsInPlay(tournament, entries)
+  const avgStack = averageStack(totalChips, activeEntries.length)
 
   // Apelido por personId (pra grade de mesas usar o mesmo nome do resto do telão)
   const nicknameByPersonId = new Map(
@@ -356,21 +348,7 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
   )
 
   // Tempo até o próximo intervalo: restante do nível atual + níveis até o break
-  let secondsToBreak: number | null = null
-  if (!timerState.isBreak && blindLevels && blindLevels.length > 0) {
-    const nextBreak = blindLevels
-      .filter((l) => l.isBreak && l.levelNumber > timerState.currentLevel)
-      .sort((a, b) => a.levelNumber - b.levelNumber)[0]
-    if (nextBreak) {
-      let secs = timerState.remainingSeconds
-      for (const l of blindLevels) {
-        if (!l.isBreak && l.levelNumber > timerState.currentLevel && l.levelNumber < nextBreak.levelNumber) {
-          secs += l.durationMinutes * 60
-        }
-      }
-      secondsToBreak = secs
-    }
-  }
+  const breakSeconds = secondsToBreak(timerState, blindLevels)
 
   // Status do torneio: rótulo e cor vêm da tabela única de statuses.ts (o snapshot manda string)
   const status = tournament?.status
@@ -378,12 +356,7 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
     status && status in TOURNAMENT_STATUS_LABELS ? (status as TournamentStatus) : null
 
   // Relógio: marinho; dourado-deep no último minuto; vermelho nos 30 s finais
-  const timerColor =
-    timerState.remainingSeconds <= 30
-      ? 'text-accent-red'
-      : timerState.remainingSeconds <= 60
-        ? 'text-accent-gold-deep'
-        : 'text-text-primary'
+  const timerColor = timerUrgencyClass(timerState.remainingSeconds)
 
   // Knockout (SPEC-20261026-1909, todos os planos): selo do formato no topo e, no PKO, a cabeça de quem ainda joga
   const knockout = isKnockout(tournament)
@@ -872,11 +845,7 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
                 <span className="text-base font-medium uppercase tracking-wider">Próximo intervalo</span>
               </div>
               <p className="font-mono text-5xl font-bold tabular-nums text-accent-gold-deep">
-                {timerState.isBreak
-                  ? 'Agora'
-                  : secondsToBreak != null
-                    ? formatDuration(secondsToBreak)
-                    : '—'}
+                {nextBreakText(timerState.isBreak, breakSeconds)}
               </p>
             </div>
 

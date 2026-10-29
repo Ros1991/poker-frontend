@@ -37,6 +37,7 @@ export const ROUTES = {
   BLIND_STRUCTURE_NEW: '/home-games/:homeGameId/blinds/new',
   BLIND_STRUCTURE_EDIT: '/home-games/:homeGameId/blinds/:id/edit',
   DEALER_TERMINAL: '/dealer/:tournamentId',
+  DEALER_MINI_TV: '/dealer/:tournamentId/telao',
   DEALER_ACCESS: '/dealer/acesso/:code',
   TV: '/tv',
   TV_DISPLAY: '/tv/:tournamentId',
@@ -76,6 +77,10 @@ export function tournamentEditPath(id: string) {
 
 export function dealerTerminalPath(tournamentId: string) {
   return `/dealer/${tournamentId}`
+}
+
+export function dealerMiniTvPath(tournamentId: string) {
+  return `/dealer/${tournamentId}/telao`
 }
 
 export function tvDisplayPath(tournamentId: string) {

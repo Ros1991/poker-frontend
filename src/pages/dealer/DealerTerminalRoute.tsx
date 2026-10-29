@@ -7,6 +7,8 @@ import { setDealerExpiredHandler, setDealerScope } from '../../api/client'
 import { getDealerSession, setDealerSession } from '../../utils/deviceSessions'
 import { ROUTES } from '../../constants/routes'
 import { DealerTerminalPage } from './DealerTerminalPage'
+import { MiniTvPage } from './MiniTvPage'
+import type { TerminalView } from '../../components/dealer/TerminalViewSwitch'
 
 type EndedReason = 'revoked' | 'expired' | 'over'
 
@@ -32,9 +34,10 @@ const ENDED_SCREEN: Record<EndedReason, { icon: typeof QrCode; title: string; de
 /**
  * /dealer/:tournamentId — com acesso de dealer (autorizado pelo organizador) deste
  * torneio, abre o terminal sem login e com token restrito; sem ele, segue o fluxo
- * antigo (usuário logado).
+ * antigo (usuário logado). /dealer/:tournamentId/telao (`view="tv"`, SPEC-20261029-1721)
+ * é o telão no celular, com a mesma guarda e o mesmo dealerMode.
  */
-export function DealerTerminalRoute() {
+export function DealerTerminalRoute({ view = 'terminal' }: { view?: TerminalView } = {}) {
   const { tournamentId } = useParams<{ tournamentId: string }>()
   const navigate = useNavigate()
   const [session] = useState(() => {
@@ -84,11 +87,7 @@ export function DealerTerminalRoute() {
   }, [session])
 
   if (!session) {
-    return (
-      <ProtectedRoute>
-        <DealerTerminalPage />
-      </ProtectedRoute>
-    )
+    return <ProtectedRoute>{view === 'tv' ? <MiniTvPage /> : <DealerTerminalPage />}</ProtectedRoute>
   }
 
   if (ended) {
@@ -105,16 +104,13 @@ export function DealerTerminalRoute() {
     )
   }
 
-  return (
-    <DealerTerminalPage
-      dealerMode={{
-        tournamentName: session.tournamentName,
-        dealerName: session.dealerName,
-        onExit: () => {
-          setDealerSession(null)
-          navigate(ROUTES.HOME, { replace: true })
-        },
-      }}
-    />
-  )
+  const dealerMode = {
+    tournamentName: session.tournamentName,
+    dealerName: session.dealerName,
+    onExit: () => {
+      setDealerSession(null)
+      navigate(ROUTES.HOME, { replace: true })
+    },
+  }
+  return view === 'tv' ? <MiniTvPage dealerMode={dealerMode} /> : <DealerTerminalPage dealerMode={dealerMode} />
 }
