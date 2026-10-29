@@ -46,6 +46,13 @@ export const ROUTES = {
   MY_PLAN: '/meu-plano',
   /** Página "Meu perfil" (SPEC-20261023-1211): dados, foto, senha, contas conectadas, aparelhos e excluir conta */
   MY_PROFILE: '/meu-perfil',
+  /**
+   * Área do jogador (SPEC-20261029-1726): os torneios em que a conta jogou, em qualquer clube (inscrições cujo jogador
+   * está vinculado à conta pelo e-mail — SPEC-20261029-1725), com filtro por clube e paginação
+   */
+  MY_TOURNAMENTS: '/meus-torneios',
+  /** Um torneio da conta: ao vivo (relógio compacto + a minha ficha) ou o resultado, se já terminou */
+  MY_TOURNAMENT_LIVE: '/meus-torneios/:id',
   /** Boas-vindas do primeiro acesso (SPEC-20261023-1212): completar cadastro → escolher plano */
   WELCOME: '/boas-vindas',
   BLIND_STRUCTURE_NEW: '/home-games/:homeGameId/blinds/new',
@@ -80,6 +87,11 @@ export function resetPasswordPath(token: string) {
 
 export function confirmEmailPath(token: string) {
   return `/confirmar-email/${token}`
+}
+
+/** `/meus-torneios/<id>` — o torneio da conta (SPEC-20261029-1726) */
+export function myTournamentLivePath(tournamentId: string) {
+  return `/meus-torneios/${tournamentId}`
 }
 
 export function tournamentDashboardPath(id: string) {
