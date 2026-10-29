@@ -188,7 +188,7 @@ export function PairDisplayPage() {
         <p className="text-sm font-medium text-text-secondary">Qual torneio a TV deve mostrar?</p>
         {list.length === 0 && (
           <p className="rounded-xl border border-border-default bg-bg-secondary p-5 text-center text-text-secondary">
-            Nenhum torneio disponível nos seus home games.
+            Nenhum torneio disponível para a TV.
           </p>
         )}
         {list.map((t) => {
@@ -205,6 +205,7 @@ export function PairDisplayPage() {
               <div className="min-w-0 flex-1">
                 <p className="truncate font-semibold text-text-primary">{t.name}</p>
                 <p className="truncate text-xs text-text-secondary tabular-nums">
+                  {/* homeGameName: nome do clube, ou o nome da conta no Mesa (SPEC-20261029-1723, vem da API) */}
                   {new Date(t.date).toLocaleDateString('pt-BR')} · {t.homeGameName}
                 </p>
               </div>

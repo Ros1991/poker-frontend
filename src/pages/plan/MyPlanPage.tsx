@@ -2,9 +2,12 @@
  * Página "Meu plano" (`/meu-plano`, SPEC-20261023-1205).
  *
  * Mostra o plano da conta (gravado e efetivo), a origem/nota ("Cortesia — fundador"), o vencimento,
- * as barras de uso (home games, torneios nos últimos 7 dias com contagem regressiva, membros por
- * home game), a tabela comparativa dos 3 planos (preços e limites SÓ do catálogo do `GET me/plan`) e
+ * as barras de uso (torneios nos últimos 7 dias com contagem regressiva, membros e — só na Liga ou em quem tem mais
+ * de um — home games), a tabela comparativa dos 3 planos (preços e limites SÓ do catálogo do `GET me/plan`) e
  * o CTA "Falar com o suporte" (WhatsApp de `VITE_SUPPORT_WHATSAPP`). Não existe checkout.
+ *
+ * SPEC-20261029-1723 (D18): no Mesa e no Clube a conta tem um home game só, invisível — a conta é o clube; a página
+ * não fala em "home game" para eles (o resumo "Home games: Mesa e Clube — um só, a sua conta; Liga até 3" fica no topo).
  */
 import { Loader2, Mail, MessageCircle } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
@@ -17,6 +20,7 @@ import {
   formatPlanPrice,
   formatPlanSource,
   formatTimeUntil,
+  homeGamesSummary,
   planExpiry,
   planRequestMessage,
   useTimeUntil,
@@ -35,23 +39,22 @@ export function MyPlanPage() {
   const { myPlan, isLoading, isError, refetch } = usePlan()
   const countdown = useTimeUntil(myPlan?.usage?.tournamentsLast7Days?.nextAllowedAt)
 
-  const ownedHomeGames = myPlan?.usage?.membersByHomeGame ?? []
-  const singleHomeGame = ownedHomeGames.length === 1 ? ownedHomeGames[0].name : null
   const generalSupportUrl = supportWhatsAppUrl(
     `Olá! Tenho uma dúvida sobre os planos do Poker da Galera.${
       user?.email ? `\nMinha conta: ${user.email}` : ''
     }`,
   )
 
+  // O plano é da conta: o pedido vai pelo e-mail dela (no Mesa e no Clube não existe "home game" para citar)
   const choosePlan = (plan: PlanDefinition) =>
-    openWhatsApp(supportWhatsAppUrl(planRequestMessage(plan.name, singleHomeGame, user?.email)))
+    openWhatsApp(supportWhatsAppUrl(planRequestMessage(plan.name, null, user?.email)))
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-text-primary">Meu plano</h1>
         <p className="mt-1 text-sm text-text-secondary">
-          O plano é da sua conta e vale nos home games dos quais você é dono.
+          O plano é da sua conta. {homeGamesSummary(myPlan?.catalog)}
         </p>
       </div>
 
@@ -105,6 +108,12 @@ function MyPlanContent({
   const downgraded = myPlan.plan !== myPlan.effectivePlan
   const { homeGames, tournamentsLast7Days, membersByHomeGame } = myPlan.usage
   const currentOrder = current?.order ?? 0
+  // Home game como conceito só na Liga — ou em quem ficou com mais de um (ex-Liga rebaixada): nada é apagado
+  const homeGamesVisible =
+    (myPlan.limits.homeGamesVisible ?? current?.homeGamesVisible ?? false) || homeGames.used > 1
+  // Sem home game visível: o principal é "a sua conta" no Mesa e o clube (pelo nome) no Clube
+  const memberLabel = (hg: (typeof membersByHomeGame)[number]) =>
+    !homeGamesVisible && hg.isPrimary && myPlan.effectivePlan === 'Mesa' ? 'Sua conta' : hg.name
 
   return (
     <>
@@ -165,11 +174,14 @@ function MyPlanContent({
       <section className="space-y-5 rounded-xl border border-border-default bg-bg-card p-5 shadow-sm lg:p-6">
         <h2 className="text-lg font-bold text-text-primary">Uso do plano</h2>
 
-        <PlanUsageBar
-          label="Home games (como dono)"
-          used={homeGames.used}
-          limit={homeGames.limit}
-        />
+        {homeGamesVisible && (
+          <PlanUsageBar
+            label="Home games (como dono)"
+            used={homeGames.used}
+            limit={homeGames.limit}
+            hint="Contando o home game da sua conta, que nunca é excluído."
+          />
+        )}
 
         <PlanUsageBar
           label="Torneios criados nos últimos 7 dias"
@@ -186,15 +198,15 @@ function MyPlanContent({
 
         <div className="space-y-3">
           <h3 className="text-sm font-semibold text-text-primary">
-            Membros além do dono, por home game
+            {homeGamesVisible ? 'Membros além do dono, por home game' : 'Membros além do dono'}
           </h3>
           {membersByHomeGame.length === 0 ? (
             <p className="text-sm text-text-secondary">
-              Você ainda não é dono de nenhum home game.
+              Nenhum membro por enquanto.
             </p>
           ) : (
             membersByHomeGame.map((hg) => (
-              <PlanUsageBar key={hg.homeGameId} label={hg.name} used={hg.used} limit={hg.limit} />
+              <PlanUsageBar key={hg.homeGameId} label={memberLabel(hg)} used={hg.used} limit={hg.limit} />
             ))
           )}
         </div>
@@ -205,7 +217,7 @@ function MyPlanContent({
         <div>
           <h2 className="text-lg font-bold text-text-primary">Compare os planos</h2>
           <p className="mt-1 text-sm text-text-secondary">
-            Quem é membro de um home game usa os recursos do plano do dono dele.
+            Quem é membro de um clube usa os recursos do plano do dono dele.
           </p>
         </div>
         <PlanComparisonTable

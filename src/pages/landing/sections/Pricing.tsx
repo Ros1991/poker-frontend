@@ -12,11 +12,13 @@ import { accountLink } from './accountLink'
  * catálogo de `GET public/plans`): preços, limites, selo "Mais escolhido" e nota da fase de testes saem de lá — nada
  * digitado aqui. CTA: plano grátis → `/register`; pagos → "Falar com o suporte" no WhatsApp (sem número no build,
  * e-mail do contato). Logado (SPEC-20261027-1311): o plano grátis vira "Abrir painel" (→ /home-games), sem o convite para
- * criar conta.
+ * criar conta. SPEC-20261029-1723: a frase dos home games (Mesa e Clube: a conta é o clube; Liga até N, do catálogo).
  */
 export function Pricing() {
   const { plans } = usePlanCatalog()
   const featured = plans.find((p) => p.highlight && p.priceMonthly > 0)
+  // O plano em que "home game" aparece como conceito (Liga) e o máximo dele, do catálogo
+  const multi = plans.find((p) => p.homeGamesVisible ?? p.maxOwnedHomeGames > 1)
   const account = accountLink()
 
   const choose = (plan: PlanDefinition) => {
@@ -40,6 +42,11 @@ export function Pricing() {
             {PRICING.title}
           </h2>
           <p className="mt-3 text-base text-text-secondary">{PRICING.text}</p>
+          {multi && (
+            <p className="mt-3 text-base text-text-secondary">
+              {PRICING.homeGames(multi.name, multi.maxOwnedHomeGames)}
+            </p>
+          )}
           {featured && (
             <p className="mt-3 text-base font-semibold text-text-primary">
               {PRICING.perHead(

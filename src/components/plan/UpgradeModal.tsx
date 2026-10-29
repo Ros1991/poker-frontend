@@ -121,7 +121,10 @@ export function UpgradeModal() {
   const required = findPlan(catalog, requiredPlan)
   const current = findPlan(catalog, currentPlan)
   const message = detail.message?.trim() || fallbackMessage(detail, requiredPlan)
-  const usage = usageText(detail)
+  // SPEC-20261029-1723: no Mesa e no Clube a conta não vê home game (a conta é o clube) — sem "1 de 1 home game"
+  const hidesHomeGames =
+    detail.code === 'home_games_limit' && !!current && !(current.homeGamesVisible ?? current.maxOwnedHomeGames > 1)
+  const usage = hidesHomeGames ? null : usageText(detail)
 
   // O que o plano exigido acrescenta ao atual (sem o atual no catálogo, mostra tudo)
   const gains: string[] = required

@@ -8,6 +8,7 @@ import { Badge } from '../../components/ui/Badge'
 import { SearchInput } from '../../components/ui/SearchInput'
 import { homeGameDetailPath } from '../../constants/routes'
 import { HomeGameFormModal } from './HomeGameFormModal'
+import { useAuth } from '../../hooks/useAuth'
 import { useHomeGame } from '../../hooks/useHomeGame'
 
 export function HomeGameListPage() {
@@ -16,6 +17,7 @@ export function HomeGameListPage() {
   const [search, setSearch] = useState('')
   const [isFormOpen, setIsFormOpen] = useState(false)
   const { homeGames: contextHomeGames, selectedHomeGame, selectHomeGame, isLoading: contextLoading } = useHomeGame()
+  const { user } = useAuth()
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['homeGames', search],
@@ -119,15 +121,23 @@ export function HomeGameListPage() {
                 <h3 className="text-lg font-semibold text-text-primary group-hover:text-accent-blue transition-colors line-clamp-1">
                   {hg.name}
                 </h3>
-                {hg.isActive ? (
-                  <Badge color="green" className="shrink-0 px-2">
-                    Ativo
-                  </Badge>
-                ) : (
-                  <Badge color="gray" className="shrink-0 px-2">
-                    Inativo
-                  </Badge>
-                )}
+                <span className="flex shrink-0 items-center gap-2">
+                  {/* SPEC-20261029-1723: o principal da conta (a lista sai na SPEC-20261029-1724) */}
+                  {hg.isPrimary && hg.ownerId === user?.id && (
+                    <Badge color="gold" className="shrink-0 px-2">
+                      Principal
+                    </Badge>
+                  )}
+                  {hg.isActive ? (
+                    <Badge color="green" className="shrink-0 px-2">
+                      Ativo
+                    </Badge>
+                  ) : (
+                    <Badge color="gray" className="shrink-0 px-2">
+                      Inativo
+                    </Badge>
+                  )}
+                </span>
               </div>
 
               {hg.description && (

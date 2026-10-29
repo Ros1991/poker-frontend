@@ -149,8 +149,9 @@ export const THREE_STEPS = {
   title: 'Comece em 3 passos',
   items: [
     {
-      title: 'Crie o home game',
-      text: 'Cadastre-se grátis, dê um nome ao seu grupo e adicione os jogadores.',
+      // SPEC-20261029-1723: a conta já nasce com o clube — não há home game para criar no Mesa nem no Clube
+      title: 'Crie a conta',
+      text: 'Cadastre-se grátis: a conta já é o seu clube. É só adicionar os jogadores.',
     },
     {
       title: 'Monte a estrutura de blinds uma vez',
@@ -169,6 +170,12 @@ export const THREE_STEPS = {
 export const PRICING = {
   title: 'Planos',
   text: 'Comece grátis no Mesa para rodar a noite com relógio e telão. Quando o jogo virar semanal, o Clube libera mesas, premiação, PIX, financeiro, ranking e o terminal do dealer.',
+  /**
+   * Home games por plano (SPEC-20261029-1723, D18): no Mesa e no Clube a conta é o clube (um home game só, invisível);
+   * a Liga tem até <máximo do catálogo> home games — o da conta e mais os outros.
+   */
+  homeGames: (ligaName: string, ligaMax: number) =>
+    `No Mesa e no Clube não há home game para criar: a sua conta já é o clube. A ${ligaName} é para quem toca mais de um grupo — até ${ligaMax} home games na mesma conta.`,
   /** "O Clube custa menos que um buy-in: dividido por 15 jogadores, dá <mensalidade ÷ 15> por cabeça." — mensalidade do catálogo */
   perHead: (planName: string, players: number, pricePerHead: string) =>
     `O ${planName} custa menos que um buy-in: dividido por ${players} jogadores, dá ${pricePerHead} por cabeça.`,

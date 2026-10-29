@@ -1,6 +1,6 @@
 // Apoio das boas-vindas (SPEC-20261023-1212): rascunho da etapa 1, destino ao terminar e a mensagem do suporte.
-import * as homeGamesApi from '../../api/homeGames.api'
-import { ROUTES } from '../../constants/routes'
+import * as planApi from '../../api/plan.api'
+import { ROUTES, homeGameDetailPath } from '../../constants/routes'
 import type { PlanName } from '../../types/plan.types'
 import type { Profile } from '../../types/profile.types'
 import { cleanWhatsapp } from '../../utils/phone'
@@ -33,16 +33,18 @@ export type ProfileDraftErrors = Partial<Record<'nickname' | 'whatsapp', string>
 
 /**
  * Para onde ir depois das boas-vindas: a página de origem (o `state.from` do ProtectedRoute ou o retorno guardado
- * antes do login — ex.: `/parear/CODIGO` do QR da TV); sem origem, quem já participa de algum home game vai para o
- * painel e quem não tem nenhum vai criar o primeiro.
+ * antes do login — ex.: `/parear/CODIGO` do QR da TV); sem origem, o painel da conta. SPEC-20261029-1723: não existe
+ * mais o passo "criar home game" — a conta já nasce com o home game principal (é nele que ficam os torneios); o painel
+ * é o detalhe dele (`/home-games/<principal>`) até o Início da SPEC-20261029-1724 existir. Sem principal (conta
+ * antiga, ou o `GET me/plan` falhou), a lista de home games.
  */
 export async function welcomeDestination(from: string | null): Promise<string> {
   const origin = specificReturn(from) ?? takeReturn()
   forgetReturn()
   if (origin) return origin
   try {
-    const homeGames = await homeGamesApi.getAll()
-    return homeGames.length > 0 ? ROUTES.HOME_GAMES : ROUTES.HOME_GAME_NEW
+    const plan = await planApi.getMyPlan()
+    return plan.primaryHomeGameId ? homeGameDetailPath(plan.primaryHomeGameId) : ROUTES.HOME_GAMES
   } catch {
     return ROUTES.HOME_GAMES
   }
@@ -50,7 +52,7 @@ export async function welcomeDestination(from: string | null): Promise<string> {
 
 /** Mensagem pronta do WhatsApp do suporte ao pedir Clube/Liga nas boas-vindas. */
 export function welcomePlanMessage(plan: PlanName, email: string | null | undefined): string {
-  const first = `Olá! Quero o plano ${plan} para o meu home game.`
+  const first = `Olá! Quero o plano ${plan} para a minha conta.`
   return email ? `${first}\nMinha conta: ${email}` : first
 }
 

@@ -157,8 +157,10 @@ export function HomeGameDetailPage() {
     user?.role === 'Admin' ||
     homeGame?.ownerId === user?.id ||
     (members ?? []).some((m) => m.userId === user?.id && m.isAdmin)
-  // Excluir o home game: só o dono e o Admin do sistema (membro administrador não exclui)
-  const canDelete = user?.role === 'Admin' || (!!homeGame && homeGame.ownerId === user?.id)
+  // Excluir o home game: só o dono e o Admin do sistema (membro administrador não exclui) — e nunca o principal da
+  // conta (SPEC-20261029-1723: a API recusa com 400; ele só sai junto com a conta)
+  const canDelete =
+    !!homeGame && !homeGame.isPrimary && (user?.role === 'Admin' || homeGame.ownerId === user?.id)
 
   // Depois de excluir: troca o home game ativo e vai para a lista (com um só sobrando, ela abre ele sozinha)
   async function handleDeleted() {

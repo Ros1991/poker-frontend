@@ -22,16 +22,19 @@ interface DeleteAccountSectionProps {
   logins: ExternalLogins | undefined
 }
 
+// SPEC-20261029-1723: só os home games ALÉM do da conta (a Liga cria até 2) bloqueiam — o da conta sai junto
 function ownerMessage(count: number) {
   return count === 1
-    ? 'Você é dono de 1 home game. Exclua-o antes ou fale com o suporte para transferir.'
-    : `Você é dono de ${count} home games. Exclua-os antes ou fale com o suporte para transferir.`
+    ? 'Você é dono de 1 home game além do da sua conta. Exclua-o antes ou fale com o suporte para transferir.'
+    : `Você é dono de ${count} home games além do da sua conta. Exclua-os antes ou fale com o suporte para transferir.`
 }
 
 /**
- * Excluir conta (SPEC-20261023-1211), no fim da página. Bloqueado para dono de home game. A confirmação pede "EXCLUIR"
- * e a senha — ou, em conta sem senha, entrar com o Google de novo na hora. A conta é anonimizada (nome, apelido,
- * WhatsApp e foto apagados, e-mail liberado), todos os aparelhos saem e os jogadores dos home games ficam.
+ * Excluir conta (SPEC-20261023-1211), no fim da página. Bloqueado para dono de home game além do principal da conta
+ * (`profile.ownedHomeGames` só conta esses — SPEC-20261029-1723). A confirmação pede "EXCLUIR" e a senha — ou, em conta
+ * sem senha, entrar com o Google de novo na hora. A conta é anonimizada (nome, apelido, WhatsApp e foto apagados,
+ * e-mail liberado), todos os aparelhos saem e o clube da conta (o home game principal: torneios, jogadores e rankings
+ * dele) é excluído junto; os home games de outras pessoas ficam.
  */
 export function DeleteAccountSection({ profile, logins }: DeleteAccountSectionProps) {
   const [open, setOpen] = useState(false)
@@ -49,8 +52,8 @@ export function DeleteAccountSection({ profile, logins }: DeleteAccountSectionPr
       <div className="flex flex-col gap-3">
         <ul className="list-disc space-y-1 pl-5 text-sm text-text-secondary">
           <li>Nome, apelido, WhatsApp e foto são apagados e o e-mail fica livre para um cadastro novo.</li>
-          <li>Você sai dos home games de que participa como membro.</li>
-          <li>Os jogadores e o histórico dos home games continuam com os organizadores.</li>
+          <li>O clube da sua conta é excluído junto: torneios, jogadores, estruturas e rankings dele.</li>
+          <li>Você sai dos clubes de outras pessoas de que participa como membro; os jogadores e o histórico deles continuam com os organizadores.</li>
         </ul>
         {blocked && (
           <p className="rounded-lg border border-accent-yellow/40 bg-accent-yellow-soft p-3 text-sm text-text-primary" role="note">
