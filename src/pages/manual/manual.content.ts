@@ -368,13 +368,13 @@ export const MANUAL_MODULES = [
   {
     slug: 'terminal-do-dealer',
     title: 'Usando o terminal do dealer',
-    summary: 'QR, autorização, inscrever, rebuy e add-on, pagar com QR do PIX, eliminar, mesas e histórico.',
+    summary: 'QR, autorização, inscrever, rebuy e add-on, pagar com QR do PIX, eliminar, mesas, histórico e telão no celular.',
     intro:
       'O terminal é a tela da mesa, no celular do dealer: rebuy, add-on, pagamento e eliminação sem levantar da cadeira. O dealer não precisa de conta.',
     icon: 'dealer',
     feature: 'DealerQr',
     description:
-      'Como liberar o celular do dealer pelo QR, autorizar o acesso e usar o terminal: inscrever, rebuy, add-on, pagar com QR do PIX, eliminar, mesas, histórico e desfazer.',
+      'Como liberar o celular do dealer pelo QR, autorizar o acesso e usar o terminal: inscrever, rebuy, add-on, pagar com QR do PIX, eliminar, mesas, histórico, desfazer e o telão no celular.',
     sections: [
       {
         id: 'acesso',
@@ -426,7 +426,17 @@ export const MANUAL_MODULES = [
             ],
             tip: 'Mesas desequilibradas? O terminal avisa e sugere quem muda (Sortear quem muda ou Escolher eu mesmo).',
             image: 'terminal-mesa',
-            imageAlt: 'Terminal do dealer no celular: relógio, controles do nível e os cards dos jogadores da Mesa 1',
+            imageAlt: 'Terminal do dealer no celular: Terminal e Telão no topo, relógio, controles do nível e os cards dos jogadores da Mesa 1',
+          },
+          {
+            title: 'Telão no celular',
+            text: [
+              'Sem TV na sala? Toque em Telão, no topo do terminal: o celular vira um telão pequeno, com o nível, o relógio, os blinds e o ante, o próximo nível, o próximo intervalo, quantos estão jogando, as fichas em jogo, a média e a premiação.',
+              'A tela não apaga enquanto o telão estiver aberto, e o botão no alto, à direita, põe em tela cheia. Funciona em pé e deitado. Toque em Terminal para voltar à mesa em que você estava.',
+            ],
+            tip: 'O organizador abre o mesmo telão pelo botão Telão do painel do torneio. A TV da sala continua entrando pelo QR da TV.',
+            image: 'terminal-telao',
+            imageAlt: 'Telão no celular: Terminal e Telão no topo, o nível, o relógio grande, a barra, os blinds, o próximo nível, o próximo intervalo, jogando, fichas em jogo, média e premiação',
           },
           {
             title: 'Rebuy',
@@ -588,7 +598,7 @@ export const MANUAL_MODULES = [
             title: 'Visão geral',
             text: [
               'No topo: status, relógio, jogadores, rebuys, add-ons, premiação e total. Os botões mudam conforme o torneio anda: Iniciar Torneio, Pausar, Encerrar Rebuys e Finalizar (para encerrar antes da hora; quando sobra o campeão, ele se finaliza sozinho).',
-              'Ao lado ficam TV (abre o telão) e Dealer (o QR do terminal do dealer). Abaixo, as abas do torneio; no celular, elas ficam na barra de baixo, que rola de lado.',
+              'Ao lado ficam Telão (o relógio e os blinds no celular ou numa tela ao lado) e Dealer (o QR do terminal do dealer). Abaixo, as abas do torneio; no celular, elas ficam na barra de baixo, que rola de lado.',
             ],
             image: 'pc-painel-torneio',
             imageAlt: 'Painel do torneio no computador: resumo no topo, botões, abas e os cards dos jogadores da Mesa 1',
@@ -670,7 +680,10 @@ export const MANUAL_MODULES = [
           },
           {
             title: 'Telão',
-            text: ['O botão TV abre o telão deste torneio. Para mostrar na TV da sala, sem login, use o QR da TV.'],
+            text: [
+              'O botão Telão abre, nesta mesma tela, o telão no celular: o relógio, os blinds, o próximo intervalo, quem está jogando, as fichas e a premiação — bom para deixar num celular ou numa tela ao lado. É o mesmo que o dealer vê ao tocar em Telão no terminal.',
+              'Para mostrar na TV da sala, sem login, use o QR da TV.',
+            ],
             see: { slug: 'telao-na-tv', label: 'Telão na TV' },
           },
           {

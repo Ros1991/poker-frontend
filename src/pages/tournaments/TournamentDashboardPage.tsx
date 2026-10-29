@@ -41,9 +41,9 @@ import {
 } from '../../constants/statuses'
 import {
   ROUTES,
+  dealerMiniTvPath,
   homeGameSectionPath,
   dealerTerminalPath,
-  tvDisplayPath,
   tournamentEditPath,
 } from '../../constants/routes'
 import { EntriesTab } from './tabs/EntriesTab'
@@ -572,15 +572,21 @@ export function TournamentDashboardPage() {
           })()}
         </div>
 
-        {/* Botões "TV" e "Dealer" (SPEC-20261027-2132; antes "TV Display" e "Terminal do dealer"): 44 px (toque à mesa) e,
-            no celular, lado a lado em duas colunas iguais (mesma linha a 320 px); do sm para cima, como antes. O do dealer é a
+        {/* Botões "Telão" e "Dealer" (SPEC-20261027-2132; antes "TV Display" e "Terminal do dealer"): 44 px (toque à mesa)
+            e, no celular, lado a lado em duas colunas iguais (mesma linha a 320 px); do sm para cima, como antes. O do dealer é a
             única porta para o terminal e para o QR que o dealer escaneia (DL4), então é secondary — com borda, cara de ação.
-            O aria-label diz o que cada um faz. */}
+            O aria-label diz o que cada um faz. O "Telão" (antes "TV", SPEC-20261029-1721, D6) abre o telão no celular nesta
+            mesma aba; a TV da casa entra só pelo QR em /tv (a rota /tv/:id continua existindo, sem link aqui). */}
         <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
-          <Link to={tvDisplayPath(tournament.id)} target="_blank">
-            <Button variant="gold" aria-label="Abrir o telão da TV" className="flex w-full px-2 sm:inline-flex sm:w-auto sm:px-4">
+          <Link to={dealerMiniTvPath(tournament.id)}>
+            <Button
+              variant="gold"
+              aria-label="Abrir o telão no celular"
+              title="No celular ou numa tela ao lado; a TV da casa entra pelo QR em /tv"
+              className="flex w-full px-2 sm:inline-flex sm:w-auto sm:px-4"
+            >
               <Tv className="h-4 w-4" />
-              TV
+              Telão
             </Button>
           </Link>
           {/* Um botão só para o dealer (SPEC-20261023-1216, DL4): abre o QR para o dealer escanear

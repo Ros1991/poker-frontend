@@ -27,6 +27,7 @@ import { TablesSheet } from '../../components/dealer/TablesSheet'
 import { TableSelectDialog } from '../../components/dealer/TableSelectDialog'
 import { TerminalHeader } from '../../components/dealer/TerminalHeader'
 import { useTableSuggestions } from '../../components/dealer/useTableSuggestions'
+import { useRememberedTable } from '../../components/dealer/useRememberedTable'
 import { terminalFeatures, useTerminalActions } from '../../components/dealer/useTerminalActions'
 import {
   apiErrorMessage,
@@ -59,7 +60,8 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
   const { tournamentId: routeTournamentId } = useParams<{ tournamentId: string }>()
   const tournamentId = routeTournamentId ?? ''
 
-  const [selectedTableId, setSelectedTableId] = useState<string | null>(null)
+  // Lembrada por torneio nesta aba: a volta do telão no celular (SPEC-20261029-1721) cai na mesma mesa
+  const [selectedTableId, setSelectedTableId] = useRememberedTable(tournamentId)
   const [tableSelectOpen, setTableSelectOpen] = useState(false)
   const [moreOpen, setMoreOpen] = useState(false)
   const [screen, setScreen] = useState<MoreScreen | null>(null)

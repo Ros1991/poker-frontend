@@ -51,7 +51,7 @@ export const ROUTES = {
   BLIND_STRUCTURE_NEW: '/home-games/:homeGameId/blinds/new',
   BLIND_STRUCTURE_EDIT: '/home-games/:homeGameId/blinds/:id/edit',
   DEALER_TERMINAL: '/dealer/:tournamentId',
-  /** Telão no celular do dealer (a página é da SPEC-20261029-1721; aqui só o caminho, para o botão do Início) */
+  /** Telão no celular do dealer e do organizador (SPEC-20261029-1721): a mesma guarda do terminal */
   DEALER_MINI_TV: '/dealer/:tournamentId/telao',
   DEALER_ACCESS: '/dealer/acesso/:code',
   TV: '/tv',

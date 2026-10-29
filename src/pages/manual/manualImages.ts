@@ -105,6 +105,8 @@ import imgTerminalPagarQr400 from '../../assets/manual/terminal-pagar-qr-400.web
 import imgTerminalPagarQr750 from '../../assets/manual/terminal-pagar-qr-750.webp'
 import imgTerminalRebuy400 from '../../assets/manual/terminal-rebuy-400.webp'
 import imgTerminalRebuy750 from '../../assets/manual/terminal-rebuy-750.webp'
+import imgTerminalTelao400 from '../../assets/manual/terminal-telao-400.webp'
+import imgTerminalTelao750 from '../../assets/manual/terminal-telao-750.webp'
 import imgTorneioNovo400 from '../../assets/manual/torneio-novo-400.webp'
 import imgTorneioNovo750 from '../../assets/manual/torneio-novo-750.webp'
 import imgTorneioNovoDealers400 from '../../assets/manual/torneio-novo-dealers-400.webp'
@@ -524,6 +526,14 @@ export const MANUAL_IMAGES = {
     src: imgTerminalRebuy400,
     full: imgTerminalRebuy750,
     srcSet: `${imgTerminalRebuy400} 400w, ${imgTerminalRebuy750} 750w`,
+    width: 750,
+    height: 1520,
+    kind: 'phone',
+  },
+  'terminal-telao': {
+    src: imgTerminalTelao400,
+    full: imgTerminalTelao750,
+    srcSet: `${imgTerminalTelao400} 400w, ${imgTerminalTelao750} 750w`,
     width: 750,
     height: 1520,
     kind: 'phone',
