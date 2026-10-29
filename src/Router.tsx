@@ -65,6 +65,10 @@ import { MyPlanPage } from './pages/plan/MyPlanPage'
 // Meu perfil
 import { MyProfilePage } from './pages/profile/MyProfilePage'
 
+// Área do jogador (SPEC-20261029-1726)
+import { MyTournamentsPage } from './pages/me/MyTournamentsPage'
+import { MyTournamentLivePage } from './pages/me/MyTournamentLivePage'
+
 // Boas-vindas do primeiro acesso
 import { WelcomePage } from './pages/onboarding/WelcomePage'
 
@@ -168,6 +172,10 @@ export function Router() {
 
         {/* Meu perfil (SPEC-20261023-1211) */}
         <Route path={ROUTES.MY_PROFILE} element={<MyProfilePage />} />
+
+        {/* Área do jogador (SPEC-20261029-1726): meus torneios (qualquer clube) e o torneio ao vivo */}
+        <Route path={ROUTES.MY_TOURNAMENTS} element={<MyTournamentsPage />} />
+        <Route path={ROUTES.MY_TOURNAMENT_LIVE} element={<MyTournamentLivePage />} />
 
         {/* Administração (SPEC-20261023-1206, só Admin): lista, ficha e editar dados; sem criar usuário (D14) */}
         <Route

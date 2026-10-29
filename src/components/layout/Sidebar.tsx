@@ -9,6 +9,7 @@ import {
   Crown,
   House,
   Shield,
+  Spade,
   Sparkles,
   UserRound,
 } from 'lucide-react'
@@ -18,6 +19,7 @@ import { BrandLogo } from '../brand/BrandLogo'
 import { Badge } from '../ui/Badge'
 import { useAuth } from '../../hooks/useAuth'
 import { homeGameLabel, useAccountNav } from '../../hooks/useAccountNav'
+import { useMePlayer } from '../../hooks/useMePlayer'
 import { ROUTES, homeGameSectionPath } from '../../constants/routes'
 import { homeGameSectionTab } from './navTabs'
 
@@ -63,12 +65,16 @@ function Divider() {
  *   fica no seletor do cabeçalho. Não existe mais a lista "Meus Home Games".
  * As seções seguem o plano do DONO do home game e a permissão de quem está logado (`visibleHomeGameSections`). Dentro de
  * um torneio, o mesmo menu com "← Torneios" e a seção Torneios marcada (o painel do torneio não muda de layout).
+ * Na Conta, "Meus torneios" (área do jogador, SPEC-20261029-1726) aparece só quando a conta tem pelo menos uma inscrição
+ * vinculada (`GET me/player`).
  */
 export function Sidebar({ className, onNavigate }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false)
   const { user } = useAuth()
   const { pathname } = useLocation()
   const { route, current, currentId, sections, showSelector } = useAccountNav()
+  const player = useMePlayer()
+  const playsSomewhere = (player.data?.tournamentCount ?? 0) > 0
 
   const isAdmin = user?.role === 'Admin'
   const onInicio = pathname === ROUTES.INICIO
@@ -162,6 +168,12 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
         <Divider />
         <GroupTitle collapsed={collapsed}>Conta</GroupTitle>
         <ul className="flex flex-col gap-1 px-2">
+          {/* Área do jogador (SPEC-20261029-1726): só com inscrição vinculada à conta */}
+          {playsSomewhere && (
+            <li data-sidebar-item="meus-torneios">
+              <SidebarNavLink to={ROUTES.MY_TOURNAMENTS} label="Meus torneios" icon={Spade} collapsed={collapsed} onNavigate={onNavigate} />
+            </li>
+          )}
           {/* Meu perfil (SPEC-20261023-1211), ao lado de "Meu plano" */}
           <li>
             <SidebarNavLink to={ROUTES.MY_PROFILE} label="Meu perfil" icon={UserRound} collapsed={collapsed} onNavigate={onNavigate} />

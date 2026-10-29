@@ -1,4 +1,4 @@
-import { Crown, LayoutDashboard, Tablet, Tv, UserPlus } from 'lucide-react'
+import { Crown, LayoutDashboard, Spade, Tablet, Tv, UserPlus } from 'lucide-react'
 import type { ManualIcon as ManualIconKey } from '../manual.content'
 
 const ICONS = {
@@ -6,6 +6,8 @@ const ICONS = {
   dealer: Tablet,
   painel: LayoutDashboard,
   telao: Tv,
+  // SPEC-20261029-1726: Para quem joga
+  jogador: Spade,
   planos: Crown,
 } as const
 

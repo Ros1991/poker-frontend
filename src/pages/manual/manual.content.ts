@@ -25,7 +25,7 @@ export function manualHref(slug?: string): string {
 const TV = 'pktv.com.br'
 const TV_ALT = 'pkdg.com.br'
 
-export type ManualIcon = 'conta' | 'dealer' | 'painel' | 'telao' | 'planos'
+export type ManualIcon = 'conta' | 'dealer' | 'painel' | 'telao' | 'jogador' | 'planos'
 
 export interface ManualStep {
   title: string
@@ -134,7 +134,7 @@ export const MANUAL_MODULES = [
               'Em pokerdagalera.com.br, toque em Entrar e depois em Criar conta.',
               'Preencha nome completo, e-mail e senha. Apelido e WhatsApp são opcionais. Se preferir, use Continuar com o Google.',
             ],
-            tip: 'Só quem organiza precisa de conta. Os jogadores são cadastrados por você e não precisam de login.',
+            tip: 'Os jogadores são cadastrados por você e não precisam de login. Quem quiser ver os próprios torneios cria uma conta com o mesmo e-mail que você cadastrou (módulo Para quem joga).',
             image: 'conta-cadastro',
             imageAlt: 'Tela Criar nova conta no celular, com nome, apelido, e-mail, WhatsApp e senha preenchidos',
           },
@@ -775,7 +775,107 @@ export const MANUAL_MODULES = [
     ],
   },
 
-  // ================================================================================= 5. planos
+  // ================================================================================= 5. para quem joga (SPEC-20261029-1726)
+  {
+    slug: 'para-quem-joga',
+    title: 'Para quem joga',
+    summary: 'Seus torneios em qualquer clube: rebuys, quanto deve, prêmios e o relógio ao vivo no celular.',
+    intro:
+      'Não organiza nada? A conta também serve para quem só joga: com o seu e-mail cadastrado pelo organizador, os seus torneios aparecem sozinhos.',
+    icon: 'jogador',
+    description:
+      'Como o jogador acompanha os próprios torneios: criar a conta, pedir ao organizador para cadastrar o e-mail, ver rebuys, quanto deve e prêmios, e o relógio ao vivo no celular.',
+    sections: [
+      {
+        id: 'conta',
+        title: 'Sua conta de jogador',
+        steps: [
+          {
+            title: 'Crie a conta grátis',
+            text: [
+              'Em pokerdagalera.com.br, toque em Entrar e depois em Criar conta (ou use Continuar com o Google). Toda conta começa no plano Mesa, grátis, e o plano não muda nada do que você vê como jogador.',
+            ],
+            see: { slug: 'criando-seu-home-game', label: 'Criar a conta, passo a passo' },
+          },
+          {
+            title: 'Peça ao organizador para cadastrar o seu e-mail',
+            text: [
+              'O organizador cadastra você como jogador no clube dele. Quando o e-mail do cadastro é o mesmo da sua conta (já confirmado), os dois ficam ligados: os torneios desse clube passam a aparecer para você, inclusive os antigos.',
+              'Joga em mais de um clube? Peça o mesmo para cada organizador: tudo aparece junto, na mesma conta.',
+            ],
+            tip: 'Enquanto nenhum organizador cadastrou o seu e-mail, o Início mostra "Você joga em algum clube? Peça ao organizador para cadastrar seu e-mail", com o e-mail da sua conta.',
+          },
+          {
+            title: 'Sua foto vale em todos os clubes',
+            text: [
+              'A foto da sua conta (Meu perfil) passa a ser a foto do jogador nos clubes onde o seu e-mail está cadastrado: no painel, no terminal do dealer e no telão.',
+            ],
+          },
+        ],
+      },
+      {
+        id: 'meus-torneios',
+        title: 'Os seus torneios',
+        steps: [
+          {
+            title: 'Como jogador, no Início',
+            text: [
+              'O Início mostra quantos torneios você jogou, as vitórias, quantas vezes ficou na premiação e quanto ainda está em aberto, com os 5 últimos torneios.',
+              'O torneio que está acontecendo agora aparece em Agora, com o botão Acompanhar.',
+            ],
+            image: 'jogador-inicio',
+            imageAlt: 'Início do jogador no celular: o torneio de hoje em Agora com Acompanhar e os números em Como jogador',
+          },
+          {
+            title: 'Meus torneios',
+            text: [
+              'Em Ver todos (ou Meus torneios, no menu) ficam todos os torneios em que você jogou, do mais novo para o mais antigo, com o clube, a data, a posição, os rebuys, os add-ons, quanto deve, o prêmio e os bounties.',
+              'Joga em mais de um clube? Escolha o clube no filtro Onde.',
+            ],
+            bullets: [
+              'Os números são os mesmos que o organizador vê na aba Pagamentos.',
+              'Quanto deve só aparece quando o organizador controla os pagamentos pelo sistema.',
+            ],
+            image: 'jogador-meus-torneios',
+            imageAlt: 'Lista Meus torneios no celular, com o torneio de hoje ao vivo e os torneios encerrados',
+          },
+        ],
+      },
+      {
+        id: 'ao-vivo',
+        title: 'Acompanhe o torneio',
+        steps: [
+          {
+            title: 'O relógio no seu celular',
+            text: [
+              'Toque em Acompanhar (ou no torneio, em Meus torneios): o relógio do telão aparece no celular, com o nível, os blinds, o próximo nível, o próximo intervalo, quantos ainda jogam e a premiação.',
+              'A tela se atualiza sozinha: quando o organizador pausa, troca de nível ou registra um pagamento, muda aqui em poucos segundos.',
+            ],
+            image: 'jogador-ao-vivo',
+            imageAlt: 'Torneio ao vivo no celular do jogador: relógio grande, nível 4, blinds e quantos ainda jogam',
+          },
+          {
+            title: 'Minha ficha e o PIX',
+            text: [
+              'Logo abaixo, a sua ficha: mesa e lugar, rebuys, add-ons, bounty (no torneio com bounty), o total, quanto já pagou e quanto deve. Quando você sai, aparece a sua posição.',
+              'Com o PIX do torneio cadastrado, dá para copiar a chave ou o PIX copia e cola já com o valor que falta e pagar pelo app do banco.',
+            ],
+            tip: 'O pagamento continua com o organizador: o valor só muda aqui quando ele registrar que recebeu.',
+            image: 'jogador-ficha',
+            imageAlt: 'Minha ficha no celular: mesa 2, lugar 2, 1 rebuy, deve R$ 100,00 e o PIX do torneio para copiar',
+          },
+          {
+            title: 'Só você vê os seus números',
+            text: [
+              'A área do jogador mostra só as suas inscrições: de cada torneio, os seus valores e a contagem de quem ainda joga. Os outros jogadores não aparecem.',
+            ],
+          },
+        ],
+      },
+    ],
+  },
+
+  // ================================================================================= 6. planos
   {
     slug: 'planos',
     title: 'Planos',

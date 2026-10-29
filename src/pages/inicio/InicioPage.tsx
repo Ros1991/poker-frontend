@@ -12,6 +12,7 @@ import {
   Plus,
   Radio,
   Smartphone,
+  Spade,
   Tablet,
   Trophy,
   Users,
@@ -24,19 +25,25 @@ import { NewTournamentButton } from '../../components/tournament/NewTournamentBu
 import { useAuth } from '../../hooks/useAuth'
 import { useHomeGame } from '../../hooks/useHomeGame'
 import { usePlan, MY_PLAN_QUERY_KEY } from '../../hooks/usePlan'
+import { useMePlayer } from '../../hooks/useMePlayer'
 import { TOURNAMENT_STATUS_COLORS, TOURNAMENT_STATUS_LABELS } from '../../constants/statuses'
 import {
   ROUTES,
   dealerMiniTvPath,
   dealerTerminalPath,
   homeGameSectionPath,
+  myTournamentLivePath,
   tournamentDashboardPath,
 } from '../../constants/routes'
 import { cn } from '../../utils/cn'
 import type { BadgeColor } from '../../components/ui/Badge'
 import type { HomeGame } from '../../types/homeGame.types'
 import type { Inicio, InicioHomeGame, InicioLiveTournament, InicioTournament } from '../../types/inicio.types'
+import type { MePlayerSummary, MyTournament } from '../../types/mePlayer.types'
 import { HomeGameFormModal } from '../home-games/HomeGameFormModal'
+import { MyTournamentRow } from '../me/MyTournamentRow'
+import { PlayerEmailHint, PlayerStats } from '../me/PlayerSummaryParts'
+import { isStillPlaying, resultText } from '../me/myTournamentFormat'
 
 // ------------------------------------------------------------------ apoio
 
@@ -133,8 +140,12 @@ interface InicioPageProps {
  *   Terminal do dealer;
  * - Mesa e Clube: Meus torneios (os 5 últimos + Novo torneio); Liga: um cartão por home game, com Criar home game;
  * - Clubes em que você participa (membro do clube de outra pessoa);
- * - no Clube/Liga, enquanto o nome do clube é o padrão, a dica dispensável "Dê um nome ao seu clube em Configurações".
- * A seção "Como jogador" é da SPEC-20261029-1726 (não aparece até ela existir). Tudo vem de `GET me/inicio`.
+ * - no Clube/Liga, enquanto o nome do clube é o padrão, a dica dispensável "Dê um nome ao seu clube em Configurações";
+ * - Como jogador (SPEC-20261029-1726, `GET me/player`): os números de quem joga, os 5 últimos torneios e "Ver todos" →
+ *   /meus-torneios; sem nenhuma inscrição vinculada, a dica de pedir ao organizador para cadastrar o e-mail da conta. O
+ *   torneio acontecendo em que a conta está inscrita entra em Agora com "Acompanhar" (no cartão de quem organiza, se ele
+ *   já está lá). Vem antes de "Meus torneios" quando a conta joga em algum lugar ou ainda não organizou nenhum torneio.
+ * O resto vem de `GET me/inicio`.
  */
 export function InicioPage({ createHomeGame = false }: InicioPageProps) {
   const { user } = useAuth()
@@ -143,6 +154,7 @@ export function InicioPage({ createHomeGame = false }: InicioPageProps) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
 
+  const player = useMePlayer({ refetchOnMount: 'always' })
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: [...INICIO_QUERY_KEY, user?.id ?? 'anon'],
     queryFn: inicioApi.getInicio,
@@ -201,6 +213,7 @@ export function InicioPage({ createHomeGame = false }: InicioPageProps) {
       {data && (
         <InicioContent
           data={data}
+          player={player.data}
           myName={myName}
           userId={user?.id}
           tipDismissed={tipDismissedFor === data.primaryHomeGameId || readTipDismissed(user?.id, data.primaryHomeGameId)}
@@ -216,8 +229,6 @@ export function InicioPage({ createHomeGame = false }: InicioPageProps) {
         />
       )}
 
-      {/* Como jogador (SPEC-20261029-1726): reservado — não renderiza nada até a área do jogador existir */}
-
       <HomeGameFormModal
         isOpen={createHomeGame && isLiga === true}
         onClose={() => navigate(ROUTES.INICIO, { replace: true })}
@@ -229,12 +240,15 @@ export function InicioPage({ createHomeGame = false }: InicioPageProps) {
 
 function InicioContent({
   data,
+  player,
   myName,
   userId,
   tipDismissed,
   onDismissTip,
 }: {
   data: Inicio
+  /** Resumo de quem joga (`GET me/player`); undefined enquanto carrega */
+  player: MePlayerSummary | undefined
   myName: string
   userId: string | undefined
   tipDismissed: boolean
@@ -247,6 +261,17 @@ function InicioContent({
   const perHomeGame = data.homeGamesVisible || owned.length > 1
   const showsHomeGames = data.homeGamesVisible || data.homeGames.length > 1
   const showTip = !tipDismissed && data.plan !== 'Mesa' && !!primary?.isNameDefault
+
+  // Como jogador: torneios acontecendo em que a conta está inscrita — no cartão de quem organiza (se já está em Agora)
+  // ou num cartão só de jogador
+  const playerLive = player?.live ?? []
+  const followIds = new Set(playerLive.map((t) => t.tournamentId))
+  const managedIds = new Set(data.live.map((t) => t.id))
+  const playerOnlyLive = playerLive.filter((t) => !managedIds.has(t.tournamentId))
+  const playsSomewhere = (player?.tournamentCount ?? 0) > 0
+  const organizesNothing = owned.every((h) => h.tournamentCount === 0)
+  const playerFirst = playsSomewhere || organizesNothing
+  const asPlayer = player && <AsPlayerSection player={player} />
 
   return (
     <>
@@ -282,18 +307,29 @@ function InicioContent({
 
       {/* Agora */}
       <Section id="agora" title="Agora" icon={Radio}>
-        {data.live.length === 0 ? (
+        {data.live.length === 0 && playerOnlyLive.length === 0 ? (
           <p className="rounded-xl border border-dashed border-border-input bg-bg-secondary px-4 py-6 text-center text-sm text-text-secondary">
             Nenhum torneio em andamento agora.
           </p>
         ) : (
           <div className="grid gap-3 md:grid-cols-2">
             {data.live.map((t) => (
-              <LiveCard key={t.id} tournament={t} showHomeGame={showsHomeGames} myName={myName} />
+              <LiveCard
+                key={t.id}
+                tournament={t}
+                showHomeGame={showsHomeGames}
+                myName={myName}
+                follow={followIds.has(t.id)}
+              />
+            ))}
+            {playerOnlyLive.map((t) => (
+              <PlayerLiveCard key={t.tournamentId} tournament={t} />
             ))}
           </div>
         )}
       </Section>
+
+      {playerFirst && asPlayer}
 
       {/* Mesa e Clube: Meus torneios; Liga: um cartão por home game */}
       {perHomeGame ? (
@@ -354,18 +390,109 @@ function InicioContent({
           </div>
         </Section>
       )}
+
+      {!playerFirst && asPlayer}
     </>
   )
+}
+
+/** Como jogador (SPEC-20261029-1726): números, os 5 últimos e "Ver todos"; sem inscrição, a dica do e-mail */
+function AsPlayerSection({ player }: { player: MePlayerSummary }) {
+  const plays = player.tournamentCount > 0
+  return (
+    <Section
+      id="como-jogador"
+      title="Como jogador"
+      icon={Spade}
+      action={
+        plays && (
+          <Link to={ROUTES.MY_TOURNAMENTS} className={linkButton('ghost')} data-inicio-player-all>
+            Ver todos ({player.tournamentCount})
+            <ArrowRight className="h-4 w-4" aria-hidden />
+          </Link>
+        )
+      }
+    >
+      {plays ? (
+        <div className="space-y-3">
+          <PlayerStats summary={player} />
+          <div className="rounded-xl border border-border-default bg-bg-secondary">
+            <ul className="divide-y divide-border-default">
+              {player.recent.map((t) => (
+                <MyTournamentRow key={t.tournamentId} tournament={t} />
+              ))}
+            </ul>
+          </div>
+        </div>
+      ) : (
+        <PlayerEmailHint email={player.email} />
+      )}
+    </Section>
+  )
+}
+
+/** Acompanhar (área do jogador): o torneio que está acontecendo, com o relógio e a minha ficha */
+function FollowLink({ tournamentId, primary = false }: { tournamentId: string; primary?: boolean }) {
+  return (
+    <Link
+      to={myTournamentLivePath(tournamentId)}
+      className={linkButton(primary ? 'primary' : 'secondary')}
+      data-inicio-action="acompanhar"
+    >
+      <Spade className="h-4 w-4" aria-hidden />
+      Acompanhar
+    </Link>
+  )
+}
+
+/** Torneio acontecendo em que a conta só joga (o clube é de outra pessoa): Acompanhar */
+function PlayerLiveCard({ tournament: t }: { tournament: MyTournament }) {
+  const state = playerLiveState(t)
+  const result = resultText(t)
+  const mine = result && result !== 'Jogando' ? ` · ${result}` : isStillPlaying(t) ? ' · jogando' : ''
+  return (
+    <article
+      className="flex flex-col gap-3 rounded-xl border border-accent-blue/30 bg-bg-secondary p-4"
+      data-inicio-live={t.tournamentId}
+      data-inicio-live-player
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <h3 className="truncate font-semibold text-text-primary">{t.name}</h3>
+          <p className="mt-0.5 line-clamp-2 text-xs text-text-secondary">
+            {t.homeGameLabel} · {t.currentLevel ? `Nível ${t.currentLevel} · ` : ''}
+            {t.playersRemaining} de {t.totalEntries} jogando
+          </p>
+        </div>
+        <Badge color={state.color} className="shrink-0">
+          {state.label}
+        </Badge>
+      </div>
+      <p className="text-xs text-text-secondary">Você está inscrito{mine}</p>
+      <div className="flex flex-wrap gap-2">
+        <FollowLink tournamentId={t.tournamentId} primary />
+      </div>
+    </article>
+  )
+}
+
+function playerLiveState(t: MyTournament): { label: string; color: BadgeColor } {
+  if (t.status === 'BreakSettlement') return { label: TOURNAMENT_STATUS_LABELS.BreakSettlement, color: 'yellow' }
+  if (!t.currentLevel) return { label: 'Aguardando o relógio', color: 'gray' }
+  return t.isTimerRunning ? { label: 'Em andamento', color: 'green' } : { label: 'Pausado', color: 'yellow' }
 }
 
 function LiveCard({
   tournament: t,
   showHomeGame,
   myName,
+  follow = false,
 }: {
   tournament: InicioLiveTournament
   showHomeGame: boolean
   myName: string
+  /** A conta também está inscrita neste torneio: "Acompanhar" (área do jogador) */
+  follow?: boolean
 }) {
   const state = liveState(t)
   return (
@@ -387,6 +514,7 @@ function LiveCard({
         </Badge>
       </div>
       <div className="flex flex-wrap gap-2">
+        {follow && <FollowLink tournamentId={t.id} />}
         <Link to={tournamentDashboardPath(t.id)} className={linkButton('primary')} data-inicio-action="painel">
           <LayoutDashboard className="h-4 w-4" aria-hidden />
           Painel
