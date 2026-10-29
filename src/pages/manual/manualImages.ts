@@ -43,8 +43,16 @@ import imgHomeGameTorneios400 from '../../assets/manual/home-game-torneios-400.w
 import imgHomeGameTorneios750 from '../../assets/manual/home-game-torneios-750.webp'
 import imgInicio400 from '../../assets/manual/inicio-400.webp'
 import imgInicio750 from '../../assets/manual/inicio-750.webp'
+import imgJogadorAoVivo400 from '../../assets/manual/jogador-ao-vivo-400.webp'
+import imgJogadorAoVivo750 from '../../assets/manual/jogador-ao-vivo-750.webp'
+import imgJogadorFicha400 from '../../assets/manual/jogador-ficha-400.webp'
+import imgJogadorFicha750 from '../../assets/manual/jogador-ficha-750.webp'
 import imgJogadorFoto400 from '../../assets/manual/jogador-foto-400.webp'
 import imgJogadorFoto750 from '../../assets/manual/jogador-foto-750.webp'
+import imgJogadorInicio400 from '../../assets/manual/jogador-inicio-400.webp'
+import imgJogadorInicio750 from '../../assets/manual/jogador-inicio-750.webp'
+import imgJogadorMeusTorneios400 from '../../assets/manual/jogador-meus-torneios-400.webp'
+import imgJogadorMeusTorneios750 from '../../assets/manual/jogador-meus-torneios-750.webp'
 import imgJogadorNovo400 from '../../assets/manual/jogador-novo-400.webp'
 import imgJogadorNovo750 from '../../assets/manual/jogador-novo-750.webp'
 import imgJogadoresLista400 from '../../assets/manual/jogadores-lista-400.webp'
@@ -282,10 +290,42 @@ export const MANUAL_IMAGES = {
     height: 1520,
     kind: 'phone',
   },
+  'jogador-ao-vivo': {
+    src: imgJogadorAoVivo400,
+    full: imgJogadorAoVivo750,
+    srcSet: `${imgJogadorAoVivo400} 400w, ${imgJogadorAoVivo750} 750w`,
+    width: 750,
+    height: 1520,
+    kind: 'phone',
+  },
+  'jogador-ficha': {
+    src: imgJogadorFicha400,
+    full: imgJogadorFicha750,
+    srcSet: `${imgJogadorFicha400} 400w, ${imgJogadorFicha750} 750w`,
+    width: 750,
+    height: 1520,
+    kind: 'phone',
+  },
   'jogador-foto': {
     src: imgJogadorFoto400,
     full: imgJogadorFoto750,
     srcSet: `${imgJogadorFoto400} 400w, ${imgJogadorFoto750} 750w`,
+    width: 750,
+    height: 1520,
+    kind: 'phone',
+  },
+  'jogador-inicio': {
+    src: imgJogadorInicio400,
+    full: imgJogadorInicio750,
+    srcSet: `${imgJogadorInicio400} 400w, ${imgJogadorInicio750} 750w`,
+    width: 750,
+    height: 1520,
+    kind: 'phone',
+  },
+  'jogador-meus-torneios': {
+    src: imgJogadorMeusTorneios400,
+    full: imgJogadorMeusTorneios750,
+    srcSet: `${imgJogadorMeusTorneios400} 400w, ${imgJogadorMeusTorneios750} 750w`,
     width: 750,
     height: 1520,
     kind: 'phone',
