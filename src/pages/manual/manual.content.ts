@@ -803,7 +803,7 @@ export const MANUAL_MODULES = [
               'O organizador cadastra você como jogador no clube dele. Quando o e-mail do cadastro é o mesmo da sua conta (já confirmado), os dois ficam ligados: os torneios desse clube passam a aparecer para você, inclusive os antigos.',
               'Joga em mais de um clube? Peça o mesmo para cada organizador: tudo aparece junto, na mesma conta.',
             ],
-            tip: 'Enquanto nenhum organizador cadastrou o seu e-mail, o Início mostra "Você joga em algum home game? Peça ao organizador para cadastrar seu e-mail", com o e-mail da sua conta.',
+            tip: 'Enquanto nenhum organizador cadastrou o seu e-mail, o Início mostra "Você joga em algum clube? Peça ao organizador para cadastrar seu e-mail", com o e-mail da sua conta.',
           },
           {
             title: 'Sua foto vale em todos os clubes',

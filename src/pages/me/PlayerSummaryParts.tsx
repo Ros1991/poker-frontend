@@ -33,6 +33,7 @@ export function PlayerStats({ summary, className }: { summary: MePlayerSummary; 
 
 /**
  * Conta sem nenhuma inscrição vinculada: o organizador liga o jogador à conta cadastrando o e-mail dela (SPEC-20261029-1725).
+ * "Clube", não "home game": no Mesa e no Clube a palavra "home game" não aparece (D18; a suíte do Início confere).
  */
 export function PlayerEmailHint({ email, className }: { email: string; className?: string }) {
   return (
@@ -42,7 +43,7 @@ export function PlayerEmailHint({ email, className }: { email: string; className
     >
       <Mail className="mt-0.5 h-5 w-5 shrink-0 text-accent-blue" aria-hidden />
       <div className="min-w-0">
-        <p className="text-sm font-semibold text-text-primary">Você joga em algum home game?</p>
+        <p className="text-sm font-semibold text-text-primary">Você joga em algum clube?</p>
         <p className="mt-0.5 text-sm text-text-secondary">
           Peça ao organizador para cadastrar seu e-mail{' '}
           <span className="break-all font-medium text-text-primary" data-player-hint-email>
