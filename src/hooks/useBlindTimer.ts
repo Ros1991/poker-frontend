@@ -14,6 +14,7 @@ const DEFAULT_TIMER_STATE: TimerState = {
   nextBigBlind: null,
   nextAnte: null,
   isBreak: false,
+  isLastLevel: false,
 }
 
 /** Formato que a API manda (`TimerStateResponse`): duração em minutos e o próximo nível num objeto à parte */
@@ -28,6 +29,7 @@ interface ServerTimerState {
   isRunning?: boolean
   isPaused?: boolean
   isBreak?: boolean
+  isLastLevel?: boolean
   nextSmallBlind?: number | null
   nextBigBlind?: number | null
   nextAnte?: number | null
@@ -56,6 +58,8 @@ export function normalizeTimerState(raw: unknown): TimerState {
     nextBigBlind: r.nextBigBlind !== undefined ? r.nextBigBlind : (next?.bigBlind ?? null),
     nextAnte: r.nextAnte !== undefined ? r.nextAnte : (next?.ante ?? null),
     isBreak: r.isBreak ?? false,
+    // SPEC-20261029-1720: sem nível depois do atual (API antiga sem o campo → como antes)
+    isLastLevel: r.isLastLevel ?? false,
   }
 }
 

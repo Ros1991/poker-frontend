@@ -24,6 +24,8 @@ import { Button } from '../../../components/ui/Button'
 import { LoadingSpinner } from '../../../components/common/LoadingSpinner'
 import type { Tournament } from '../../../types/tournament.types'
 import type { TimerState } from '../../../types/blind.types'
+import { isLastLevel, isStructureFinished } from '../../../utils/timerDisplay'
+import { apiErrorMessage } from '../../../components/dealer/terminalFormat'
 
 interface BlindsTabProps {
   tournament: Tournament
@@ -51,6 +53,11 @@ export function BlindsTab({
         100
       : 0
 
+  // Fim da estrutura (SPEC-20261029-1720, D2): sem nível depois do atual o "Próximo" desliga; com o tempo zerado, o
+  // relógio fica em 00:00 até o organizador acrescentar níveis aqui embaixo
+  const lastLevel = isLastLevel(timerState)
+  const structureFinished = isStructureFinished(timerState)
+
   const [editMode, setEditMode] = useState(false)
   const [draft, setDraft] = useState<TournamentBlindLevel[]>([])
 
@@ -76,6 +83,8 @@ export function BlindsTab({
       queryClient.invalidateQueries({
         queryKey: ['tournamentBlindLevels', tournament.id],
       })
+      // Níveis novos depois do último: o relógio relê e o "Próximo" volta (SPEC-20261029-1720)
+      void queryClient.invalidateQueries({ queryKey: ['timer', tournament.id] })
     },
     onError: () => toast.error('Erro ao salvar blinds.'),
   })
@@ -113,7 +122,7 @@ export function BlindsTab({
       syncFromServer(data)
       toast.success('Próximo nível!')
     },
-    onError: () => toast.error('Erro ao avançar nível.'),
+    onError: (err) => toast.error(apiErrorMessage(err, 'Erro ao avançar nível.')),
   })
 
   const prevMutation = useMutation({
@@ -211,8 +220,13 @@ export function BlindsTab({
             </span>
           </div>
         ) : (
-          <p className="text-sm text-text-secondary mb-1">
+          <p className="text-sm text-text-secondary mb-1" data-blinds-level>
             Nível {timerState.currentLevel}
+            {lastLevel && (
+              <span className="ml-1.5 rounded-full bg-accent-red-soft px-2 py-0.5 text-xs font-semibold text-accent-red-deep">
+                Último nível
+              </span>
+            )}
           </p>
         )}
 
@@ -250,6 +264,13 @@ export function BlindsTab({
               </div>
             )}
           </div>
+        )}
+
+        {structureFinished && (
+          <p className="text-sm text-text-secondary mb-4" data-blinds-structure-finished>
+            A estrutura acabou: o relógio fica em 00:00 no último nível. Para continuar, acrescente níveis na estrutura
+            abaixo.
+          </p>
         )}
 
         {timerState.nextSmallBlind != null && timerState.nextBigBlind != null && (
@@ -304,8 +325,10 @@ export function BlindsTab({
             variant="secondary"
             size="sm"
             onClick={() => nextMutation.mutate()}
-            disabled={isAnyLoading}
-            title="Próximo nível"
+            disabled={isAnyLoading || lastLevel}
+            title={lastLevel ? 'Último nível' : 'Próximo nível'}
+            aria-label={lastLevel ? 'Último nível' : 'Próximo nível'}
+            data-blinds-next
           >
             <SkipForward className="h-4 w-4" />
           </Button>

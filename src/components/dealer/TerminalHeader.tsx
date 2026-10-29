@@ -2,7 +2,13 @@ import { useState } from 'react'
 import { ChevronDown, Pause, Play, SkipBack, SkipForward } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { getDealerSession } from '../../utils/deviceSessions'
+import { blindsSizeClass, blindsText, formatChips, isLastLevel } from '../../utils/timerDisplay'
+import type { BlindsSizes } from '../../utils/timerDisplay'
 import type { TimerState } from '../../types/blind.types'
+
+// Linha "Nível N · SB/BB (ante X)" com a fonte pelo tamanho dos blinds (a mesma regra do telão, SPEC-20261029-1720): os
+// blinds e o ante nunca quebram no meio; se o celular for estreito demais, a linha quebra só nos separadores
+const LEVEL_LINE_SIZES: BlindsSizes = ['text-xs', 'text-[11px]', 'text-[10px]']
 
 interface TerminalHeaderProps {
   tournamentName: string
@@ -39,6 +45,9 @@ export function TerminalHeader({
   onOpenMore,
 }: TerminalHeaderProps) {
   const running = timerState.isRunning
+  // Fim da estrutura (SPEC-20261029-1720, D2): não há nível depois deste — o servidor recusa o "Próximo"
+  const lastLevel = isLastLevel(timerState)
+  const levelLineSize = blindsSizeClass(blindsText(timerState.smallBlind, timerState.bigBlind), LEVEL_LINE_SIZES)
   // Nome informado ao pedir acesso (SPEC-20261023-1208). O DealerTerminalRoute repassa o nome da sessão
   // pela prop; sem ele, lê da sessão do dealer deste aparelho (fixa durante o terminal aberto).
   const [sessionName] = useState(() => (dealerMode ? getDealerSession()?.dealerName : undefined))
@@ -89,7 +98,7 @@ export function TerminalHeader({
             {tableName}
           </p>
         )}
-        <div className="text-right">
+        <div className="min-w-0 text-right">
           {/* Relógio rodando em marinho; pausado no único dourado que vale como texto */}
           <p
             className={`font-mono tabular-nums text-3xl font-bold leading-none ${
@@ -98,11 +107,23 @@ export function TerminalHeader({
           >
             {formattedTime}
           </p>
-          <p className="mt-1 text-xs tabular-nums text-text-secondary">
-            {timerState.isBreak
-              ? 'Intervalo'
-              : `Nível ${timerState.currentLevel} · ${timerState.smallBlind}/${timerState.bigBlind}`}
-            {!timerState.isBreak && timerState.ante > 0 ? ` (ante ${timerState.ante})` : ''}
+          <p className={`mt-1 tabular-nums text-text-secondary ${levelLineSize}`} data-terminal-level>
+            {timerState.isBreak ? (
+              'Intervalo'
+            ) : (
+              <>
+                {`Nível ${timerState.currentLevel} · `}
+                <span className="whitespace-nowrap">
+                  {formatChips(timerState.smallBlind)}/{formatChips(timerState.bigBlind)}
+                </span>
+                {timerState.ante > 0 && (
+                  <>
+                    {' '}
+                    <span className="whitespace-nowrap">(ante {formatChips(timerState.ante)})</span>
+                  </>
+                )}
+              </>
+            )}
           </p>
         </div>
       </div>
@@ -128,8 +149,24 @@ export function TerminalHeader({
             </>
           )}
         </Button>
-        <Button variant="secondary" size="sm" className="flex-1 px-1" onClick={onNextLevel} loading={nextLoading}>
-          Próximo <SkipForward className="h-4 w-4" />
+        {/* No último nível o "Próximo" desliga e vira "Último nível" (para continuar, o organizador acrescenta níveis) */}
+        <Button
+          variant="secondary"
+          size="sm"
+          className="flex-1 px-1"
+          onClick={onNextLevel}
+          loading={nextLoading}
+          disabled={lastLevel}
+          title={lastLevel ? 'Não há nível depois deste: acrescente níveis na aba Blinds do painel' : undefined}
+          data-terminal-next
+        >
+          {lastLevel ? (
+            'Último nível'
+          ) : (
+            <>
+              Próximo <SkipForward className="h-4 w-4" />
+            </>
+          )}
         </Button>
       </div>
     </header>

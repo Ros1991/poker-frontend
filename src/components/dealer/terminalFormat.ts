@@ -34,10 +34,8 @@ export function addonsLeft(
   return max > 0 ? Math.max(0, max - (entry.addonCount ?? 0)) : null
 }
 
-/** "Sem add-on" / "Add-on" / "3 add-ons" */
-export function addonCountLabel(count: number): string {
-  return count <= 0 ? 'Sem add-on' : count === 1 ? 'Add-on' : `${count} add-ons`
-}
+// "Sem add-on" / "Add-on" / "3 add-ons": a frase mora em utils/entryStatusLine.ts, junto com a do telão (SPEC-20261029-1720)
+export { addonCountLabel } from '../../utils/entryStatusLine'
 
 /** Busca por nome completo e apelido, sem acento e sem diferença de maiúsculas ("jose" acha "José") */
 export function matchesPlayerSearch(entry: Pick<TournamentEntry, 'person'>, term: string): boolean {

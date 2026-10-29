@@ -84,4 +84,9 @@ export interface TimerState {
   nextBigBlind: number | null
   nextAnte: number | null
   isBreak: boolean
+  /**
+   * Não existe nível depois do atual (SPEC-20261029-1720, `TimerStateResponse.IsLastLevel`): "Próximo" desligado e,
+   * com o tempo zerado, o relógio travado em 00:00 com o selo "Último nível"
+   */
+  isLastLevel: boolean
 }

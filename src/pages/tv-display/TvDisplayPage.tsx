@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
@@ -8,6 +8,12 @@ import { buildPixPayload, normalizePixKey, PIX_KEY_TYPE_LABELS } from '../../uti
 import { bountyToReceive, isKnockout, isProgressive, KNOCKOUT_BADGES, knockoutTypeOf } from '../../utils/knockout'
 import * as publicDisplayApi from '../../api/publicDisplay.api'
 import { useBlindTimer } from '../../hooks/useBlindTimer'
+import { toggleFullscreen, useFullscreen } from '../../hooks/useFullscreen'
+import { FullscreenButton } from '../../components/tv/FullscreenButton'
+import { blindsSizeClass, blindsText, formatChips, isLastLevel, isStructureFinished } from '../../utils/timerDisplay'
+import type { BlindsSizes } from '../../utils/timerDisplay'
+import { DUE_TONE_CLASS, dueStatus, entryStatusParts, ENTRY_STATUS_SEPARATOR } from '../../utils/entryStatusLine'
+import type { EntryStatusPart } from '../../utils/entryStatusLine'
 import { pairDisplayPath } from '../../constants/routes'
 import { formatPairingCode } from '../../utils/pairingCode'
 import { Badge } from '../../components/ui/Badge'
@@ -39,6 +45,7 @@ interface RawTimerResponse {
   remainingSeconds?: number
   isRunning?: boolean
   isBreak?: boolean
+  isLastLevel?: boolean
   nextLevel?: {
     levelNumber?: number
     smallBlind?: number
@@ -63,7 +70,30 @@ function toTimerState(raw: unknown): TimerState {
     nextBigBlind: r.nextLevel && !r.nextLevel.isBreak ? (r.nextLevel.bigBlind ?? null) : null,
     nextAnte: r.nextLevel && !r.nextLevel.isBreak ? (r.nextLevel.ante ?? null) : null,
     isBreak: r.isBreak ?? false,
+    isLastLevel: r.isLastLevel ?? false,
   }
+}
+
+// Tamanho dos blinds pelo comprimento do texto "SB / BB" (SPEC-20261029-1720): até 13 caracteres como sempre, 14–16 um
+// degrau menor, 17+ ("100.000 / 200.000") dois — sempre numa linha. Em TV de até 800 px de altura, um degrau abaixo.
+// O ante acompanha o degrau dos blinds (fica na mesma linha); o "Próximo" usa o comprimento do texto dele.
+const BLINDS_SIZES: BlindsSizes = [
+  'text-8xl [@media(max-height:800px)]:text-7xl',
+  'text-7xl [@media(max-height:800px)]:text-6xl',
+  'text-6xl [@media(max-height:800px)]:text-5xl',
+]
+const ANTE_SIZES: BlindsSizes = [
+  'text-7xl [@media(max-height:800px)]:text-6xl',
+  'text-6xl [@media(max-height:800px)]:text-5xl',
+  'text-5xl [@media(max-height:800px)]:text-4xl',
+]
+const NEXT_SIZES: BlindsSizes = ['text-4xl', 'text-3xl', 'text-2xl']
+
+// 2ª linha do jogador no telão: rebuys/add-ons no cinza da linha; a cabeça do PKO em roxo; o saldo nas cores do card
+function statusPartClass(part: EntryStatusPart): string {
+  if (part.kind === 'head') return 'font-semibold text-accent-purple-deep'
+  if (part.kind === 'due' && part.tone) return DUE_TONE_CLASS[part.tone]
+  return ''
 }
 
 function formatDuration(totalSeconds: number): string {
@@ -217,6 +247,7 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
         last.state.currentLevel === next.currentLevel &&
         last.state.isRunning === next.isRunning &&
         last.state.isBreak === next.isBreak &&
+        last.state.isLastLevel === next.isLastLevel &&
         last.state.smallBlind === next.smallBlind &&
         last.state.bigBlind === next.bigBlind &&
         Math.abs(expected - next.remainingSeconds) < 2
@@ -233,16 +264,12 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
     return () => clearInterval(t)
   }, [])
 
-  // Auto fullscreen (F) + alternar telão/mesas (M)
+  // Tela cheia (F — o mesmo código do botão do canto, SPEC-20261029-1720) + alternar telão/mesas (M)
+  const { active: fullscreenActive, supported: fullscreenSupported } = useFullscreen()
+  const fullscreenButtonVisible = fullscreenSupported && !fullscreenActive
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'f' || e.key === 'F') {
-        if (!document.fullscreenElement) {
-          void document.documentElement.requestFullscreen()
-        } else {
-          void document.exitFullscreen()
-        }
-      }
+      if (e.key === 'f' || e.key === 'F') toggleFullscreen()
       // Sem o recurso Tables (Mesa com enforcement) a tecla M não faz nada
       if (tablesViewAllowed && (e.key === 'm' || e.key === 'M')) {
         setView((v) => (v === 'clock' ? 'tables' : 'clock'))
@@ -361,42 +388,24 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
   // Knockout (SPEC-20261026-1909, todos os planos): selo do formato no topo e, no PKO, a cabeça de quem ainda joga
   const knockout = isKnockout(tournament)
   const pko = isProgressive(tournament)
-  // Colunas literais (o Tailwind só gera classe que aparece inteira no código). No PKO a coluna "Cabeça" entra com o
-  // valor sem "R$" e Reb/Add/Deve ficam um pouco mais estreitas; no Normal e no knockout simples as colunas são as de
-  // sempre. Revisão geral 2: no PKO o nome tem no mínimo 7rem e, abaixo de 1600 px de largura (TV HD 1280/1366), as
-  // colunas Reb/Add saem para caber a Cabeça; a coluna de jogadores também fica um pouco mais larga (5fr de 16).
-  const activeCols = !showMoney
-    ? pko
-      ? 'grid-cols-[minmax(7rem,1fr)_4.5rem] min-[1600px]:grid-cols-[minmax(7rem,1fr)_2.5rem_2.5rem_4.5rem]'
-      : 'grid-cols-[minmax(0,1fr)_3rem_3rem]'
-    : pko
-      ? 'grid-cols-[minmax(7rem,1fr)_4.5rem_7rem] min-[1600px]:grid-cols-[minmax(7rem,1fr)_2.5rem_2.5rem_4.5rem_7rem]'
-      : 'grid-cols-[minmax(0,1fr)_3rem_3rem_8rem]'
-  // Reb/Add no PKO só a partir de 1600 px (mesmas colunas do cabeçalho e das linhas)
-  const rebAddCols = pko ? 'max-[1599px]:hidden' : ''
+  // Lista de jogadores (SPEC-20261029-1720, D1 — desfaz as colunas Reb/Add/Deve da SPEC-20261028-1923): o nome a ~30 px
+  // (24 px abaixo de 1600 px de largura) e, embaixo, a 2ª linha em texto corrido à esquerda, como no card do dealer. No
+  // PKO a coluna de jogadores é um pouco mais larga (5fr de 16, revisão geral 2).
+  const nameSize = 'text-3xl max-[1599px]:text-2xl'
   const mainCols = pko ? 'grid-cols-[5fr_7fr_4fr]' : 'grid-cols-[1fr_2fr_1fr]'
   // A coluna central do PKO (7/16) tem 7/8 da largura da do Normal (2/4): com zoom de 7/8 ela é o MESMO centro do Normal
   // em escala — relógio, blinds, ante, próximo e o PIX do dia quebram nos mesmos pontos e ocupam 7/8 da altura, então o
   // QR nunca desce mais que no Normal (antes, com blinds grandes, os blinds iam para 3 linhas e o QR saía da tela)
   const centerZoom = pko ? '[zoom:0.875]' : ''
-  const finishedCols = !showMoney
-    ? 'grid-cols-[minmax(0,1fr)]'
-    : pko
-      ? 'grid-cols-[minmax(0,1fr)_7rem]'
-      : 'grid-cols-[minmax(0,1fr)_8rem]'
-  // Cabeça no telão: "75" ou "87,50" (a coluna diz que é em reais)
-  const headValue = (v: number) =>
-    v.toLocaleString('pt-BR', { minimumFractionDigits: Number.isInteger(v) ? 0 : 2, maximumFractionDigits: 2 })
 
-  function renderBalance(e: TvEntry) {
-    if (e.balance > 0) {
-      return <span className="font-semibold tabular-nums text-accent-red-deep">{formatCurrency(e.balance)}</span>
-    }
-    if (e.balance < 0) {
-      return <span className="font-semibold tabular-nums text-accent-blue">{formatCurrency(e.balance)}</span>
-    }
-    return <span className="font-semibold text-accent-green-deep">Pago</span>
-  }
+  // Relógio no fim da estrutura (SPEC-20261029-1720, D2): último nível com o tempo zerado — 00:00, os blinds do último
+  // nível, a barra cheia, o selo "Último nível" no lugar do "Nível N" e nenhuma linha "Próximo"
+  const structureFinished = isStructureFinished(timerState)
+  const currentBlinds = blindsText(timerState.smallBlind, timerState.bigBlind)
+  const nextBlinds =
+    !isLastLevel(timerState) && timerState.nextSmallBlind != null
+      ? blindsText(timerState.nextSmallBlind, timerState.nextBigBlind ?? 0)
+      : null
 
   return (
     <div className="h-screen bg-bg-primary text-text-primary overflow-hidden select-none">
@@ -589,13 +598,6 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
             <p className="mb-2 text-base tabular-nums text-text-secondary">
               {tournament?.totalRebuys ?? 0} rebuys | {tournament?.totalAddons ?? 0} add-ons
             </p>
-            <div className={`mb-1 grid gap-1 px-2 text-sm uppercase tracking-wider text-text-secondary ${activeCols}`}>
-              <span>Jogador</span>
-              <span className={`text-center ${rebAddCols}`}>Reb</span>
-              <span className={`text-center ${rebAddCols}`}>Add</span>
-              {pko && <span className="text-right" title="Cabeça (bounty) em reais">Cabeça</span>}
-              {showMoney && <span className="text-right">Deve</span>}
-            </div>
             <AutoScrollList className="min-h-0 flex-1">
               <div className="flex flex-col gap-1">
                 {playerGroups.map((group) => (
@@ -611,57 +613,73 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
                     {group.players.map((e) => {
                   const finished = e.status !== 'Active' && e.status !== 'Registered'
                   const isChampion = finished && e.finalPosition === 1
+                  if (finished) {
+                    // Eliminados (e o campeão) continuam numa linha: posição + nome na fonte nova; o saldo à direita
+                    const due = showMoney ? dueStatus(e.balance) : null
+                    return (
+                      <div
+                        key={e.id}
+                        data-tv-entry={e.displayName}
+                        data-tv-finished
+                        className={`flex min-w-0 items-center gap-2 rounded-lg px-3 py-2 ${
+                          isChampion ? 'border border-accent-gold/40 bg-accent-gold-soft' : 'bg-bg-zebra'
+                        }`}
+                      >
+                        <span className={`flex min-w-0 flex-1 items-center gap-1.5 leading-tight ${nameSize}`} data-tv-name>
+                          {isChampion ? (
+                            <span className="flex shrink-0 items-center gap-1 font-bold text-accent-gold-deep">
+                              <Trophy className="h-6 w-6" />
+                              1º
+                            </span>
+                          ) : (
+                            <span className="flex shrink-0 items-center gap-1 font-bold tabular-nums text-accent-red-deep">
+                              <Skull className="h-6 w-6" />
+                              {e.finalPosition ? `${e.finalPosition}º` : ''}
+                            </span>
+                          )}
+                          <span className={`truncate font-semibold ${isChampion ? 'text-text-primary' : 'text-text-secondary'}`}>
+                            {e.displayName}
+                          </span>
+                        </span>
+                        {due && (
+                          <span className={`shrink-0 whitespace-nowrap text-lg ${DUE_TONE_CLASS[due.tone]}`} data-tv-due>
+                            {due.text}
+                          </span>
+                        )}
+                      </div>
+                    )
+                  }
+                  // Quem ainda joga: nome na 1ª linha (cortado com reticências só se não couber) e, embaixo, a mesma
+                  // frase do card do dealer — "2 rebuys · Add-on · Deve R$ 50,00" (no PKO com a "Cabeça 75")
+                  const parts = entryStatusParts(e, { showMoney, pko })
                   return (
                     <div
                       key={e.id}
                       data-tv-entry={e.displayName}
-                      className={`grid items-center rounded-lg px-2 py-2 text-xl ${
-                        finished ? `gap-1 ${finishedCols}` : `gap-x-1 gap-y-0.5 ${activeCols}`
-                      } ${
-                        isChampion
-                          ? 'border border-accent-gold/40 bg-accent-gold-soft'
-                          : finished
-                            ? 'bg-bg-zebra'
-                            : 'border border-border-default bg-bg-primary'
-                      }`}
+                      className="flex min-w-0 flex-col gap-0.5 rounded-lg border border-border-default bg-bg-primary px-3 py-2"
                     >
-                      {/* Quem ainda joga: o nome ocupa a 1ª linha inteira e Reb/Add (e Cabeça/Deve) vão para a 2ª, embaixo
-                          das colunas do cabeçalho — o nome não fica cortado (SPEC-20261028-1923) */}
-                      <span className={`flex min-w-0 items-center gap-1.5 ${finished ? '' : 'col-span-full'}`}>
-                        {isChampion ? (
-                          <span className="flex shrink-0 items-center gap-1 font-bold text-accent-gold-deep">
-                            <Trophy className="h-5 w-5" />
-                            1º
-                          </span>
-                        ) : finished ? (
-                          <span className="flex shrink-0 items-center gap-1 font-bold tabular-nums text-accent-red-deep">
-                            <Skull className="h-5 w-5" />
-                            {e.finalPosition ? `${e.finalPosition}º` : ''}
-                          </span>
-                        ) : null}
-                        <span className={`truncate font-semibold ${finished && !isChampion ? 'text-text-secondary' : 'text-text-primary'}`}>
-                          {e.displayName}
-                        </span>
+                      <span className={`truncate font-semibold leading-tight text-text-primary ${nameSize}`} data-tv-name>
+                        {e.displayName}
                       </span>
-                      {!finished && (
-                        <>
-                          {/* 2ª linha: a coluna do nome fica vazia, os números caem embaixo dos títulos */}
-                          <span aria-hidden="true" />
-                          <span className={`text-center tabular-nums text-text-secondary ${rebAddCols}`}>{e.rebuyCount || '-'}</span>
-                          <span className={`text-center tabular-nums text-text-secondary ${rebAddCols}`}>
-                            {e.addonCount || '-'}
-                          </span>
-                          {pko && (
+                      <span className="text-lg leading-snug tabular-nums text-text-secondary" data-tv-status>
+                        {parts.map((part, i) => (
+                          <Fragment key={part.kind}>
+                            {/* Abaixo de 1600 px a coluna não comporta a frase inteira: o saldo desce para a linha de
+                                baixo, sem o separador sobrando no fim da linha */}
+                            {i > 0 && (
+                              <span className={part.kind === 'due' ? 'max-[1599px]:hidden' : undefined}>
+                                {ENTRY_STATUS_SEPARATOR}
+                              </span>
+                            )}
                             <span
-                              className="text-right font-semibold tabular-nums text-accent-purple-deep"
-                              data-tv-head={e.bountyHead ?? 0}
+                              className={`whitespace-nowrap ${part.kind === 'due' ? 'max-[1599px]:block' : ''} ${statusPartClass(part)}`}
+                              {...(part.kind === 'head' ? { 'data-tv-head': e.bountyHead ?? 0 } : {})}
                             >
-                              {headValue(e.bountyHead ?? 0)}
+                              {part.text}
                             </span>
-                          )}
-                        </>
-                      )}
-                      {showMoney && <span className="text-right">{renderBalance(e)}</span>}
+                          </Fragment>
+                        ))}
+                      </span>
                     </div>
                   )
                 })}
@@ -711,7 +729,14 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
               })()
             ) : (
               <div className="flex flex-col items-center gap-2">
-                {timerState.isBreak ? (
+                {structureFinished ? (
+                  <div
+                    className="rounded-full bg-accent-red-soft px-8 py-2 text-2xl font-semibold uppercase tracking-wider text-accent-red-deep"
+                    data-tv-last-level
+                  >
+                    Último nível
+                  </div>
+                ) : timerState.isBreak ? (
                   <div className="rounded-full bg-accent-gold-soft px-8 py-2 text-2xl font-semibold text-accent-gold-deep">
                     INTERVALO
                   </div>
@@ -741,14 +766,18 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
 
                 {/* Blinds Info — fonte grande */}
                 <div className="mt-4 flex flex-col items-center gap-3">
-                  <div className="flex items-end gap-10">
+                  {/* Blinds e ante numa linha só cada um (whitespace-nowrap), com a fonte pelo tamanho do texto; se a
+                      coluna for estreita demais para os dois lado a lado, o ante desce em vez de cortar */}
+                  <div className="flex flex-wrap items-end justify-center gap-x-10 gap-y-3">
                     <div className="flex flex-col items-center">
                       <span className="text-2xl font-semibold uppercase tracking-wider text-text-secondary">
                         Blinds
                       </span>
-                      <span className="text-8xl font-bold tabular-nums text-accent-blue [@media(max-height:800px)]:text-7xl">
-                        {timerState.smallBlind.toLocaleString('pt-BR')} /{' '}
-                        {timerState.bigBlind.toLocaleString('pt-BR')}
+                      <span
+                        className={`whitespace-nowrap font-bold tabular-nums text-accent-blue ${blindsSizeClass(currentBlinds, BLINDS_SIZES)}`}
+                        data-tv-blinds
+                      >
+                        {currentBlinds}
                       </span>
                     </div>
                     {timerState.ante > 0 && (
@@ -756,20 +785,25 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
                         <span className="text-2xl font-semibold uppercase tracking-wider text-text-secondary">
                           Ante
                         </span>
-                        <span className="text-7xl font-bold tabular-nums text-accent-orange-deep [@media(max-height:800px)]:text-6xl">
-                          {timerState.ante.toLocaleString('pt-BR')}
+                        <span
+                          className={`whitespace-nowrap font-bold tabular-nums text-accent-orange-deep ${blindsSizeClass(currentBlinds, ANTE_SIZES)}`}
+                          data-tv-ante
+                        >
+                          {formatChips(timerState.ante)}
                         </span>
                       </div>
                     )}
                   </div>
-                  {timerState.nextSmallBlind != null && (
+                  {nextBlinds && (
                     <div className="flex flex-col items-center">
                       <span className="text-2xl font-semibold uppercase tracking-wider text-text-secondary">
                         Próximo
                       </span>
-                      <span className="text-4xl font-semibold tabular-nums text-text-secondary">
-                        {timerState.nextSmallBlind.toLocaleString('pt-BR')} /{' '}
-                        {timerState.nextBigBlind?.toLocaleString('pt-BR')}
+                      <span
+                        className={`whitespace-nowrap font-semibold tabular-nums text-text-secondary ${blindsSizeClass(nextBlinds, NEXT_SIZES)}`}
+                        data-tv-next
+                      >
+                        {nextBlinds}
                       </span>
                     </div>
                   )}
@@ -848,7 +882,8 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
 
             {/* Mesa: selo "Feito com Poker da Galera" + QR do site no canto inferior (no lugar da premiação) */}
             {qrBadgeInAside && (
-              <div className="mt-auto flex justify-end">
+              // Com o botão de tela cheia no canto (fora da tela cheia), o selo sobe para não ficar embaixo dele
+              <div className={`mt-auto flex justify-end ${fullscreenButtonVisible ? 'pb-10' : ''}`} data-tv-site-badge>
                 <PoweredByBadge variant="qr" qrSize={104} />
               </div>
             )}
@@ -895,13 +930,16 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
         </div>
         )}
 
-        {/* Clube: selo discreto no rodapé (nas duas visões) */}
+        {/* Clube: selo discreto no rodapé (nas duas visões); com o botão de tela cheia no canto, o selo dá espaço a ele */}
         {footerBadge && (
-          <footer className="flex justify-end px-6 pb-2">
+          <footer className={`flex justify-end px-6 pb-2 ${fullscreenButtonVisible ? 'pr-16' : ''}`}>
             <PoweredByBadge variant="discreta" className="text-sm" />
           </footer>
         )}
       </div>
+
+      {/* Tela cheia sem teclado (SPEC-20261029-1720, D16): some ao entrar em tela cheia */}
+      <FullscreenButton />
     </div>
   )
 }

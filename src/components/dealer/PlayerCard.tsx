@@ -4,7 +4,8 @@ import { Avatar } from '../ui/Avatar'
 import { cn } from '../../utils/cn'
 import type { KnockoutType } from '../../utils/knockout'
 import type { TournamentEntry } from '../../types/entry.types'
-import { addonCountLabel, amountDue, eliminationsText, formatCurrency, playerName } from './terminalFormat'
+import { DUE_TONE_CLASS, dueStatus, entryStatusLine } from '../../utils/entryStatusLine'
+import { eliminationsText, formatCurrency, playerName } from './terminalFormat'
 
 export interface PlayerActionRules {
   canRebuy: boolean
@@ -29,18 +30,11 @@ interface PlayerCardProps {
 
 /**
  * "Deve R$ 50,00" em vermelho, "Pagou a mais R$ 20,00" em azul (pago acima do devido — a mesma conta do `amountDue`,
- * SPEC-20261023-1217, L13) ou "Pago" em verde (texto pequeno: variante -deep, que passa AA; o azul base já passa)
+ * SPEC-20261023-1217, L13) ou "Pago" em verde. O texto vem do `dueStatus` compartilhado com o telão (SPEC-20261029-1720).
  */
 export function DueLabel({ entry, className }: { entry: TournamentEntry; className?: string }) {
-  const due = amountDue(entry)
-  if (due > 0)
-    return <span className={cn('font-semibold tabular-nums text-accent-red-deep', className)}>Deve {formatCurrency(due)}</span>
-  const over = Math.round((entry.totalPaid - entry.totalDue) * 100) / 100
-  if (over > 0)
-    return (
-      <span className={cn('font-semibold tabular-nums text-accent-blue', className)}>Pagou a mais {formatCurrency(over)}</span>
-    )
-  return <span className={cn('font-semibold text-accent-green-deep', className)}>Pago</span>
+  const due = dueStatus(entry.totalDue - entry.totalPaid)
+  return <span className={cn(DUE_TONE_CLASS[due.tone], className)}>{due.text}</span>
 }
 
 /**
@@ -192,11 +186,8 @@ export function PlayerCard({
           <ChevronRight className="h-4 w-4 shrink-0 text-text-muted" />
         </button>
         <div className="flex flex-col text-sm leading-tight">
-          <span className="text-text-secondary">
-            {entry.rebuyCount > 0 ? `${entry.rebuyCount} rebuy${entry.rebuyCount > 1 ? 's' : ''}` : 'Sem rebuy'}
-            {' · '}
-            {addonCountLabel(entry.addonCount)}
-          </span>
+          {/* "2 rebuys · Add-on": a mesma frase da 2ª linha do telão (utils/entryStatusLine, SPEC-20261029-1720) */}
+          <span className="text-text-secondary">{entryStatusLine(entry, { showMoney: false })}</span>
           <EliminationsLabel entry={entry} />
           <BountyLabel entry={entry} knockout={knockout} />
           {showPayment && <DueLabel entry={entry} />}

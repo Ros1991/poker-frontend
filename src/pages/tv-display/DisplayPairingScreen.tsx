@@ -5,6 +5,7 @@ import { LogIn, Tv } from 'lucide-react'
 import { ROUTES, pairDisplayPath } from '../../constants/routes'
 import { formatPairingCode } from '../../utils/pairingCode'
 import { BrandLogo } from '../../components/brand/BrandLogo'
+import { FullscreenButton } from '../../components/tv/FullscreenButton'
 
 interface DisplayPairingScreenProps {
   code: string | null
@@ -115,6 +116,9 @@ export function DisplayPairingScreen({ code, connectionError }: DisplayPairingSc
           </section>
         </main>
       </div>
+
+      {/* Tela cheia sem teclado na TV (SPEC-20261029-1720, D16); no celular em pé (abaixo de 640 px) não aparece */}
+      <FullscreenButton className="max-sm:hidden" />
     </div>
   )
 }
