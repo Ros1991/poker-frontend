@@ -423,6 +423,8 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
         // Adicionou ou desfez pelo resumo (SPEC-20261023-1213, F14): o resumo tem o "Desfazer" de cada um
         onChanged={invalidateAll}
         showTables={canTables}
+        // Dealer pelo QR não informa e-mail (o e-mail liga o jogador à conta — SPEC-20261029-1725)
+        allowEmail={!dealerMode}
       />
 
       <PlayersSheet

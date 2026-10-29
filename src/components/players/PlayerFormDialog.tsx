@@ -8,7 +8,14 @@ import type { Person } from '../../types/person.types'
 import { cleanWhatsapp } from '../../utils/phone'
 import { normalizeSpaces } from '../../utils/text'
 import { PlayerFormFields } from './PlayerFormFields'
-import { EMPTY_PLAYER_FORM, findSameName, playerFormFromPerson, validatePlayerForm } from './playerForm'
+import {
+  EMPTY_PLAYER_FORM,
+  findSameName,
+  linkedAccountOf,
+  ownPhotoOf,
+  playerFormFromPerson,
+  validatePlayerForm,
+} from './playerForm'
 import type { PlayerFormErrors, PlayerFormValue } from './playerForm'
 
 interface PlayerFormDialogProps {
@@ -30,6 +37,9 @@ function serverMessage(err: unknown): string | undefined {
  * "Novo jogador" e "Editar" da aba Jogadores do home game (SPEC-20261023-1213, F17): os mesmos campos do cadastro
  * pelo torneio, com foto (tirar na hora, galeria ou webcam; recorte quadrado). Criar = POST /Persons + foto;
  * editar = PUT + foto nova ou remover. Fecha só no X/Cancelar ou ao salvar.
+ * E-mail (SPEC-20261029-1725): liga o jogador à conta confirmada com o mesmo e-mail — "Já conhecemos este jogador" ao
+ * sair do campo; na edição de jogador vinculado, o aviso de que a foto vem da conta. A foto que o formulário troca ou
+ * remove é a do cadastro (ownPhotoUrl), não a exibida.
  */
 export function PlayerFormDialog(props: PlayerFormDialogProps) {
   if (!props.isOpen) return null
@@ -53,7 +63,7 @@ function PlayerFormDialogContent({ onClose, homeGameId, person, existing = [], o
   }
 
   async function save() {
-    const found = validatePlayerForm(value)
+    const found = validatePlayerForm(value, { checkEmail: true })
     const same = findSameName(existing, value.fullName, person?.id)
     if (!found.fullName && same) found.fullName = `Já existe ${same.nickname || same.fullName} com esse nome no home game.`
     setErrors(found)
@@ -63,16 +73,18 @@ function PlayerFormDialogContent({ onClose, homeGameId, person, existing = [], o
     const fullName = normalizeSpaces(value.fullName)
     const nickname = normalizeSpaces(value.nickname)
     const whatsapp = cleanWhatsapp(value.whatsapp)
+    const email = value.email.trim()
     let saved: Person
     try {
       saved = editing
-        ? await personsApi.update(person!.id, { fullName, nickname, whatsapp: whatsapp ?? '' })
+        ? await personsApi.update(person!.id, { fullName, nickname, whatsapp: whatsapp ?? '', email })
         : await personsApi.create({
             homeGameId,
             type: 'Jogador',
             fullName,
             nickname: nickname || undefined,
             whatsapp,
+            email: email || undefined,
           })
     } catch (err) {
       setSaving(false)
@@ -82,7 +94,7 @@ function PlayerFormDialogContent({ onClose, homeGameId, person, existing = [], o
 
     try {
       if (value.photo) saved = await personsApi.uploadPhoto(saved.id, value.photo)
-      else if (editing && value.photoRemoved && person?.photoUrl) saved = await personsApi.removePhoto(saved.id)
+      else if (editing && value.photoRemoved && person && ownPhotoOf(person)) saved = await personsApi.removePhoto(saved.id)
       toast.success(editing ? 'Jogador atualizado' : 'Jogador cadastrado')
     } catch (err) {
       toast.error(
@@ -132,8 +144,11 @@ function PlayerFormDialogContent({ onClose, homeGameId, person, existing = [], o
           value={value}
           onChange={patch}
           errors={errors}
-          currentPhotoUrl={person?.photoUrl}
+          currentPhotoUrl={person ? ownPhotoOf(person) : null}
           allowRemovePhoto={editing}
+          showEmail
+          lookupScope={{ homeGameId }}
+          linkedAccount={linkedAccountOf(person)}
           autoFocusName={!editing}
           disabled={saving}
           idPrefix={editing ? 'editar-jogador' : 'novo-jogador'}

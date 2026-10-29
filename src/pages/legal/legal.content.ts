@@ -24,7 +24,7 @@ export const LEGAL_INFO = {
   site: 'https://pokerdagalera.com.br',
   siteHost: 'pokerdagalera.com.br',
   /** Data da versão em vigor dos dois documentos */
-  updatedAt: '25/10/2026',
+  updatedAt: '29/10/2026',
 } as const
 
 /** Parágrafo (string) ou lista com marcadores (array). */
@@ -117,6 +117,7 @@ export const PRIVACY_DOC: LegalDocument = {
         [
           'O dono e os membros de cada home game veem os jogadores, torneios e valores daquele home game. O dealer autorizado vê os jogadores e os valores do torneio em que foi autorizado.',
           'O telão mostra, para quem estiver no local, o nome ou apelido, a foto e a situação dos jogadores do torneio. Cada ranking tem uma página pública (/r/…) que qualquer pessoa com o link pode abrir, com o nome ou apelido, a foto e os resultados dos jogadores daquele ranking.',
+          'Jogador com conta: quando o organizador cadastra um jogador com o mesmo e-mail de uma conta confirmada do Poker da Galera, o cadastro fica ligado a essa conta (só o e-mail é usado para isso, sem CPF nem telefone). A foto da conta passa a aparecer no lugar da foto do cadastro em todos os home games em que a pessoa foi cadastrada com esse e-mail: no painel, no terminal do dealer e na página pública do ranking. Quem organiza um home game, ao digitar um e-mail no cadastro de um jogador, vê se existe conta confirmada com ele, com o nome, o apelido e a foto da conta. Você troca ou tira a foto em Meu perfil; ao excluir a conta, os cadastros deixam de ser ligados a ela e voltam à foto do cadastro.',
           'Prestadores que operam o serviço para nós, só no necessário: Railway (hospedagem do site, da API e do banco de dados), Cloudflare (rede, proteção do site e encaminhamento do e-mail de contato), Resend (envio dos e-mails do serviço) e Google (entrada com a conta Google, quando você escolhe usá-la, e a caixa de e-mail onde chegam as mensagens enviadas ao contato).',
           'Autoridades, quando houver ordem judicial ou obrigação legal.',
         ],

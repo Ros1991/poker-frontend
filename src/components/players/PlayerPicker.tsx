@@ -33,6 +33,12 @@ interface PlayerPickerProps {
    * (teclado aberto e área visível < 300 px), quando quem abriga esconde o próprio cabeçalho (usePickerLayout).
    */
   onClose: () => void
+  /**
+   * E-mail no cadastro de jogador novo (SPEC-20261029-1725): liga o jogador à conta confirmada com o mesmo e-mail, com o
+   * "Já conhecemos este jogador". Padrão: sim (organizador). O terminal aberto pelo QR do dealer passa `false` — o dealer
+   * não informa e-mail e o servidor ignora o que viesse dele.
+   */
+  allowEmail?: boolean
 }
 
 const label = (p: { fullName: string; nickname: string | null }) => p.nickname?.trim() || p.fullName
@@ -73,7 +79,7 @@ const SEARCH_TEXT = '[&_input]:text-base sm:[&_input]:text-sm'
  * (SPEC-20261027-2132, integração da onda 15): barra de cima com o voltar, o título e o ✓ (nome acessível com o verbo:
  * "Cadastrar e adicionar ao torneio" / "Cadastrar e selecionar"), sem rodapé e com os avisos logo abaixo da barra.
  */
-export function PlayerPicker({ tournamentId, entries, variant, onAdded, onClose }: PlayerPickerProps) {
+export function PlayerPicker({ tournamentId, entries, variant, onAdded, onClose, allowEmail = true }: PlayerPickerProps) {
   const queryClient = useQueryClient()
   const terminal = variant === 'terminal'
   const { short, compact, minimal, row, phone, visibleHeight } = usePickerLayout()
@@ -181,14 +187,14 @@ export function PlayerPicker({ tournamentId, entries, variant, onAdded, onClose 
 
   // Campo com erro fora da área que rola (teclado aberto, foto no topo): traz para a vista depois de pintar
   function showFieldError(errors: PlayerFormErrors) {
-    const first = (['fullName', 'nickname', 'whatsapp'] as const).find((k) => errors[k])
+    const first = (['fullName', 'email', 'nickname', 'whatsapp'] as const).find((k) => errors[k])
     if (!first) return
-    const id = `novo-${variant}-${{ fullName: 'nome', nickname: 'apelido', whatsapp: 'whatsapp' }[first]}`
+    const id = `novo-${variant}-${{ fullName: 'nome', email: 'email', nickname: 'apelido', whatsapp: 'whatsapp' }[first]}`
     requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))
   }
 
   async function submitNew() {
-    const errors = validatePlayerForm(form)
+    const errors = validatePlayerForm(form, { checkEmail: allowEmail })
     setFormErrors(errors)
     if (Object.keys(errors).length > 0) {
       showFieldError(errors)
@@ -213,6 +219,7 @@ export function PlayerPicker({ tournamentId, entries, variant, onAdded, onClose 
         fullName: normalizeSpaces(form.fullName),
         nickname: normalizeSpaces(form.nickname) || undefined,
         whatsapp: cleanWhatsapp(form.whatsapp),
+        email: allowEmail ? form.email.trim() || undefined : undefined,
       })
     } catch (err) {
       setSaving(false)
@@ -220,6 +227,9 @@ export function PlayerPicker({ tournamentId, entries, variant, onAdded, onClose 
       if (/WhatsApp/i.test(msg)) {
         setFormErrors({ whatsapp: msg })
         showFieldError({ whatsapp: msg })
+      } else if (/e-mail/i.test(msg)) {
+        setFormErrors({ email: msg })
+        showFieldError({ email: msg })
       } else setFormError(msg)
       return
     }
@@ -401,6 +411,8 @@ export function PlayerPicker({ tournamentId, entries, variant, onAdded, onClose 
               autoFocusName
               disabled={saving}
               idPrefix={`novo-${variant}`}
+              showEmail={allowEmail}
+              lookupScope={allowEmail ? { tournamentId } : undefined}
               whatsappHint={terminal ? 'Opcional. Fica só com o organizador.' : 'Opcional.'}
             />
             <button type="submit" className="hidden" aria-hidden="true" tabIndex={-1} />

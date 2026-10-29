@@ -10,6 +10,8 @@ import { LoadingSpinner } from '../../components/common/LoadingSpinner'
 import { PlayerFormFields } from '../../components/players/PlayerFormFields'
 import {
   EMPTY_PLAYER_FORM,
+  linkedAccountOf,
+  ownPhotoOf,
   playerFormFromPerson,
   validatePlayerForm,
 } from '../../components/players/playerForm'
@@ -27,6 +29,8 @@ function serverMessage(err: unknown): string | undefined {
 /**
  * /players/new e /players/:id/edit (SPEC-20261023-1213, F17): os mesmos campos do cadastro com foto
  * (PlayerFormFields), mais e-mail e notas. Editar não apaga as notas (vêm da pessoa); "Remover foto" remove de verdade.
+ * Conta vinculada (SPEC-20261029-1725): "Já conhecemos este jogador" ao sair do e-mail e, no jogador vinculado, o aviso
+ * de que a foto vem da conta; a foto do formulário é a do cadastro (ownPhotoUrl).
  */
 export function PlayerFormPage() {
   const { id } = useParams<{ id: string }>()
@@ -122,7 +126,7 @@ function PlayerForm({ person, homeGameId }: { person: Person | null; homeGameId:
 
     try {
       if (value.photo) await personsApi.uploadPhoto(saved.id, value.photo)
-      else if (person?.photoUrl && value.photoRemoved) await personsApi.removePhoto(saved.id)
+      else if (person && ownPhotoOf(person) && value.photoRemoved) await personsApi.removePhoto(saved.id)
       toast.success(isEditing ? 'Jogador atualizado com sucesso!' : 'Jogador criado com sucesso!')
     } catch (err) {
       toast.error(
@@ -185,10 +189,12 @@ function PlayerForm({ person, homeGameId }: { person: Person | null; homeGameId:
           value={value}
           onChange={patch}
           errors={errors}
-          currentPhotoUrl={person?.photoUrl}
+          currentPhotoUrl={person ? ownPhotoOf(person) : null}
           allowRemovePhoto={isEditing}
           showEmail
           showNotes
+          lookupScope={{ homeGameId }}
+          linkedAccount={linkedAccountOf(person)}
           disabled={saving}
           idPrefix="pagina-jogador"
         />
