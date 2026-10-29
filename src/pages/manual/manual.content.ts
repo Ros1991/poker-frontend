@@ -485,6 +485,26 @@ export const MANUAL_MODULES = [
             image: 'terminal-eliminar',
             imageAlt: 'Janela Eliminar com a foto do jogador e a lista Quem eliminou, com Pular e os outros jogadores da mesa',
           },
+          {
+            title: 'Timebank',
+            text: [
+              'Com o timebank ligado no torneio, cada card mostra o ⏱ com quantos timebanks o jogador ainda tem. Toque nele: aparecem Usar timebank, −1 e +1 (para tirar ou dar um timebank; dá para passar do número inicial).',
+              'O organizador liga o timebank no cartão Timebank do torneio (ou deixa como padrão na estrutura de blinds), com quantos timebanks cada jogador ganha e de quantos segundos. Torneio sem timebank não mostra nada disso.',
+            ],
+            tip: 'O ⏱ também aparece na Ficha e em Jogadores (no Mais). No painel, a aba Jogadores tem o −1 e o +1; a contagem é só no terminal.',
+            image: 'terminal-timebank',
+            imageAlt: 'Janela Timebank de Carlinha com a foto, 3 timebanks restantes de 30 segundos, o botão Usar timebank e os botões −1 e +1',
+          },
+          {
+            title: 'A contagem do timebank',
+            text: [
+              'Em Usar timebank, o celular vira um relógio em tela cheia: foto, nome e os segundos andando, com bipe e vibração aos 10 segundos e no zero. Toque em Encerrar para voltar à mesa.',
+              'A contagem é do celular e não para se a internet cair. Se o uso não for registrado, aparece Não registrado — Tentar de novo. O uso fica no Histórico, com o seu nome e Desfazer (o timebank volta para o jogador).',
+            ],
+            tip: 'No iPhone não há vibração: fica só o bipe. Deixe o som do celular ligado.',
+            image: 'terminal-timebank-contagem',
+            imageAlt: 'Contagem do timebank em tela cheia com a foto da Carlinha, 27 segundos, a barra laranja, Registrado · 2 restantes e o botão Encerrar',
+          },
         ],
       },
       {
@@ -519,7 +539,7 @@ export const MANUAL_MODULES = [
           {
             title: 'Histórico e desfazer',
             text: [
-              'Em Histórico fica tudo o que foi feito, com a hora e quem fez. Errou? Toque em Desfazer na linha.',
+              'Em Histórico fica tudo o que foi feito, com a hora e quem fez — inclusive o timebank usado, dado ou tirado. Errou? Toque em Desfazer na linha.',
             ],
             image: 'terminal-historico',
             imageAlt: 'Histórico do terminal com eliminações e pagamentos, cada linha com o botão Desfazer',

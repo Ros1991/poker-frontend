@@ -115,6 +115,10 @@ import imgTerminalRebuy400 from '../../assets/manual/terminal-rebuy-400.webp'
 import imgTerminalRebuy750 from '../../assets/manual/terminal-rebuy-750.webp'
 import imgTerminalTelao400 from '../../assets/manual/terminal-telao-400.webp'
 import imgTerminalTelao750 from '../../assets/manual/terminal-telao-750.webp'
+import imgTerminalTimebank400 from '../../assets/manual/terminal-timebank-400.webp'
+import imgTerminalTimebank750 from '../../assets/manual/terminal-timebank-750.webp'
+import imgTerminalTimebankContagem400 from '../../assets/manual/terminal-timebank-contagem-400.webp'
+import imgTerminalTimebankContagem750 from '../../assets/manual/terminal-timebank-contagem-750.webp'
 import imgTorneioNovo400 from '../../assets/manual/torneio-novo-400.webp'
 import imgTorneioNovo750 from '../../assets/manual/torneio-novo-750.webp'
 import imgTorneioNovoDealers400 from '../../assets/manual/torneio-novo-dealers-400.webp'
@@ -574,6 +578,22 @@ export const MANUAL_IMAGES = {
     src: imgTerminalTelao400,
     full: imgTerminalTelao750,
     srcSet: `${imgTerminalTelao400} 400w, ${imgTerminalTelao750} 750w`,
+    width: 750,
+    height: 1520,
+    kind: 'phone',
+  },
+  'terminal-timebank': {
+    src: imgTerminalTimebank400,
+    full: imgTerminalTimebank750,
+    srcSet: `${imgTerminalTimebank400} 400w, ${imgTerminalTimebank750} 750w`,
+    width: 750,
+    height: 1520,
+    kind: 'phone',
+  },
+  'terminal-timebank-contagem': {
+    src: imgTerminalTimebankContagem400,
+    full: imgTerminalTimebankContagem750,
+    srcSet: `${imgTerminalTimebankContagem400} 400w, ${imgTerminalTimebankContagem750} 750w`,
     width: 750,
     height: 1520,
     kind: 'phone',
