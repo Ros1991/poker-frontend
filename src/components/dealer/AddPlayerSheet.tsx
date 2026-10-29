@@ -26,6 +26,11 @@ interface AddPlayerSheetProps {
   showTables?: boolean
   /** Inscrições feitas ou desfeitas: quem chama invalida as consultas do terminal */
   onChanged: () => void
+  /**
+   * E-mail no cadastro de jogador novo, com o "Já conhecemos este jogador" (SPEC-20261029-1725): só quem abre o terminal
+   * logado. Aberto pelo QR do dealer: sem e-mail.
+   */
+  allowEmail?: boolean
 }
 
 /** Montado só quando aberto: começa sempre na busca */
@@ -53,7 +58,7 @@ function seatText(entry: TournamentEntry, seating: SeatingResult, tables: Table[
  * Mesa 2, lugar 5" (a mesma do aviso do painel) e os botões só aparecem abaixo dela. Sem mesas no plano (tablesEnabled
  * falso), o resumo não fala de mesa.
  */
-function AddPlayerContent({ onClose, tournamentId, entries, tables, showTables = true, onChanged }: AddPlayerSheetProps) {
+function AddPlayerContent({ onClose, tournamentId, entries, tables, showTables = true, onChanged, allowEmail = true }: AddPlayerSheetProps) {
   const [result, setResult] = useState<BulkCreateEntriesResult | null>(null)
   const [undone, setUndone] = useState<Set<string>>(new Set())
   const [undoing, setUndoing] = useState<string | null>(null)
@@ -174,6 +179,7 @@ function AddPlayerContent({ onClose, tournamentId, entries, tables, showTables =
         tournamentId={tournamentId}
         entries={entries}
         variant="terminal"
+        allowEmail={allowEmail}
         onAdded={(res) => {
           setResult(res)
           onChanged()

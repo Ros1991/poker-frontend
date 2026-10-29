@@ -137,6 +137,7 @@ export interface AvailablePlayer {
   id: string
   fullName: string
   nickname: string | null
+  /** Foto exibida (a da conta vinculada, se tiver — SPEC-20261029-1725) */
   photoUrl: string | null
 }
 

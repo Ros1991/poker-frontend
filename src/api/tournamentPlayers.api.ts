@@ -10,6 +10,8 @@ export interface CreateTournamentPlayerRequest {
   fullName: string
   nickname?: string
   whatsapp?: string
+  /** Liga o jogador à conta confirmada com o mesmo e-mail (SPEC-20261029-1725). O dealer por QR não manda: o servidor ignora */
+  email?: string
 }
 
 /** Cadastra no home game do torneio (não inscreve: a inscrição é pelo lote) */

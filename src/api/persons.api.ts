@@ -1,5 +1,6 @@
 import apiClient from './client'
 import type {
+  AccountLookup,
   Person,
   CreatePersonRequest,
   UpdatePersonRequest,
@@ -70,5 +71,19 @@ export async function getHistory(id: string): Promise<PlayerHistoryItem[]> {
   const response = await apiClient.get<PlayerHistoryItem[]>(
     `/Persons/${id}/history`,
   )
+  return response.data
+}
+
+/**
+ * "Já conhecemos este jogador" (SPEC-20261029-1725): conta confirmada com o e-mail (nome, apelido e foto). Só quem
+ * gerencia o home game (dono, membro administrador ou Admin); fora disso 403. Escopo pelo home game ou pelo torneio.
+ */
+export async function lookupEmail(
+  email: string,
+  scope: { homeGameId?: string; tournamentId?: string },
+): Promise<AccountLookup> {
+  const response = await apiClient.get<AccountLookup>('/Persons/lookup-email', {
+    params: { email, ...scope },
+  })
   return response.data
 }

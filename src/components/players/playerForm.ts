@@ -17,6 +17,14 @@ export interface PlayerFormValue {
   photoRemoved: boolean
 }
 
+/** Jogador vinculado a uma conta (edição — SPEC-20261029-1725): de onde vem a foto exibida */
+export interface LinkedAccountInfo {
+  name: string
+  /** Foto exibida hoje (a da conta, quando `photoFromAccount`) */
+  photoUrl: string | null
+  photoFromAccount: boolean
+}
+
 export type PlayerFormErrors = Partial<Record<'fullName' | 'nickname' | 'whatsapp' | 'email', string>>
 
 export const EMPTY_PLAYER_FORM: PlayerFormValue = {
@@ -44,6 +52,19 @@ export function playerFormFromPerson(person: Person): PlayerFormValue {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
+/** E-mail com cara de e-mail (a mesma regra da validação do formulário) */
+export function isPlausibleEmail(email: string): boolean {
+  return EMAIL_RE.test(email.trim())
+}
+
+/**
+ * Foto do CADASTRO, a que o formulário troca ou remove (SPEC-20261029-1725): `ownPhotoUrl`. A `photoUrl` da resposta é a
+ * EXIBIDA, que pode ser a da conta vinculada; resposta sem o campo (antiga) → `photoUrl`.
+ */
+export function ownPhotoOf(person: Pick<Person, 'photoUrl' | 'ownPhotoUrl'>): string | null {
+  return person.ownPhotoUrl !== undefined ? person.ownPhotoUrl : person.photoUrl
+}
+
 /** Nome 2–120 (obrigatório), apelido até 60, WhatsApp com DDD (10–11 dígitos) quando informado, e-mail válido */
 export function validatePlayerForm(value: PlayerFormValue, { checkEmail = false } = {}): PlayerFormErrors {
   const errors: PlayerFormErrors = {}
@@ -63,4 +84,10 @@ export function findSameName<T extends { id: string; fullName: string }>(
 ): T | undefined {
   const key = nameKey(fullName)
   return list.find((p) => p.id !== exceptId && nameKey(p.fullName) === key)
+}
+
+/** Conta vinculada da pessoa para o aviso do formulário ("A foto vem da conta de Fulano"); sem conta → null */
+export function linkedAccountOf(person: Person | null | undefined): LinkedAccountInfo | null {
+  if (!person?.linkedUserId || !person.linkedUserName) return null
+  return { name: person.linkedUserName, photoUrl: person.photoUrl, photoFromAccount: !!person.photoFromAccount }
 }

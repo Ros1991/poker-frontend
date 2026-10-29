@@ -54,6 +54,11 @@ export function AddMemberModal({
     (p) => !linkedPersonIds.has(p.id),
   )
 
+  // Vincular o jogador grava a conta nele (SPEC-20261029-1725): com outro e-mail no cadastro, avisa antes de adicionar
+  const selectedPerson = availablePersons.find((p) => p.id === selectedPersonId) ?? null
+  const otherEmail =
+    !!found && !!selectedPerson?.email && selectedPerson.email.trim().toLowerCase() !== found.email.trim().toLowerCase()
+
   const memberUserIds = new Set((existingMembers ?? []).map((m) => m.userId))
   const alreadyMember = !!found && memberUserIds.has(found.id)
 
@@ -266,6 +271,20 @@ export function AddMemberModal({
                 </option>
               ))}
             </select>
+            <p className="text-xs text-text-secondary">
+              O jogador passa a ser desta conta: a foto dela vale para ele em todo home game.
+            </p>
+            {otherEmail && (
+              <div
+                role="alert"
+                className="flex items-start gap-2 rounded-lg border border-accent-yellow bg-accent-yellow-soft px-3 py-2.5"
+              >
+                <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-text-secondary" aria-hidden="true" />
+                <p className="text-sm text-text-primary">
+                  O jogador tem outro e-mail cadastrado ({selectedPerson!.email}). O vínculo valerá mesmo assim.
+                </p>
+              </div>
+            )}
           </div>
         )}
 
