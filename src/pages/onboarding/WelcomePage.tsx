@@ -32,8 +32,9 @@ import type { ProfileDraft, ProfileDraftErrors, WelcomeStep } from './welcomeFlo
  * 1. Completar cadastro: foto do Google (fica ou sai), apelido e WhatsApp — ou "Fazer depois".
  * 2. Escolher plano: Mesa começa na hora; Clube/Liga registram o pedido (o plano só muda pelo Admin) e abrem o
  *    WhatsApp do suporte (`VITE_SUPPORT_WHATSAPP`) com a mensagem pronta.
- * Ao terminar: volta para a origem (ex.: `/parear/CODIGO` do QR da TV); sem origem, painel para quem já participa
- * de algum home game ou "Novo home game" para quem não tem nenhum.
+ * Ao terminar: volta para a origem (ex.: `/parear/CODIGO` do QR da TV); sem origem, o painel da conta — o detalhe do
+ * home game principal, que a conta já tem desde a confirmação (SPEC-20261029-1723: não há passo "criar home game";
+ * o Início da SPEC-20261029-1724 passa a ser o destino quando existir).
  */
 export function WelcomePage() {
   const { user, updateUser } = useAuth()

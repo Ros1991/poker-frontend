@@ -61,7 +61,13 @@ export interface PlanDefinition {
   priceMonthly: number
   /** Só exibido como "quando a cobrança entrar" */
   priceYearly: number
+  /** Home games como dono CONTANDO o principal da conta (Mesa 1, Clube 1, Liga 3 — SPEC-20261029-1723) */
   maxOwnedHomeGames: number
+  /**
+   * "Home game" aparece como conceito (seletor, criar, excluir)? Só na Liga (D18 do plano de 2026-10-29); no Mesa e no
+   * Clube a conta tem um só, invisível — a conta é o clube.
+   */
+  homeGamesVisible?: boolean
   /** Membros/admins além do dono; null = ilimitado */
   maxMembersPerHomeGame: number | null
   /** Torneios criados numa janela móvel de 7 dias; null = ilimitado */
@@ -76,6 +82,7 @@ export interface PlanDefinition {
 
 export interface PlanLimits {
   maxOwnedHomeGames: number
+  homeGamesVisible?: boolean
   maxMembersPerHomeGame: number | null
   tournamentsPer7Days: number | null
 }
@@ -94,6 +101,8 @@ export interface PlanTournamentUsage extends PlanUsageCounter {
 export interface PlanMembersUsage extends PlanUsageCounter {
   homeGameId: string
   name: string
+  /** O principal da conta (vem primeiro) */
+  isPrimary?: boolean
 }
 
 export interface PlanUsage {
@@ -115,6 +124,11 @@ export interface MyPlan {
   source: PlanSource
   /** Ex.: "fundador" */
   note: string | null
+  /**
+   * Home game principal da conta (SPEC-20261029-1723): no Mesa e no Clube é nele que ficam os torneios, estruturas e
+   * jogadores. Null só em conta sem principal (antiga sem backfill).
+   */
+  primaryHomeGameId?: string | null
   limits: PlanLimits
   features: string[]
   usage: PlanUsage

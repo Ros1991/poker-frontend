@@ -12,7 +12,9 @@
  * - `PLAN_LIMIT_TITLES: Record<PlanLimitCode, string>` — título do modal por `code`.
  * - `formatPlanPrice(value)` → "Grátis" | "R$ 49,90"; `formatYearlyPrice(value)` → "R$ 499".
  * - `describeHomeGames(def)`, `describeTournaments(def)`, `describeMembers(def)`, `describeTv(def)`
- *   → frases da tabela comparativa a partir dos limites do catálogo.
+ *   → frases da tabela comparativa a partir dos limites do catálogo (home games: Mesa e Clube "Um só: a sua
+ *   conta é o clube"; Liga "Até 3 home games (o da conta + 2)" — SPEC-20261029-1723).
+ * - `homeGamesSummary(plans)` → "Home games: Mesa e Clube — um só, a sua conta; Liga até 3" (com o número do catálogo).
  * - `findPlan(plans, name)`, `requiredPlanFor(feature, plans)`, `nextPlan(current, plans)`.
  * - `planIncludes(def, feature)`.
  * - `formatPlanSource(source, note)` → "Cortesia — fundador".
@@ -107,9 +109,25 @@ function plural(n: number, singular: string, pluralForm: string) {
   return `${n} ${n === 1 ? singular : pluralForm}`
 }
 
+/**
+ * Linha "home games" da tabela comparativa (SPEC-20261029-1723, D18): no Mesa e no Clube a conta tem um só,
+ * invisível — "Um só: a sua conta é o clube"; só a Liga tem home games ("Até 3 home games (o da conta + 2)"). Sem
+ * `homeGamesVisible` no catálogo (API antiga), decide pelo limite.
+ */
 export function describeHomeGames(def: PlanDefinition): string {
   const n = def.maxOwnedHomeGames
-  return n === 1 ? '1 home game' : `Até ${n} home games`
+  const visible = def.homeGamesVisible ?? n > 1
+  if (!visible) return 'Um só: a sua conta é o clube'
+  return `Até ${n} home games (o da conta + ${n - 1})`
+}
+
+/**
+ * Resumo da regra de home games por plano (Meu plano, SPEC-20261029-1723): "Home games: Mesa e Clube — um só, a sua
+ * conta; Liga até 3." O número da Liga vem do catálogo (sem catálogo, 3).
+ */
+export function homeGamesSummary(plans: readonly PlanDefinition[] | undefined): string {
+  const max = Math.max(0, ...(plans ?? []).filter((p) => p.homeGamesVisible ?? p.maxOwnedHomeGames > 1).map((p) => p.maxOwnedHomeGames))
+  return `Home games: Mesa e Clube — um só, a sua conta; Liga até ${max || 3}.`
 }
 
 export function describeTournaments(def: PlanDefinition): string {

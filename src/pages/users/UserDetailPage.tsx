@@ -56,7 +56,8 @@ type PendingConfirm = 'deactivate' | 'reactivate' | 'confirm-email' | null
  * Ficha da conta na Administração (SPEC-20261023-1206): dados, acesso (último login, último uso, sessões), e-mail
  * (confirmar manualmente / reenviar), formas de entrar (senha, Google), plano com o histórico do audit_logs (inclusive a
  * cortesia "fundador") e o plano pedido nas boas-vindas, home games, ações administrativas e os botões Editar dados,
- * Alterar plano, Redefinir senha e Desativar/Reativar.
+ * Alterar plano, Redefinir senha e Desativar/Reativar. Home games (SPEC-20261029-1723): o principal da conta primeiro,
+ * com o selo "Principal" e sem a lixeira (nunca é excluído); depois os demais.
  */
 export function UserDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -349,23 +350,34 @@ export function UserDetailPage() {
                 <ul className="flex flex-col">
                   {user.ownedHomeGames.map((hg) => (
                     <li key={hg.id} className="flex flex-wrap items-center justify-between gap-x-3 text-sm">
-                      <Link
-                        to={homeGameDetailPath(hg.id)}
-                        className="inline-flex min-h-[44px] min-w-0 items-center break-words font-medium text-accent-blue hover:underline"
-                      >
-                        {hg.name}
-                      </Link>
+                      <span className="flex min-w-0 flex-wrap items-center gap-x-2">
+                        <Link
+                          to={homeGameDetailPath(hg.id)}
+                          className="inline-flex min-h-[44px] min-w-0 items-center break-words font-medium text-accent-blue hover:underline"
+                        >
+                          {hg.name}
+                        </Link>
+                        {/* SPEC-20261029-1723: o principal da conta (o "clube" no Mesa e no Clube) */}
+                        {hg.isPrimary && (
+                          <span title="Home game principal da conta: no Mesa e no Clube é o único (a conta é o clube) e nunca é excluído">
+                            <Badge color="gold">Principal</Badge>
+                          </span>
+                        )}
+                      </span>
                       <span className="flex items-center gap-2 text-text-secondary">
                         {plural(hg.tournamentsCount, 'torneio', 'torneios')} · {plural(hg.membersCount, 'membro', 'membros')}
-                        <button
-                          type="button"
-                          onClick={() => setDeleteHomeGame({ id: hg.id, name: hg.name })}
-                          className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md text-text-secondary transition-colors hover:bg-accent-red-soft hover:text-accent-red-deep"
-                          title="Excluir home game"
-                          aria-label={`Excluir o home game ${hg.name}`}
-                        >
-                          <Trash2 className="h-4 w-4" aria-hidden="true" />
-                        </button>
+                        {/* O principal nunca é excluído (a API recusa com 400); só os outros têm a lixeira */}
+                        {!hg.isPrimary && (
+                          <button
+                            type="button"
+                            onClick={() => setDeleteHomeGame({ id: hg.id, name: hg.name })}
+                            className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md text-text-secondary transition-colors hover:bg-accent-red-soft hover:text-accent-red-deep"
+                            title="Excluir home game"
+                            aria-label={`Excluir o home game ${hg.name}`}
+                          >
+                            <Trash2 className="h-4 w-4" aria-hidden="true" />
+                          </button>
+                        )}
                       </span>
                     </li>
                   ))}

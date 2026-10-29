@@ -72,7 +72,7 @@ export interface ManualModule {
 export const MANUAL_META = {
   title: 'Manual de uso — Poker da Galera',
   description:
-    'Passo a passo com as telas: criar o home game, usar o terminal do dealer, administrar o torneio, ligar o telão na TV e escolher o plano.',
+    'Passo a passo com as telas: criar a conta, usar o terminal do dealer, administrar o torneio, ligar o telão na TV e escolher o plano.',
   path: MANUAL_BASE,
 } as const
 
@@ -119,11 +119,11 @@ export const MANUAL_MODULES = [
   {
     slug: 'criando-seu-home-game',
     title: 'Criando seu home game',
-    summary: 'Conta, boas-vindas, home game, jogadores, estrutura de blinds, torneio e quem ajuda a organizar.',
+    summary: 'Conta, boas-vindas, o seu clube, jogadores, estrutura de blinds, torneio e quem ajuda a organizar.',
     intro: 'Do cadastro ao primeiro torneio em uns 10 minutos. Dá para fazer tudo no celular.',
     icon: 'conta',
     description:
-      'Como criar a conta, o home game, cadastrar os jogadores, montar a estrutura de blinds com custos padrão e knockout, criar o torneio e convidar quem ajuda a organizar.',
+      'Como criar a conta (que já vem com o seu clube), cadastrar os jogadores, montar a estrutura de blinds com custos padrão e knockout, criar o torneio e convidar quem ajuda a organizar.',
     sections: [
       {
         id: 'conta',
@@ -171,7 +171,7 @@ export const MANUAL_MODULES = [
             title: 'Escolha o plano',
             text: [
               'Comece no Mesa: é grátis e não pede cartão. Ele cuida do jogo — jogadores, inscrições, rebuy, add-on, eliminações, relógio e telão.',
-              'O Clube e a Liga liberam mesas, premiação, pagamentos com PIX, custos, financeiro, ranking e o terminal do dealer. Dá para mudar quando quiser.',
+              'O Clube e a Liga liberam mesas, premiação, pagamentos com PIX, custos, financeiro, ranking e o terminal do dealer. Dá para mudar quando quiser. Ao terminar, você já cai no seu clube.',
             ],
             image: 'boas-vindas-plano',
             imageAlt: 'Boas-vindas, passo Seu plano: o card do Mesa grátis com o que está incluído',
@@ -181,13 +181,21 @@ export const MANUAL_MODULES = [
       },
       {
         id: 'home-game',
-        title: 'Home game e jogadores',
+        title: 'O seu clube e os jogadores',
         steps: [
           {
-            title: 'Crie o home game',
+            title: 'O seu clube já vem pronto',
             text: [
-              'Toque em Criar Home Game no menu (ou em + Criar, na barra de baixo do celular).',
-              'Dê um nome ao grupo e, se quiser, uma descrição, o local e a logo do clube. Toque em Criar home game.',
+              'Não há nada para criar: a conta já nasce com o seu clube. Os torneios, as estruturas de blinds e os jogadores ficam nele — no Mesa e no Clube, ele é a própria conta.',
+              'No Clube e na Liga, dê um nome ao clube em Editar (ele aparece no ranking público e na lista de torneios do telão). No Mesa, o que aparece é o nome da sua conta.',
+            ],
+            tip: 'O clube da conta nunca é excluído: ele só sai se você excluir a conta.',
+          },
+          {
+            title: 'Na Liga, até 3 home games',
+            text: [
+              'A Liga é para quem toca mais de um grupo (um bar, um circuito): além do clube da conta, dá para abrir mais 2 home games. Toque em Criar Home Game no menu.',
+              'Dê um nome e, se quiser, uma descrição, o local e a logo. Toque em Criar home game. Esses dois a Liga cria e exclui quando quiser.',
             ],
             tip: 'No celular, os formulários têm o X (cancelar) e o ✓ (salvar) no topo da tela, no lugar dos botões de baixo.',
             image: 'home-game-novo',
@@ -196,7 +204,7 @@ export const MANUAL_MODULES = [
           {
             title: 'Informe a chave PIX do grupo',
             text: [
-              'Em Editar do home game, preencha a Chave PIX e o Beneficiário. É o caixa padrão dos torneios: aparece no telão e no QR de pagamento.',
+              'Em Editar, preencha a Chave PIX e o Beneficiário. É o caixa padrão dos torneios: aparece no telão e no QR de pagamento.',
               'Digite do jeito que preferir — celular com DDD, CPF, CNPJ, e-mail ou chave aleatória: o sistema reconhece o tipo. Aproveite e deixe os valores padrão de buy-in, rebuy e add-on.',
             ],
             feature: 'Payments',
@@ -726,9 +734,16 @@ export const MANUAL_MODULES = [
         title: 'O seu plano',
         steps: [
           {
+            title: 'Mesa, Clube e Liga',
+            text: [
+              'No Mesa e no Clube a conta é o clube: um só, sem home game para criar ou trocar. Torneios, estruturas e jogadores ficam direto nela (no Clube, também rankings, membros e o nome do clube).',
+              'Na Liga são até 3 home games: o da conta, que nunca é excluído, e mais 2 que você cria e exclui quando quiser.',
+            ],
+          },
+          {
             title: 'Veja o plano e o uso',
             text: [
-              'Toque em Meu plano (a coroa no topo). Aparecem o plano atual, o vencimento e o uso: home games, torneios dos últimos 7 dias e membros.',
+              'Toque em Meu plano (a coroa no topo). Aparecem o plano atual, o vencimento e o uso: torneios dos últimos 7 dias, membros e, na Liga, os home games.',
             ],
             image: 'meu-plano',
             imageAlt: 'Página Meu plano com o plano Clube, Falar com o suporte e o uso do plano',

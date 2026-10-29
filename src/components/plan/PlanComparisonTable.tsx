@@ -157,7 +157,8 @@ export function PlanComparisonTable({
               </div>
 
               <ul className="mt-4 space-y-2 border-t border-border-default pt-4 text-sm">
-                <Row included>{describeHomeGames(plan)} (como dono)</Row>
+                {/* SPEC-20261029-1723: Mesa e Clube "Um só: a sua conta é o clube"; Liga "Até 3 home games" */}
+                <Row included>{describeHomeGames(plan)}</Row>
                 <Row included>{describeTournaments(plan)}</Row>
                 <Row included={plan.maxMembersPerHomeGame !== 0}>{describeMembers(plan)}</Row>
                 <Row included>Relógio de blinds, inscrições, rebuy/add-on e eliminações</Row>

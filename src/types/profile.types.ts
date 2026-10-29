@@ -20,7 +20,10 @@ export interface Profile {
   emailConfirmedAt: string | null
   createdAt: string
   lastLoginAt: string | null
-  /** Home games dos quais a conta é dona (com algum, excluir a conta fica bloqueado) */
+  /**
+   * Home games dos quais a conta é dona ALÉM do principal (com algum, excluir a conta fica bloqueado). O principal
+   * (SPEC-20261029-1723) não conta: ele é excluído junto com a conta.
+   */
   ownedHomeGames: number
   effectivePlan: PlanName
   // Boas-vindas (SPEC-20261023-1212). Opcionais para não quebrar quem monta Profile à mão.

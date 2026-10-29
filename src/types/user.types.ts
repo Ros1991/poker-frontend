@@ -155,6 +155,8 @@ export interface AdminUserSession {
 export interface AdminUserOwnedHomeGame {
   id: string
   name: string
+  /** Principal da conta (SPEC-20261029-1723): vem primeiro e nunca é excluído (sem lixeira) */
+  isPrimary?: boolean
   tournamentsCount: number
   membersCount: number
 }
