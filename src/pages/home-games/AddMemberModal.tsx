@@ -87,7 +87,7 @@ export function AddMemberModal({
       } else if (status === 403) {
         // Só quem administra um home game pode buscar contas (mensagem do backend)
         setLookupMessage(
-          serverMessage || 'Só quem administra um home game pode buscar contas.',
+          serverMessage || 'Só quem organiza torneios pode buscar contas.',
         )
       } else {
         setLookupMessage('Erro ao buscar a conta. Tente novamente.')
@@ -272,7 +272,7 @@ export function AddMemberModal({
               ))}
             </select>
             <p className="text-xs text-text-secondary">
-              O jogador passa a ser desta conta: a foto dela vale para ele em todo home game.
+              O jogador passa a ser desta conta: a foto dela vale para ele em todos os torneios.
             </p>
             {otherEmail && (
               <div

@@ -106,7 +106,7 @@ export function ProfileDataSection({ profile }: { profile: Profile }) {
       id="dados"
       icon={UserRound}
       title="Foto e dados"
-      description="Seu nome e sua foto aparecem no cabeçalho e para os organizadores dos home games de que você participa."
+      description="Seu nome e sua foto aparecem no cabeçalho e para quem organiza os clubes de que você participa."
     >
       {/* Celular (< sm, SPEC-20261027-2132): barra fixa no topo com X (sai da tela, como fechar), o título e o ✓ (= Salvar
           dados, desabilitado sem alteração como o botão); o botão de baixo some. Do sm para cima, como antes */}

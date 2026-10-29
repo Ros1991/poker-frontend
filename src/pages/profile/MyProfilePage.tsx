@@ -83,7 +83,7 @@ function PlanShortcut({ profile }: { profile: Profile }) {
       id="plano"
       icon={Crown}
       title="Plano"
-      description="O plano é da sua conta e vale nos home games dos quais você é dono."
+      description="O plano é da sua conta e vale para tudo o que você organiza."
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="flex items-center gap-2 text-sm text-text-secondary">

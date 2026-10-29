@@ -65,7 +65,7 @@ function PlayerFormDialogContent({ onClose, homeGameId, person, existing = [], o
   async function save() {
     const found = validatePlayerForm(value, { checkEmail: true })
     const same = findSameName(existing, value.fullName, person?.id)
-    if (!found.fullName && same) found.fullName = `Já existe ${same.nickname || same.fullName} com esse nome no home game.`
+    if (!found.fullName && same) found.fullName = `Já existe ${same.nickname || same.fullName} com esse nome.`
     setErrors(found)
     if (Object.keys(found).length > 0) return
 

@@ -48,6 +48,9 @@ export function HomeGameSelector({ className }: { className?: string }) {
   }
 
   const noun = isLiga ? 'home game' : 'clube'
+  // Os da conta primeiro (o principal à frente), depois os de outras pessoas — cada grupo na ordem da API (por nome)
+  const rank = (hg: HomeGame) => (hg.ownerId !== user?.id ? 2 : hg.isPrimary ? 0 : 1)
+  const ordered = [...homeGames].sort((a, b) => rank(a) - rank(b))
   const currentLabel = current ? homeGameLabel(current, user) : 'Carregando…'
 
   // Vai para a mesma seção no escolhido (se ele mostra), senão Torneios
@@ -79,7 +82,7 @@ export function HomeGameSelector({ className }: { className?: string }) {
           className="absolute left-0 top-full z-40 mt-1 w-72 max-w-[calc(100vw-2rem)] rounded-xl border border-border-default bg-bg-secondary p-1 shadow-lg"
         >
           <ul className="max-h-[60vh] overflow-y-auto">
-            {homeGames.map((hg) => {
+            {ordered.map((hg) => {
               const selected = current?.id === hg.id
               const mine = hg.ownerId === user?.id
               return (
