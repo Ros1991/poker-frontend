@@ -139,7 +139,7 @@ export function AddMemberModal({
       return
     }
     if (alreadyMember) {
-      toast.error('Já é membro deste home game.')
+      toast.error('Já é membro.')
       return
     }
     addMutation.mutate()
@@ -240,7 +240,7 @@ export function AddMemberModal({
             </div>
             {alreadyMember ? (
               <span className="text-xs text-text-secondary whitespace-nowrap">
-                Já é membro deste home game
+                Já é membro
               </span>
             ) : (
               <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-accent-blue" />
@@ -276,8 +276,9 @@ export function AddMemberModal({
             onChange={(e) => setIsAdmin(e.target.checked)}
             className="h-4 w-4 rounded border-border-input bg-bg-primary text-accent-blue focus:ring-border-focus"
           />
+          {/* "Administrador" sem "do Home Game" (SPEC-20261029-1724): no Clube a palavra "home game" não aparece */}
           <span className="text-sm text-text-primary">
-            Administrador do Home Game
+            Administrador (cuida dos torneios com você)
           </span>
         </label>
       </div>

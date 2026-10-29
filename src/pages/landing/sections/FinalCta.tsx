@@ -4,7 +4,7 @@ import { FINAL_CTA } from '../landing.content'
 import { accountLink } from './accountLink'
 import { TEXT_LINK, linkButton } from './linkStyles'
 
-/** Seção 7 (parte 1) — chamada final com os mesmos botões do topo: Entrar (ou Abrir painel) e Abrir o Telão da TV. */
+/** Seção 7 (parte 1) — chamada final com os mesmos botões do topo: Entrar e Abrir o Telão da TV, e o Criar conta. */
 export function FinalCta() {
   const account = accountLink()
   return (
@@ -18,21 +18,19 @@ export function FinalCta() {
           <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
             <a href={account.href} className={linkButton('primary', 'lg')}>
               <account.Icon className="h-5 w-5" aria-hidden="true" />
-              {account.loggedIn ? FINAL_CTA.panel : FINAL_CTA.login}
+              {FINAL_CTA.login}
             </a>
             <a href={ROUTES.TV} className={linkButton('gold', 'lg')}>
               <Tv className="h-5 w-5" aria-hidden="true" />
               {FINAL_CTA.tv}
             </a>
           </div>
-          {!account.loggedIn && (
-            <p className="mt-4 text-sm text-text-secondary">
-              {FINAL_CTA.signupQuestion}{' '}
-              <a href={ROUTES.REGISTER} className={TEXT_LINK}>
-                {FINAL_CTA.signup}
-              </a>
-            </p>
-          )}
+          <p className="mt-4 text-sm text-text-secondary">
+            {FINAL_CTA.signupQuestion}{' '}
+            <a href={ROUTES.REGISTER} className={TEXT_LINK}>
+              {FINAL_CTA.signup}
+            </a>
+          </p>
         </div>
       </div>
     </section>

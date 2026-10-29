@@ -5,19 +5,33 @@ export const ROUTES = {
   RESET_PASSWORD: '/redefinir-senha/:token',
   CONFIRM_EMAIL: '/confirmar-email/:token',
   HOME: '/',
-  HOME_GAMES: '/home-games',
+  /**
+   * Início da conta (SPEC-20261029-1724): a porta de entrada de quem está logado — `/` com sessão, o login, o cadastro
+   * confirmado e as boas-vindas caem aqui. `/home-games` (a lista antiga) redireciona para cá.
+   */
+  INICIO: '/inicio',
+  /** Criar home game (só a Liga): abre o modal de criar por cima do Início */
   HOME_GAME_NEW: '/home-games/new',
+  /** Casca do home game: `/home-games/:id` (e o `?tab=` antigo) redireciona para a seção */
   HOME_GAME_DETAIL: '/home-games/:id',
+  /**
+   * Seção do home game (SPEC-20261029-1724), um esquema só para os três planos: torneios, rankings, estruturas,
+   * jogadores, membros e configuracoes. No Mesa e no Clube o `:id` é o do home game principal invisível (a URL carrega
+   * o id; a interface nunca diz "home game").
+   */
+  HOME_GAME_SECTION: '/home-games/:id/:section',
+  /** Antigo "Editar home game" (página): redireciona para Configurações */
   HOME_GAME_EDIT: '/home-games/:id/edit',
+  /** Antiga lista de torneios do home game: redireciona para a seção Torneios */
   TOURNAMENTS: '/home-games/:id/tournaments',
   TOURNAMENT_NEW: '/home-games/:id/tournaments/new',
   TOURNAMENT_DASHBOARD: '/tournaments/:id',
   TOURNAMENT_EDIT: '/tournaments/:id/edit',
+  /** Antiga lista de jogadores do home game ativo: redireciona para a seção Jogadores */
   PLAYERS: '/players',
   PLAYER_NEW: '/players/new',
   PLAYER_DETAIL: '/players/:id',
   PLAYER_EDIT: '/players/:id/edit',
-  RANKINGS_BY_HOME_GAME: '/home-games/:homeGameId/rankings',
   RANKING_NEW: '/home-games/:homeGameId/rankings/new',
   RANKING_DETAIL: '/rankings/:id',
   RANKING_EDIT: '/rankings/:id/edit',
@@ -37,6 +51,8 @@ export const ROUTES = {
   BLIND_STRUCTURE_NEW: '/home-games/:homeGameId/blinds/new',
   BLIND_STRUCTURE_EDIT: '/home-games/:homeGameId/blinds/:id/edit',
   DEALER_TERMINAL: '/dealer/:tournamentId',
+  /** Telão no celular do dealer (a página é da SPEC-20261029-1721; aqui só o caminho, para o botão do Início) */
+  DEALER_MINI_TV: '/dealer/:tournamentId/telao',
   DEALER_ACCESS: '/dealer/acesso/:code',
   TV: '/tv',
   TV_DISPLAY: '/tv/:tournamentId',
@@ -90,20 +106,38 @@ export function dealerAccessPath(code: string) {
   return `/dealer/acesso/${code}`
 }
 
-export function homeGameDetailPath(id: string) {
-  return `/home-games/${id}`
+/**
+ * Seções do home game (SPEC-20261029-1724). `estruturas` era a aba `blinds` e `configuracoes` é nova (nome do clube,
+ * descrição, local, logo, PIX, valores padrão, editar e excluir).
+ */
+export type HomeGameSection = 'torneios' | 'rankings' | 'estruturas' | 'jogadores' | 'membros' | 'configuracoes'
+
+export const HOME_GAME_SECTION_KEYS: readonly HomeGameSection[] = [
+  'torneios',
+  'rankings',
+  'estruturas',
+  'jogadores',
+  'membros',
+  'configuracoes',
+]
+
+export function isHomeGameSection(value: string | null | undefined): value is HomeGameSection {
+  return !!value && (HOME_GAME_SECTION_KEYS as readonly string[]).includes(value)
 }
 
-export function homeGameEditPath(id: string) {
-  return `/home-games/${id}/edit`
+/** `/home-games/<id>/<seção>` */
+export function homeGameSectionPath(homeGameId: string, section: HomeGameSection = 'torneios') {
+  return `/home-games/${homeGameId}/${section}`
 }
 
-export function homeGameTournamentsPath(id: string) {
-  return `/home-games/${id}/tournaments`
+/** Novo torneio no home game (o formulário de sempre) */
+export function tournamentNewPath(homeGameId: string) {
+  return `/home-games/${homeGameId}/tournaments/new`
 }
 
-export function homeGameRankingsPath(homeGameId: string) {
-  return `/home-games/${homeGameId}/rankings`
+/** Telão no celular do dealer (SPEC-20261029-1721) */
+export function dealerMiniTvPath(tournamentId: string) {
+  return `/dealer/${tournamentId}/telao`
 }
 
 export function rankingNewPath(homeGameId: string) {

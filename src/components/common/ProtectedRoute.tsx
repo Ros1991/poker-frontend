@@ -57,7 +57,7 @@ export function ProtectedRoute({ children, roles, skipOnboarding = false }: Prot
   }
 
   if (roles && user && !roles.includes(user.role)) {
-    return <Navigate to={ROUTES.HOME_GAMES} replace />
+    return <Navigate to={ROUTES.INICIO} replace />
   }
 
   return <>{children}</>

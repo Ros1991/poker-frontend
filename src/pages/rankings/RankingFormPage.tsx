@@ -13,6 +13,7 @@ import { Button } from '../../components/ui/Button'
 import { FormPageBar } from '../../components/ui/FormTopBar'
 import { AccessDeniedState } from '../../components/common/AccessDeniedState'
 import { isForbiddenError } from '../../utils/httpErrors'
+import { homeGameSectionPath } from '../../constants/routes'
 
 // --- Formula evaluation ---
 
@@ -200,7 +201,7 @@ export function RankingFormPage() {
         await queryClient.invalidateQueries({ queryKey: ['ranking-leaderboard', id] })
       }
       if (effectiveHomeGameId) {
-        navigate(`/home-games/${effectiveHomeGameId}?tab=rankings`)
+        navigate(homeGameSectionPath(effectiveHomeGameId, 'rankings'))
       } else {
         navigate(-1)
       }

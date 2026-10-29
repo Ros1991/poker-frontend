@@ -14,7 +14,7 @@ import {
   validatePlayerForm,
 } from '../../components/players/playerForm'
 import type { PlayerFormErrors, PlayerFormValue } from '../../components/players/playerForm'
-import { ROUTES } from '../../constants/routes'
+import { homeGameSectionPath } from '../../constants/routes'
 import { useHomeGame } from '../../hooks/useHomeGame'
 import type { Person } from '../../types/person.types'
 import { cleanWhatsapp } from '../../utils/phone'
@@ -44,7 +44,7 @@ export function PlayerFormPage() {
       <div className="flex flex-col items-center justify-center gap-3 py-20 text-center">
         <Users className="h-12 w-12 text-text-muted" />
         <p className="text-lg font-medium text-text-secondary">
-          Selecione um Home Game primeiro
+          Carregando…
         </p>
       </div>
     )
@@ -137,7 +137,8 @@ function PlayerForm({ person, homeGameId }: { person: Person | null; homeGameId:
 
     await queryClient.invalidateQueries({ queryKey: ['persons'] })
     await queryClient.invalidateQueries({ queryKey: ['person', saved.id] })
-    navigate(ROUTES.PLAYERS)
+    // A seção Jogadores do home game do jogador (SPEC-20261029-1724)
+    navigate(homeGameSectionPath(homeGameId, 'jogadores'))
   }
 
   return (

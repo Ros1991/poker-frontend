@@ -5,25 +5,23 @@ import { ROUTES } from '../../../constants/routes'
 import { usePlanCatalog } from '../../../hooks/usePlanCatalog'
 import type { PlanDefinition } from '../../../types/plan.types'
 import { PRICING, PRICING_ANCHOR } from '../landing.content'
-import { accountLink } from './accountLink'
 
 /**
  * Seção 5 — planos Mesa / Clube / Liga. A tabela é a MESMA do "Meu plano" e das boas-vindas (`PlanComparisonTable`,
  * catálogo de `GET public/plans`): preços, limites, selo "Mais escolhido" e nota da fase de testes saem de lá — nada
  * digitado aqui. CTA: plano grátis → `/register`; pagos → "Falar com o suporte" no WhatsApp (sem número no build,
- * e-mail do contato). Logado (SPEC-20261027-1311): o plano grátis vira "Abrir painel" (→ /home-games), sem o convite para
- * criar conta. SPEC-20261029-1723: a frase dos home games (Mesa e Clube: a conta é o clube; Liga até N, do catálogo).
+ * e-mail do contato). Sempre "Criar conta grátis" (SPEC-20261029-1724: só o visitante vê a landing; quem está logado e
+ * chega ao cadastro vai para o Início). SPEC-20261029-1723: a frase dos home games (Mesa e Clube: a conta é o clube; Liga
+ * até N, do catálogo).
  */
 export function Pricing() {
   const { plans } = usePlanCatalog()
   const featured = plans.find((p) => p.highlight && p.priceMonthly > 0)
   // O plano em que "home game" aparece como conceito (Liga) e o máximo dele, do catálogo
   const multi = plans.find((p) => p.homeGamesVisible ?? p.maxOwnedHomeGames > 1)
-  const account = accountLink()
-
   const choose = (plan: PlanDefinition) => {
     if (plan.priceMonthly <= 0) {
-      window.location.assign(account.loggedIn ? account.href : ROUTES.REGISTER)
+      window.location.assign(ROUTES.REGISTER)
       return
     }
     const whatsapp = supportWhatsAppUrl(PRICING.supportMessage(plan.name))
@@ -62,7 +60,7 @@ export function Pricing() {
           className="mt-8"
           onChoose={choose}
           chooseLabel={(plan) =>
-            plan.priceMonthly <= 0 ? (account.loggedIn ? PRICING.panelCta : PRICING.freeCta) : PRICING.paidCta
+            plan.priceMonthly <= 0 ? PRICING.freeCta : PRICING.paidCta
           }
         />
       </div>

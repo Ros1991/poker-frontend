@@ -7,8 +7,8 @@ import { TvFrame } from './DeviceFrames'
 import { TEXT_LINK, linkButton } from './linkStyles'
 
 /**
- * Seção 1 — topo: proposta, Entrar / Abrir o Telão da TV, "Grátis para começar" e o telão real numa TV. Logado, o
- * "Entrar" vira "Abrir painel" e o convite para criar conta some.
+ * Seção 1 — topo: proposta, Entrar / Abrir o Telão da TV, "Grátis para começar" e o telão real numa TV. Só o visitante
+ * vê a landing (quem está logado vai para o Início — SPEC-20261029-1724), então é sempre "Entrar" e "Criar conta".
  */
 export function Hero() {
   const account = accountLink()
@@ -27,7 +27,7 @@ export function Hero() {
           <div className="mt-7 flex flex-col gap-3 sm:flex-row">
             <a href={account.href} className={linkButton('primary', 'lg')}>
               <account.Icon className="h-5 w-5" aria-hidden="true" />
-              {account.loggedIn ? HERO.panel : HERO.login}
+              {HERO.login}
             </a>
             <a href={ROUTES.TV} className={linkButton('gold', 'lg')}>
               <Tv className="h-5 w-5" aria-hidden="true" />
@@ -35,14 +35,12 @@ export function Hero() {
             </a>
           </div>
 
-          {!account.loggedIn && (
-            <p className="mt-4 text-sm text-text-secondary">
-              <strong className="font-bold text-text-primary">{HERO.free}</strong> {HERO.signupQuestion}{' '}
-              <a href={ROUTES.REGISTER} className={TEXT_LINK}>
-                {HERO.signup}
-              </a>
-            </p>
-          )}
+          <p className="mt-4 text-sm text-text-secondary">
+            <strong className="font-bold text-text-primary">{HERO.free}</strong> {HERO.signupQuestion}{' '}
+            <a href={ROUTES.REGISTER} className={TEXT_LINK}>
+              {HERO.signup}
+            </a>
+          </p>
           <p className="mt-3 flex items-start gap-2 text-sm text-text-secondary">
             <Tv className="mt-0.5 h-4 w-4 shrink-0 text-accent-blue" aria-hidden="true" />
             <span>{HERO.tvTip}</span>

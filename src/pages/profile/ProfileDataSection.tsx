@@ -113,7 +113,7 @@ export function ProfileDataSection({ profile }: { profile: Profile }) {
       <FormPageBar
         title="Meu perfil"
         cancelLabel="Fechar"
-        onCancel={() => (location.key === 'default' ? navigate(ROUTES.HOME_GAMES) : navigate(-1))}
+        onCancel={() => (location.key === 'default' ? navigate(ROUTES.INICIO) : navigate(-1))}
         submit={{ label: 'Salvar dados', form: 'perfil-dados-form', loading: saving, disabled: !dirty || saving }}
       />
       <form id="perfil-dados-form" className="flex flex-col gap-5" onSubmit={(e) => void submit(e)} noValidate>

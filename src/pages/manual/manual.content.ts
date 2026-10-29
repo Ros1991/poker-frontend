@@ -104,8 +104,6 @@ export const MANUAL_PAGE = {
   plansTitle: 'Compare os planos',
   plansText: 'Preços e limites atualizados. O Mesa é grátis e não pede cartão.',
   plansFreeCta: 'Criar conta grátis',
-  /** Logado (integração da onda 14, como a tabela da landing): o plano grátis leva ao painel */
-  plansPanelCta: 'Abrir painel',
   plansPaidCta: 'Falar com o suporte',
   plansMessage: (plan: string) => `Olá! Li o manual e quero saber mais sobre o plano ${plan}.`,
   plansEmailSubject: (plan: string) => `Plano ${plan}`,

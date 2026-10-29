@@ -1,6 +1,5 @@
 // Apoio das boas-vindas (SPEC-20261023-1212): rascunho da etapa 1, destino ao terminar e a mensagem do suporte.
-import * as planApi from '../../api/plan.api'
-import { ROUTES, homeGameDetailPath } from '../../constants/routes'
+import { ROUTES } from '../../constants/routes'
 import type { PlanName } from '../../types/plan.types'
 import type { Profile } from '../../types/profile.types'
 import { cleanWhatsapp } from '../../utils/phone'
@@ -33,21 +32,13 @@ export type ProfileDraftErrors = Partial<Record<'nickname' | 'whatsapp', string>
 
 /**
  * Para onde ir depois das boas-vindas: a página de origem (o `state.from` do ProtectedRoute ou o retorno guardado
- * antes do login — ex.: `/parear/CODIGO` do QR da TV); sem origem, o painel da conta. SPEC-20261029-1723: não existe
- * mais o passo "criar home game" — a conta já nasce com o home game principal (é nele que ficam os torneios); o painel
- * é o detalhe dele (`/home-games/<principal>`) até o Início da SPEC-20261029-1724 existir. Sem principal (conta
- * antiga, ou o `GET me/plan` falhou), a lista de home games.
+ * antes do login — ex.: `/parear/CODIGO` do QR da TV); sem origem, o Início da conta (SPEC-20261029-1724). Desde a
+ * SPEC-20261029-1723 não existe o passo "criar home game": a conta já nasce com o home game principal.
  */
 export async function welcomeDestination(from: string | null): Promise<string> {
   const origin = specificReturn(from) ?? takeReturn()
   forgetReturn()
-  if (origin) return origin
-  try {
-    const plan = await planApi.getMyPlan()
-    return plan.primaryHomeGameId ? homeGameDetailPath(plan.primaryHomeGameId) : ROUTES.HOME_GAMES
-  } catch {
-    return ROUTES.HOME_GAMES
-  }
+  return origin ?? ROUTES.INICIO
 }
 
 /** Mensagem pronta do WhatsApp do suporte ao pedir Clube/Liga nas boas-vindas. */

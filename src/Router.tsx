@@ -27,23 +27,32 @@ import { TermsRoute, PrivacyRoute } from './pages/legal/LegalRoutes'
 // Manual de uso público (sem login; sob demanda — SPEC-20261026-1910). Visita direta: o boot.tsx abre o manual sozinho
 import { ManualRoute } from './pages/manual/ManualRoute'
 
-// Home Games
-import { HomeGameListPage } from './pages/home-games/HomeGameListPage'
-import { HomeGameFormPage } from './pages/home-games/HomeGameFormPage'
-import { HomeGameDetailPage } from './pages/home-games/HomeGameDetailPage'
+// Início da conta (SPEC-20261029-1724)
+import { InicioPage } from './pages/inicio/InicioPage'
+
+// Home game: casca + seções por rota (SPEC-20261029-1724)
+import {
+  HomeGameDetailPage,
+  HomeGameIndexRedirect,
+  LegacySectionRedirect,
+} from './pages/home-games/HomeGameDetailPage'
+import { TournamentsSection } from './pages/home-games/sections/TournamentsSection'
+import { RankingsSection } from './pages/home-games/sections/RankingsSection'
+import { StructuresSection } from './pages/home-games/sections/StructuresSection'
+import { PlayersSection } from './pages/home-games/sections/PlayersSection'
+import { MembersSection } from './pages/home-games/sections/MembersSection'
+import { HomeGameSettingsPage } from './pages/home-games/HomeGameSettingsPage'
+import { PlayersRedirect } from './pages/home-games/sections/PlayersRedirect'
 
 // Tournaments
-import { TournamentListPage } from './pages/tournaments/TournamentListPage'
 import { TournamentFormPage } from './pages/tournaments/TournamentFormPage'
 import { TournamentDashboardPage } from './pages/tournaments/TournamentDashboardPage'
 
 // Players
-import { PlayerListPage } from './pages/players/PlayerListPage'
 import { PlayerFormPage } from './pages/players/PlayerFormPage'
 import { PlayerDetailPage } from './pages/players/PlayerDetailPage'
 
 // Rankings
-import { RankingListPage } from './pages/rankings/RankingListPage'
 import { RankingFormPage } from './pages/rankings/RankingFormPage'
 import { RankingDetailPage } from './pages/rankings/RankingDetailPage'
 
@@ -71,7 +80,7 @@ export function Router() {
   return (
     <Routes>
       {/* Public routes */}
-      {/* "/": landing (com "Abrir painel" se logado); sem login, terminal se dealer e telão se TV pareada (SPEC-20261023-1207) */}
+      {/* "/": logado → Início (SPEC-20261029-1724); sem login, terminal se dealer, telão se TV pareada e senão a landing */}
       <Route path={ROUTES.HOME} element={<RootGate />} />
       <Route path={ROUTES.LOGIN} element={<LoginPage />} />
       <Route path={ROUTES.REGISTER} element={<RegisterPage />} />
@@ -101,14 +110,27 @@ export function Router() {
           </ProtectedRoute>
         }
       >
-        {/* Home Games */}
-        <Route path={ROUTES.HOME_GAMES} element={<HomeGameListPage />} />
-        <Route path={ROUTES.HOME_GAME_NEW} element={<HomeGameFormPage />} />
-        <Route
-          path={ROUTES.HOME_GAME_DETAIL}
-          element={<HomeGameDetailPage />}
-        />
-        <Route path={ROUTES.HOME_GAME_EDIT} element={<HomeGameFormPage />} />
+        {/* Início da conta (SPEC-20261029-1724): a porta de entrada de quem está logado */}
+        <Route path={ROUTES.INICIO} element={<InicioPage />} />
+        {/* A lista de home games saiu (o Início e o seletor do cabeçalho bastam) */}
+        <Route path="/home-games" element={<Navigate to={ROUTES.INICIO} replace />} />
+        {/* Criar home game (só a Liga): o Início com o modal de criar */}
+        <Route path={ROUTES.HOME_GAME_NEW} element={<InicioPage createHomeGame />} />
+
+        {/* Home game: casca + uma rota por seção (SPEC-20261029-1724); /home-games/:id e o ?tab= antigo redirecionam */}
+        <Route path={ROUTES.HOME_GAME_DETAIL} element={<HomeGameDetailPage />}>
+          <Route index element={<HomeGameIndexRedirect />} />
+          <Route path="torneios" element={<TournamentsSection />} />
+          <Route path="rankings" element={<RankingsSection />} />
+          <Route path="estruturas" element={<StructuresSection />} />
+          <Route path="jogadores" element={<PlayersSection />} />
+          <Route path="membros" element={<MembersSection />} />
+          <Route path="configuracoes" element={<HomeGameSettingsPage />} />
+        </Route>
+        {/* Endereços antigos: editar home game → Configurações; lista de torneios → Torneios; jogadores → Jogadores */}
+        <Route path={ROUTES.HOME_GAME_EDIT} element={<LegacySectionRedirect section="configuracoes" />} />
+        <Route path={ROUTES.TOURNAMENTS} element={<LegacySectionRedirect section="torneios" />} />
+        <Route path={ROUTES.PLAYERS} element={<PlayersRedirect />} />
 
         {/* Blind Structures */}
         <Route
@@ -121,7 +143,6 @@ export function Router() {
         />
 
         {/* Tournaments */}
-        <Route path={ROUTES.TOURNAMENTS} element={<TournamentListPage />} />
         <Route path={ROUTES.TOURNAMENT_NEW} element={<TournamentFormPage />} />
         <Route
           path={ROUTES.TOURNAMENT_EDIT}
@@ -133,16 +154,11 @@ export function Router() {
         />
 
         {/* Players */}
-        <Route path={ROUTES.PLAYERS} element={<PlayerListPage />} />
         <Route path={ROUTES.PLAYER_NEW} element={<PlayerFormPage />} />
         <Route path={ROUTES.PLAYER_DETAIL} element={<PlayerDetailPage />} />
         <Route path={ROUTES.PLAYER_EDIT} element={<PlayerFormPage />} />
 
         {/* Rankings */}
-        <Route
-          path={ROUTES.RANKINGS_BY_HOME_GAME}
-          element={<RankingListPage />}
-        />
         <Route path={ROUTES.RANKING_NEW} element={<RankingFormPage />} />
         <Route path={ROUTES.RANKING_DETAIL} element={<RankingDetailPage />} />
         <Route path={ROUTES.RANKING_EDIT} element={<RankingFormPage />} />
@@ -212,7 +228,7 @@ export function Router() {
       {/* Dealer terminal - QR do dealer (sem login) ou usuário logado; sem sidebar */}
       <Route path={ROUTES.DEALER_TERMINAL} element={<DealerTerminalRoute />} />
 
-      {/* Catch all: "/" decide (landing, terminal do dealer ou tela da TV) */}
+      {/* Catch all: "/" decide (Início de quem está logado, landing, terminal do dealer ou tela da TV) */}
       <Route path="*" element={<Navigate to={ROUTES.HOME} replace />} />
     </Routes>
   )

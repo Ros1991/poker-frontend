@@ -27,6 +27,11 @@ export interface HomeGame {
    * clube; use o nome da conta onde precisar de rótulo); senão o nome (o "nome do clube" no Clube/Liga).
    */
   displayName?: string | null
+  /**
+   * Quem está logado gerencia este home game: dono, membro administrador ou Admin do sistema (SPEC-20261029-1724). O
+   * menu usa para mostrar Membros e Configurações.
+   */
+  canManage?: boolean
   memberCount: number
   tournamentCount: number
   createdAt: string

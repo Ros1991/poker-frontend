@@ -8,6 +8,8 @@ import { ROLE_LABELS } from '../../constants/roles'
 import { BrandLogo } from '../brand/BrandLogo'
 import { Badge } from '../ui/Badge'
 import { usePlan } from '../../hooks/usePlan'
+import { useAccountNav } from '../../hooks/useAccountNav'
+import { HomeGameSelector } from './HomeGameSelector'
 
 interface HeaderProps {
   onMenuToggle?: () => void
@@ -19,6 +21,8 @@ export function Header({ onMenuToggle }: HeaderProps) {
   const queryClient = useQueryClient()
   const { myPlan } = usePlan()
   const plan = myPlan?.effectivePlan ?? user?.effectivePlan ?? user?.plan
+  // Seletor de home game (SPEC-20261029-1724): só na Liga ou para quem acessa mais de um home game
+  const { showSelector } = useAccountNav()
 
   const handleLogout = async () => {
     await logout()
@@ -27,8 +31,8 @@ export function Header({ onMenuToggle }: HeaderProps) {
   }
 
   return (
-    <header className="flex h-16 items-center justify-between border-b border-border-default bg-bg-secondary px-4 lg:px-6">
-      <div className="flex items-center gap-3">
+    <header className="flex h-16 items-center justify-between gap-2 border-b border-border-default bg-bg-secondary px-4 lg:px-6">
+      <div className="flex min-w-0 items-center gap-2 sm:gap-3">
         <button
           onClick={onMenuToggle}
           className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors lg:hidden"
@@ -36,11 +40,12 @@ export function Header({ onMenuToggle }: HeaderProps) {
         >
           <Menu className="h-5 w-5" />
         </button>
-        {/* No celular a sidebar está fechada: a marca aparece aqui */}
-        <BrandLogo variant="lockup" className="h-8 lg:hidden" />
+        {/* No celular a sidebar está fechada: a marca aparece aqui — menos quando o seletor ocupa o lugar dela */}
+        <BrandLogo variant="lockup" className={showSelector ? 'hidden h-8 sm:block lg:hidden' : 'h-8 lg:hidden'} />
+        {showSelector && <HomeGameSelector className="max-w-[9.5rem] sm:max-w-xs" />}
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex shrink-0 items-center gap-1 sm:gap-3">
         {user && (
           <>
             {/* Meu plano (SPEC-20261023-1205): no celular só o ícone */}

@@ -18,7 +18,7 @@ import { PlanLock, requiredPlanFor } from '../../components/plan'
 import { hasFeature } from '../../hooks/usePlan'
 import { usePlanCatalog } from '../../hooks/usePlanCatalog'
 import { isForbiddenError } from '../../utils/httpErrors'
-import { homeGameDetailPath } from '../../constants/routes'
+import { homeGameSectionPath } from '../../constants/routes'
 import type { BlindLevel, BlindStructureDefaultCost } from '../../types/blind.types'
 
 interface LevelRow {
@@ -279,7 +279,7 @@ export function BlindStructureFormPage() {
       if (id) queryClient.invalidateQueries({ queryKey: ['blindStructure', id] })
       toast.success(isEdit ? 'Estrutura atualizada!' : 'Estrutura criada!')
       if (homeGameId) {
-        navigate(`${homeGameDetailPath(homeGameId)}?tab=blinds`)
+        navigate(homeGameSectionPath(homeGameId, 'estruturas'))
       } else {
         navigate(-1)
       }

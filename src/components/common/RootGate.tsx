@@ -23,15 +23,15 @@ function GateSpinner({ text }: { text?: string }) {
 }
 
 /**
- * "/" decide em 4 ramos (SPEC-20261023-1207):
- * 1. logado → a landing, com "Abrir painel" no lugar de "Entrar" (o login e o cadastro levam direto ao painel, e as
- *    boas-vindas do primeiro acesso ficam com o `ProtectedRoute`);
+ * "/" decide em 4 ramos (SPEC-20261023-1207; o 1º mudou na SPEC-20261029-1724):
+ * 1. logado → o Início da conta (`/inicio`; as boas-vindas do primeiro acesso ficam com o `ProtectedRoute` dele). O
+ *    `boot.tsx` já carrega o app completo para quem tem sessão guardada (`landingVisit.ts`), então a landing não pisca;
  * 2. celular com sessão de dealer → o terminal daquele torneio;
  * 3. aparelho com token de TV → `DisplayTokenGate` (rede de segurança das TVs que ainda abrem a raiz);
  * 4. qualquer outro visitante → a landing, renderizada na própria raiz (sem redirecionar: a URL canônica é `/`).
  *
  * Sem sessão guardada o `AuthProvider` resolve `isLoading=false` na hora, sem chamar `/auth/me`: o visitante novo vê
- * a landing sem esperar a rede. A TV fica numa rota própria (`/tv`) que não depende do login: se alguém entrar em
+ * a landing sem esperar a rede. Sessão guardada que o servidor recusa (expirada, revogada) cai no ramo 4: a landing. A TV fica numa rota própria (`/tv`) que não depende do login: se alguém entrar em
  * outra aba do mesmo navegador, o telão não vira o painel.
  */
 export function RootGate() {
@@ -43,8 +43,7 @@ export function RootGate() {
     )
   }
 
-  if (isAuthenticated) return <LandingInRoot />
-
+  if (isAuthenticated) return <Navigate to={ROUTES.INICIO} replace />
 
   const dealer = getDealerSession()
   if (dealer) return <Navigate to={dealerTerminalPath(dealer.tournamentId)} replace />

@@ -26,7 +26,7 @@ import { Button } from '../../components/ui/Button'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { LoadingSpinner } from '../../components/common/LoadingSpinner'
 import { PLAN_SOURCE_LABELS, formatPlanDate } from '../../components/plan'
-import { ROUTES, homeGameDetailPath, userEditPath } from '../../constants/routes'
+import { ROUTES, homeGameSectionPath, userEditPath } from '../../constants/routes'
 import { useAuth } from '../../hooks/useAuth'
 import { useHomeGame } from '../../hooks/useHomeGame'
 import { DeleteHomeGameModal } from '../home-games/DeleteHomeGameModal'
@@ -352,7 +352,7 @@ export function UserDetailPage() {
                     <li key={hg.id} className="flex flex-wrap items-center justify-between gap-x-3 text-sm">
                       <span className="flex min-w-0 flex-wrap items-center gap-x-2">
                         <Link
-                          to={homeGameDetailPath(hg.id)}
+                          to={homeGameSectionPath(hg.id, 'torneios')}
                           className="inline-flex min-h-[44px] min-w-0 items-center break-words font-medium text-accent-blue hover:underline"
                         >
                           {hg.name}
@@ -393,7 +393,7 @@ export function UserDetailPage() {
                   {user.memberships.map((m) => (
                     <li key={m.homeGameId} className="flex flex-wrap items-center justify-between gap-x-3 text-sm">
                       <Link
-                        to={homeGameDetailPath(m.homeGameId)}
+                        to={homeGameSectionPath(m.homeGameId, 'torneios')}
                         className="inline-flex min-h-[44px] items-center font-medium text-accent-blue hover:underline"
                       >
                         {m.name}

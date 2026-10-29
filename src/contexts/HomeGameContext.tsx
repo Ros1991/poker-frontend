@@ -23,6 +23,30 @@ function defaultHomeGame(list: HomeGame[], userId: string): HomeGame | null {
   return list.find((hg) => hg.isPrimary && hg.ownerId === userId) ?? (list.length === 1 ? list[0] : null)
 }
 
+/**
+ * O home game selecionado fica guardado neste navegador, por conta (SPEC-20261029-1724): quem troca no seletor do
+ * cabeçalho (Liga, ou quem é membro do clube de outra pessoa) volta para ele ao recarregar ou abrir o painel de novo.
+ * Sem armazenamento (aba anônima, bloqueado), vale o padrão.
+ */
+const storageKey = (userId: string) => `poker_selected_home_game:${userId}`
+
+function readStoredId(userId: string): string | null {
+  try {
+    return localStorage.getItem(storageKey(userId))
+  } catch {
+    return null
+  }
+}
+
+function storeId(userId: string, id: string | null) {
+  try {
+    if (id) localStorage.setItem(storageKey(userId), id)
+    else localStorage.removeItem(storageKey(userId))
+  } catch {
+    // sem armazenamento: a escolha vale só nesta aba
+  }
+}
+
 interface HomeGameProviderProps {
   children: ReactNode
 }
@@ -46,11 +70,14 @@ export function HomeGameProvider({ children }: HomeGameProviderProps) {
       const data = await homeGamesApi.getAll()
       setHomeGames(data)
       // O ativo continua o mesmo se ainda existe (com os dados novos); se ele foi excluído (SPEC-20261026-1126) ou
-      // nunca houve um, vale o principal da conta (SPEC-20261029-1723), o único home game da lista — ou nenhum
+      // nunca houve um, vale o guardado neste navegador (SPEC-20261029-1724), o principal da conta (SPEC-20261029-1723),
+      // o único home game da lista — ou nenhum
       setSelectedHomeGame((current) => {
         const kept = current ? data.find((hg) => hg.id === current.id) : undefined
         if (kept) return kept
-        return defaultHomeGame(data, userId)
+        const storedId = readStoredId(userId)
+        const stored = storedId ? data.find((hg) => hg.id === storedId) : undefined
+        return stored ?? defaultHomeGame(data, userId)
       })
     } catch {
       setHomeGames([])
@@ -65,7 +92,8 @@ export function HomeGameProvider({ children }: HomeGameProviderProps) {
 
   const selectHomeGame = useCallback((homeGame: HomeGame | null) => {
     setSelectedHomeGame(homeGame)
-  }, [])
+    if (userId) storeId(userId, homeGame?.id ?? null)
+  }, [userId])
 
   const value = useMemo<HomeGameContextValue>(
     () => ({
