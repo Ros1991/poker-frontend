@@ -126,6 +126,8 @@ export function MyTournamentLivePage() {
   const status = playerTournamentStatus(t.status)
   const live = isLiveStatus(t.status)
   const prizePool = t.prizePool != null ? Math.max(0, t.prizePool) : null
+  // Relógio ainda não ligado pelo organizador (sem nível atual): aviso em vez de um 20:00 parado no "Nível 1"
+  const clockStarted = !!t.timer && t.timer.currentLevel != null
 
   return (
     <div className="mx-auto max-w-5xl space-y-5" data-my-live={t.tournamentId}>
@@ -152,7 +154,7 @@ export function MyTournamentLivePage() {
       </div>
 
       {/* Relógio: só com o torneio acontecendo e a estrutura de blinds */}
-      {live && t.timer && synced && (
+      {live && clockStarted && synced && (
         <section className="rounded-2xl border border-border-default bg-bg-secondary p-4" aria-label="Relógio do torneio">
           <CompactClock
             // Dentro do layout do painel (menu lateral e margens), o relógio um degrau abaixo do telão no celular para caber
@@ -174,9 +176,13 @@ export function MyTournamentLivePage() {
         </section>
       )}
 
-      {live && !t.timer && (
-        <p className="rounded-xl border border-dashed border-border-input bg-bg-secondary px-4 py-6 text-center text-sm text-text-secondary">
-          Este torneio não tem relógio de blinds. {t.playersRemaining} de {t.totalEntries} jogando.
+      {live && !clockStarted && (
+        <p
+          className="rounded-xl border border-dashed border-border-input bg-bg-secondary px-4 py-6 text-center text-sm text-text-secondary"
+          data-my-live-no-clock
+        >
+          {t.timer ? 'O relógio ainda não começou.' : 'Este torneio não tem relógio de blinds.'} {t.playersRemaining} de{' '}
+          {t.totalEntries} jogando.
         </p>
       )}
 
