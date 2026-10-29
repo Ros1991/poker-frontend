@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useLocation, Link } from 'react-router-dom'
+import { Navigate, useNavigate, useLocation, Link } from 'react-router-dom'
 import type { Location } from 'react-router-dom'
 import { useForm, useWatch } from 'react-hook-form'
 import { z } from 'zod/v4'
@@ -92,7 +92,7 @@ interface NotConfirmedState {
 type ResendStatus = 'idle' | 'sending' | 'sent' | 'rateLimited' | 'error'
 
 export function LoginPage() {
-  const { login } = useAuth()
+  const { login, isAuthenticated } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const [isLoading, setIsLoading] = useState(false)
@@ -102,7 +102,8 @@ export function LoginPage() {
 
   // Volta para onde a pessoa estava (ex.: o QR da TV abriu /parear/CODIGO)
   const from = (location.state as { from?: Location } | null)?.from
-  const returnTo = from ? `${from.pathname}${from.search}` : ROUTES.HOME_GAMES
+  // Sem origem: o Início da conta (SPEC-20261029-1724)
+  const returnTo = from ? `${from.pathname}${from.search}` : ROUTES.INICIO
   // Login com Google (SPEC-20261023-1210): mesmo retorno do login por senha
   const google = useGoogleSignIn(returnTo)
 
@@ -188,6 +189,9 @@ export function LoginPage() {
   }
 
   const resendWaiting = resendSecondsLeft > 0
+
+  // Já tem sessão (ex.: tocou em "Entrar" no manual ou nas páginas legais — SPEC-20261029-1724): vai direto
+  if (isAuthenticated) return <Navigate to={returnTo} replace />
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-bg-primary p-4">

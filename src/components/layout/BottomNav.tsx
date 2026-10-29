@@ -1,112 +1,49 @@
 import { useLayoutEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
-import { Link, NavLink, matchPath, useLocation, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Home, Plus } from 'lucide-react'
+import { House } from 'lucide-react'
 import { cn } from '../../utils/cn'
-import { useHomeGame } from '../../hooks/useHomeGame'
-import { ROUTES, homeGameDetailPath } from '../../constants/routes'
+import { ROUTES, homeGameSectionPath } from '../../constants/routes'
+import { useAccountNav } from '../../hooks/useAccountNav'
 import * as tournamentsApi from '../../api/tournaments.api'
-import * as rankingsApi from '../../api/rankings.api'
-import * as personsApi from '../../api/persons.api'
 import {
-  HOME_GAME_TABS,
   TOURNAMENT_TABS,
-  homeGameTabPath,
+  homeGameSectionTab,
   isTabLocked,
-  parseHomeGameTab,
   parseTournamentTab,
   tournamentTabPath,
 } from './navTabs'
-import type { HomeGameTabKey, TournamentTabKey } from './navTabs'
 import { PlanTabLock } from './PlanTabLock'
 
 interface BottomNavProps {
   className?: string
 }
 
-/** O que a barra mostra na tela aberta */
-type NavMode =
-  | { kind: 'tournament'; tournamentId: string; active: TournamentTabKey }
-  | { kind: 'homeGame'; homeGameId: string; active: HomeGameTabKey | null; onDetail: boolean }
-  | { kind: 'default' }
-
-const match = (pattern: string, pathname: string) => matchPath({ path: pattern, end: true }, pathname)
-
 /**
- * Barra de baixo do celular (abaixo de `lg`; SPEC-20261027-2132): navega dentro do que está aberto.
+ * Barra de baixo do celular (abaixo de `lg`; SPEC-20261027-2132, por rota desde a SPEC-20261029-1724):
  * - Painel do torneio: as 7 abas do torneio (mesmos ícones e cadeados de plano das abas do topo), com rolagem lateral.
- * - Dentro de um home game (o detalhe e as telas dele: ficha do jogador, ranking, estrutura de blinds e os formulários
- *   de torneio, ranking, jogador e estrutura): as 5 abas do home game, com a aba da tela atual marcada.
- * - Fora de um home game (lista, Meu plano, Meu perfil, Administração): como antes — até 3 home games + Criar.
- * Trocar de home game, que é raro, fica no menu ☰ (lista "Meus Home Games").
+ * - Em qualquer outra tela: Início + as seções do home game do menu (as mesmas do menu lateral, de `navTabs.ts`, menos
+ *   Configurações, que fica no "⋯" do cabeçalho), com a seção da tela marcada — também nas sub-telas (ficha do jogador,
+ *   ranking, estrutura e os formulários). Sem lista de home games: trocar de home game é no seletor do cabeçalho.
  *
  * Fica no fluxo da coluna do AppLayout (não `fixed`): o `<main>` termina em cima dela, então o fim da página e o que for
  * `sticky bottom-0` nunca ficam escondidos atrás da barra. A área segura do iPhone entra no `padding-bottom`.
  */
 export function BottomNav({ className }: BottomNavProps) {
-  const mode = useNavMode()
-
-  if (mode.kind === 'tournament') return <TournamentTabsBar mode={mode} className={className} />
-  if (mode.kind === 'homeGame') return <HomeGameTabsBar mode={mode} className={className} />
-  return <HomeGamesBar className={className} />
-}
-
-function useNavMode(): NavMode {
-  const { pathname } = useLocation()
+  const nav = useAccountNav()
   const [searchParams] = useSearchParams()
-  const { selectedHomeGame } = useHomeGame()
 
-  const dashboard = match('/tournaments/:id', pathname)
-  const tournamentEdit = match('/tournaments/:id/edit', pathname)
-  const rankingPage = match('/rankings/:id', pathname) ?? match('/rankings/:id/edit', pathname)
-  const playerPage = match('/players/:id', pathname) ?? match('/players/:id/edit', pathname)
-  const playerId = playerPage && playerPage.params.id !== 'new' ? playerPage.params.id : undefined
-
-  // As telas que não têm o id do home game na URL leem do cache o que a própria tela buscou (mesma chave e mesma
-  // função; `enabled: false`: a barra não faz consulta nenhuma). Sem o dado ainda, vale o home game ativo.
-  const tournamentId = dashboard?.params.id ?? tournamentEdit?.params.id
-  const tournament = useQuery({
-    queryKey: ['tournament', tournamentId],
-    queryFn: () => tournamentsApi.getById(tournamentId!),
-    enabled: false,
-  })
-  const rankingId = rankingPage?.params.id
-  const ranking = useQuery({
-    queryKey: ['ranking', rankingId],
-    queryFn: () => rankingsApi.getById(rankingId!),
-    enabled: false,
-  })
-  const person = useQuery({
-    queryKey: ['person', playerId],
-    queryFn: () => personsApi.getById(playerId!),
-    enabled: false,
-  })
-
-  if (dashboard?.params.id) {
-    return { kind: 'tournament', tournamentId: dashboard.params.id, active: parseTournamentTab(searchParams.get('tab')) }
+  if (nav.route.tournamentId) {
+    return (
+      <TournamentTabsBar
+        tournamentId={nav.route.tournamentId}
+        active={parseTournamentTab(searchParams.get('tab'))}
+        className={className}
+      />
+    )
   }
-
-  const inHomeGame = (homeGameId: string | undefined, active: HomeGameTabKey | null, onDetail = false): NavMode =>
-    homeGameId ? { kind: 'homeGame', homeGameId, active, onDetail } : { kind: 'default' }
-  const selectedId = selectedHomeGame?.id
-
-  if (tournamentEdit) return inHomeGame(tournament.data?.homeGameId ?? selectedId, 'torneios')
-  if (match(ROUTES.HOME_GAME_NEW, pathname)) return { kind: 'default' }
-  const detail = match(ROUTES.HOME_GAME_DETAIL, pathname)
-  if (detail) return inHomeGame(detail.params.id, parseHomeGameTab(searchParams.get('tab')), true)
-  const homeGameEdit = match(ROUTES.HOME_GAME_EDIT, pathname)
-  if (homeGameEdit) return inHomeGame(homeGameEdit.params.id, null)
-  const tournaments = match(ROUTES.TOURNAMENTS, pathname) ?? match(ROUTES.TOURNAMENT_NEW, pathname)
-  if (tournaments) return inHomeGame(tournaments.params.id, 'torneios')
-  const rankings = match(ROUTES.RANKINGS_BY_HOME_GAME, pathname) ?? match(ROUTES.RANKING_NEW, pathname)
-  if (rankings) return inHomeGame(rankings.params.homeGameId, 'rankings')
-  const blinds = match(ROUTES.BLIND_STRUCTURE_NEW, pathname) ?? match(ROUTES.BLIND_STRUCTURE_EDIT, pathname)
-  if (blinds) return inHomeGame(blinds.params.homeGameId, 'blinds')
-  if (rankingPage) return inHomeGame(ranking.data?.homeGameId ?? selectedId, 'rankings')
-  if (match(ROUTES.PLAYERS, pathname) || match(ROUTES.PLAYER_NEW, pathname)) return inHomeGame(selectedId, 'jogadores')
-  if (playerPage) return inHomeGame(person.data?.homeGameId ?? selectedId, 'jogadores')
-  return { kind: 'default' }
+  return <AccountBar className={className} />
 }
 
 // ------------------------------------------------------------------ moldura
@@ -199,30 +136,32 @@ function ActiveMark() {
 // ------------------------------------------------------------------ painel do torneio
 
 function TournamentTabsBar({
-  mode,
+  tournamentId,
+  active: activeTab,
   className,
 }: {
-  mode: Extract<NavMode, { kind: 'tournament' }>
+  tournamentId: string
+  active: ReturnType<typeof parseTournamentTab>
   className?: string
 }) {
   // Cadeados: plano do DONO do home game, do torneio que o painel já buscou (sem consulta nova)
   const { data: tournament } = useQuery({
-    queryKey: ['tournament', mode.tournamentId],
-    queryFn: () => tournamentsApi.getById(mode.tournamentId),
+    queryKey: ['tournament', tournamentId],
+    queryFn: () => tournamentsApi.getById(tournamentId),
     enabled: false,
   })
   const planFeatures = tournament?.planFeatures
 
   return (
-    <BarFrame label="Abas do torneio" kind="tournament" className={className} activeKey={mode.active}>
+    <BarFrame label="Abas do torneio" kind="tournament" className={className} activeKey={activeTab}>
       {TOURNAMENT_TABS.map((tab) => {
-        const active = tab.key === mode.active
+        const active = tab.key === activeTab
         const locked = isTabLocked(tab, planFeatures)
         const Icon = tab.icon
         return (
           <li key={tab.key} className="flex-1 shrink-0">
             <Link
-              to={tournamentTabPath(mode.tournamentId, tab.key)}
+              to={tournamentTabPath(tournamentId, tab.key)}
               // Trocar de aba no próprio painel não empilha histórico (como as abas do topo)
               replace
               aria-current={active ? 'page' : undefined}
@@ -244,26 +183,38 @@ function TournamentTabsBar({
   )
 }
 
-// ------------------------------------------------------------------ dentro de um home game
+// ------------------------------------------------------------------ Início + seções do home game
 
-function HomeGameTabsBar({
-  mode,
-  className,
-}: {
-  mode: Extract<NavMode, { kind: 'homeGame' }>
-  className?: string
-}) {
+function AccountBar({ className }: { className?: string }) {
+  const { pathname } = useLocation()
+  const { route, currentId, sections } = useAccountNav()
+  const onInicio = pathname === ROUTES.INICIO
+  const items = currentId ? sections.map(homeGameSectionTab).filter((t) => t.inBottomBar) : []
+  const activeKey = onInicio ? 'inicio' : route.section
+
   return (
-    <BarFrame label="Abas do home game" kind="home-game" className={className} activeKey={mode.active}>
-      {HOME_GAME_TABS.map((tab) => {
-        const active = tab.key === mode.active
+    <BarFrame label="Navegação" kind="home-game" className={className} activeKey={activeKey}>
+      <li className="flex-1 shrink-0">
+        <Link
+          to={ROUTES.INICIO}
+          aria-current={onInicio ? 'page' : undefined}
+          data-tab="inicio"
+          className={itemClass(onInicio)}
+        >
+          {onInicio && <ActiveMark />}
+          <House className="h-5 w-5" aria-hidden />
+          <span>Início</span>
+        </Link>
+      </li>
+      {items.map((tab) => {
+        const active = !onInicio && tab.key === route.section
         const Icon = tab.icon
         return (
           <li key={tab.key} className="flex-1 shrink-0">
             <Link
-              to={homeGameTabPath(mode.homeGameId, tab.key)}
-              // No próprio detalhe, trocar de aba não empilha histórico (como as abas do topo); das outras telas, empilha
-              replace={mode.onDetail}
+              to={homeGameSectionPath(currentId!, tab.key)}
+              // Na própria seção, trocar de seção não empilha histórico (como as abas de antes); das outras telas, empilha
+              replace={route.onSectionPage}
               aria-current={active ? 'page' : undefined}
               data-tab={tab.key}
               className={itemClass(active)}
@@ -276,56 +227,5 @@ function HomeGameTabsBar({
         )
       })}
     </BarFrame>
-  )
-}
-
-// ------------------------------------------------------------------ fora de um home game (como antes)
-
-function HomeGamesBar({ className }: { className?: string }) {
-  const { homeGames, selectedHomeGame } = useHomeGame()
-
-  return (
-    <nav
-      data-bottom-nav="home-games"
-      className={cn('shrink-0 border-t border-border-default bg-bg-secondary', className)}
-      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
-    >
-      <ul className="flex items-center justify-around">
-        {homeGames.slice(0, 3).map((homeGame) => (
-          <li key={homeGame.id} className="flex-1">
-            <NavLink
-              to={homeGameDetailPath(homeGame.id)}
-              className={({ isActive }) =>
-                cn(
-                  'flex flex-col items-center gap-1 py-2 px-1 text-xs font-medium transition-colors min-h-[56px] justify-center',
-                  isActive || selectedHomeGame?.id === homeGame.id
-                    ? 'text-accent-blue'
-                    : 'text-text-secondary hover:text-text-primary',
-                )
-              }
-            >
-              <Home className="h-5 w-5" />
-              <span className="truncate max-w-[70px]">{homeGame.name}</span>
-            </NavLink>
-          </li>
-        ))}
-        <li className="flex-1">
-          <NavLink
-            to={ROUTES.HOME_GAME_NEW}
-            className={({ isActive }) =>
-              cn(
-                'flex flex-col items-center gap-1 py-2 px-1 text-xs font-medium transition-colors min-h-[56px] justify-center',
-                isActive
-                  ? 'text-accent-green-deep'
-                  : 'text-text-secondary hover:text-text-primary',
-              )
-            }
-          >
-            <Plus className="h-5 w-5" />
-            <span>Criar</span>
-          </NavLink>
-        </li>
-      </ul>
-    </nav>
   )
 }

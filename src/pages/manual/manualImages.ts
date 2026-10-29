@@ -9,6 +9,8 @@ import imgBoasVindasPerfil400 from '../../assets/manual/boas-vindas-perfil-400.w
 import imgBoasVindasPerfil750 from '../../assets/manual/boas-vindas-perfil-750.webp'
 import imgBoasVindasPlano400 from '../../assets/manual/boas-vindas-plano-400.webp'
 import imgBoasVindasPlano750 from '../../assets/manual/boas-vindas-plano-750.webp'
+import imgConfiguracoes400 from '../../assets/manual/configuracoes-400.webp'
+import imgConfiguracoes750 from '../../assets/manual/configuracoes-750.webp'
 import imgContaCadastro400 from '../../assets/manual/conta-cadastro-400.webp'
 import imgContaCadastro750 from '../../assets/manual/conta-cadastro-750.webp'
 import imgContaConfiraEmail400 from '../../assets/manual/conta-confira-email-400.webp'
@@ -39,6 +41,8 @@ import imgHomeGamePix400 from '../../assets/manual/home-game-pix-400.webp'
 import imgHomeGamePix750 from '../../assets/manual/home-game-pix-750.webp'
 import imgHomeGameTorneios400 from '../../assets/manual/home-game-torneios-400.webp'
 import imgHomeGameTorneios750 from '../../assets/manual/home-game-torneios-750.webp'
+import imgInicio400 from '../../assets/manual/inicio-400.webp'
+import imgInicio750 from '../../assets/manual/inicio-750.webp'
 import imgJogadorFoto400 from '../../assets/manual/jogador-foto-400.webp'
 import imgJogadorFoto750 from '../../assets/manual/jogador-foto-750.webp'
 import imgJogadorNovo400 from '../../assets/manual/jogador-novo-400.webp'
@@ -69,12 +73,18 @@ import imgParearCelular400 from '../../assets/manual/parear-celular-400.webp'
 import imgParearCelular750 from '../../assets/manual/parear-celular-750.webp'
 import imgPcEstruturaNiveis640 from '../../assets/manual/pc-estrutura-niveis-640.webp'
 import imgPcEstruturaNiveis1280 from '../../assets/manual/pc-estrutura-niveis-1280.webp'
+import imgPcInicio640 from '../../assets/manual/pc-inicio-640.webp'
+import imgPcInicio1280 from '../../assets/manual/pc-inicio-1280.webp'
 import imgPcPainelTorneio640 from '../../assets/manual/pc-painel-torneio-640.webp'
 import imgPcPainelTorneio1280 from '../../assets/manual/pc-painel-torneio-1280.webp'
+import imgPcTorneios640 from '../../assets/manual/pc-torneios-640.webp'
+import imgPcTorneios1280 from '../../assets/manual/pc-torneios-1280.webp'
 import imgRankingPublico400 from '../../assets/manual/ranking-publico-400.webp'
 import imgRankingPublico750 from '../../assets/manual/ranking-publico-750.webp'
 import imgRankingTemporada400 from '../../assets/manual/ranking-temporada-400.webp'
 import imgRankingTemporada750 from '../../assets/manual/ranking-temporada-750.webp'
+import imgSeletorLiga400 from '../../assets/manual/seletor-liga-400.webp'
+import imgSeletorLiga750 from '../../assets/manual/seletor-liga-750.webp'
 import imgTerminalAddon400 from '../../assets/manual/terminal-addon-400.webp'
 import imgTerminalAddon750 from '../../assets/manual/terminal-addon-750.webp'
 import imgTerminalAdicionar400 from '../../assets/manual/terminal-adicionar-400.webp'
@@ -130,6 +140,14 @@ export const MANUAL_IMAGES = {
     src: imgBoasVindasPlano400,
     full: imgBoasVindasPlano750,
     srcSet: `${imgBoasVindasPlano400} 400w, ${imgBoasVindasPlano750} 750w`,
+    width: 750,
+    height: 1520,
+    kind: 'phone',
+  },
+  'configuracoes': {
+    src: imgConfiguracoes400,
+    full: imgConfiguracoes750,
+    srcSet: `${imgConfiguracoes400} 400w, ${imgConfiguracoes750} 750w`,
     width: 750,
     height: 1520,
     kind: 'phone',
@@ -254,6 +272,14 @@ export const MANUAL_IMAGES = {
     height: 1520,
     kind: 'phone',
   },
+  'inicio': {
+    src: imgInicio400,
+    full: imgInicio750,
+    srcSet: `${imgInicio400} 400w, ${imgInicio750} 750w`,
+    width: 750,
+    height: 1520,
+    kind: 'phone',
+  },
   'jogador-foto': {
     src: imgJogadorFoto400,
     full: imgJogadorFoto750,
@@ -374,10 +400,26 @@ export const MANUAL_IMAGES = {
     height: 800,
     kind: 'wide',
   },
+  'pc-inicio': {
+    src: imgPcInicio640,
+    full: imgPcInicio1280,
+    srcSet: `${imgPcInicio640} 640w, ${imgPcInicio1280} 1280w`,
+    width: 1280,
+    height: 800,
+    kind: 'wide',
+  },
   'pc-painel-torneio': {
     src: imgPcPainelTorneio640,
     full: imgPcPainelTorneio1280,
     srcSet: `${imgPcPainelTorneio640} 640w, ${imgPcPainelTorneio1280} 1280w`,
+    width: 1280,
+    height: 800,
+    kind: 'wide',
+  },
+  'pc-torneios': {
+    src: imgPcTorneios640,
+    full: imgPcTorneios1280,
+    srcSet: `${imgPcTorneios640} 640w, ${imgPcTorneios1280} 1280w`,
     width: 1280,
     height: 800,
     kind: 'wide',
@@ -394,6 +436,14 @@ export const MANUAL_IMAGES = {
     src: imgRankingTemporada400,
     full: imgRankingTemporada750,
     srcSet: `${imgRankingTemporada400} 400w, ${imgRankingTemporada750} 750w`,
+    width: 750,
+    height: 1520,
+    kind: 'phone',
+  },
+  'seletor-liga': {
+    src: imgSeletorLiga400,
+    full: imgSeletorLiga750,
+    srcSet: `${imgSeletorLiga400} 400w, ${imgSeletorLiga750} 750w`,
     width: 750,
     height: 1520,
     kind: 'phone',

@@ -29,7 +29,7 @@ export function LandingFooter({ onLanding = false, children }: LandingFooterProp
           <ul className="flex flex-wrap items-center gap-x-5 gap-y-1">
             <li>
               <a href={account.href} className={LINK}>
-                {account.loggedIn ? FOOTER.links.panel : FOOTER.links.login}
+                {FOOTER.links.login}
               </a>
             </li>
             <li>

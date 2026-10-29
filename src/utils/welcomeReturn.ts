@@ -7,7 +7,8 @@
  * por 2 horas, a página protegida que mandou para o login.
  *
  * API estável:
- * - `rememberReturn(path)` — guarda (só caminho interno e específico; "/", "/home-games" e telas de entrada não).
+ * - `rememberReturn(path)` — guarda (só caminho interno e específico; "/", "/inicio", "/home-games" e telas de entrada
+ *   não).
  * - `takeReturn()` — devolve o caminho guardado e ainda válido (ou null) e apaga.
  * - `forgetReturn()` — apaga (a conta entrou e já estava integrada: o retorno guardado não vale mais).
  * - `specificReturn(path)` — o caminho, se for específico e interno; null para os genéricos.
@@ -16,7 +17,7 @@ const KEY = 'poker_welcome_return'
 const TTL_MS = 2 * 60 * 60 * 1000
 
 /** Caminhos que não são "a página de origem": o destino padrão das boas-vindas decide. */
-const GENERIC = new Set(['/', '/home-games', '/boas-vindas', '/login', '/register'])
+const GENERIC = new Set(['/', '/inicio', '/home-games', '/boas-vindas', '/login', '/register'])
 
 export function specificReturn(path: string | null | undefined): string | null {
   if (!path || !path.startsWith('/') || path.startsWith('//')) return null

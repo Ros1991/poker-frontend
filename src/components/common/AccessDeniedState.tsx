@@ -11,7 +11,7 @@ interface AccessDeniedStateProps {
  * dono, membro nem Admin): mensagem clara + voltar, em vez de erro genérico ou spinner.
  */
 export function AccessDeniedState({
-  message = 'Você não tem acesso a este home game.',
+  message = 'Você não tem acesso a esta página.',
 }: AccessDeniedStateProps) {
   const navigate = useNavigate()
 

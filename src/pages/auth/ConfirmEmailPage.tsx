@@ -169,7 +169,7 @@ function ConfirmWithPasswordForm({
       await confirmEmail(token, data.password)
       forgetLastEmail()
       toast.success('E-mail confirmado! Bem-vindo ao Poker da Galera.')
-      navigate(ROUTES.HOME_GAMES, { replace: true })
+      navigate(ROUTES.INICIO, { replace: true })
     } catch (err) {
       const status = errorStatus(err)
       const message = errorMessage(err)

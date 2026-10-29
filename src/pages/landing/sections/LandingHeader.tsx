@@ -14,8 +14,8 @@ interface LandingHeaderProps {
 /**
  * Topo da landing, das páginas de termos/privacidade e do manual (SPEC-20261023-1207): logo completa da
  * SPEC-20261023-1202 (que já traz o nome e o subtítulo — nada de texto repetido ao lado), "Planos" e "Manual" (a partir
- * de `md`; o manual é da SPEC-20261026-1910), "Entrar" ("Abrir painel" para quem está logado) e "Abrir o Telão da TV"
- * (só "Telão" no celular).
+ * de `md`; o manual é da SPEC-20261026-1910), "Entrar" (sempre — SPEC-20261029-1724: quem está logado vai do login para
+ * o Início) e "Abrir o Telão da TV" (só "Telão" no celular).
  */
 export function LandingHeader({ onLanding = false }: LandingHeaderProps) {
   const account = accountLink()
@@ -45,14 +45,7 @@ export function LandingHeader({ onLanding = false }: LandingHeaderProps) {
           </a>
           <a href={account.href} className={linkButton('secondary', 'md')}>
             <account.Icon className="h-4 w-4" aria-hidden="true" />
-            {account.loggedIn ? (
-              <span>
-                <span className="sm:hidden">{HEADER.panelShort}</span>
-                <span className="hidden sm:inline">{HEADER.panel}</span>
-              </span>
-            ) : (
-              HEADER.login
-            )}
+            {HEADER.login}
           </a>
           <a href={ROUTES.TV} className={linkButton('gold', 'md')}>
             <Tv className="h-4 w-4" aria-hidden="true" />

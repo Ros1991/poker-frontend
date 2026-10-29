@@ -115,8 +115,8 @@ export function WelcomePage() {
           <Button variant="secondary" onClick={status.refetch}>
             Tentar de novo
           </Button>
-          <Button variant="ghost" onClick={() => navigate(ROUTES.HOME_GAMES, { replace: true })}>
-            Ir para o painel
+          <Button variant="ghost" onClick={() => navigate(ROUTES.INICIO, { replace: true })}>
+            Ir para o Início
           </Button>
         </div>
       </section>

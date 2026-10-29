@@ -60,7 +60,7 @@ function fallbackMessage(detail: PlanLimitDetail, requiredPlan: PlanName | null)
     case 'tournaments_per_week':
       return `Seu plano permite um número limitado de torneios a cada 7 dias. Torneios ilimitados ${target}.`
     case 'members_limit':
-      return `Seu plano chegou ao limite de membros deste home game. Mais membros ${target}.`
+      return `Seu plano chegou ao limite de membros. Mais membros ${target}.`
   }
 }
 

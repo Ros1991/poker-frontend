@@ -320,7 +320,7 @@ export function PlayerPicker({ tournamentId, entries, variant, onAdded, onClose,
           <div className="flex flex-col gap-2 rounded-lg border border-accent-yellow bg-accent-yellow-soft p-3 sm:flex-row sm:items-center">
             <p className="flex-1 text-sm text-text-primary">
               {duplicate.kind === 'available'
-                ? `Já existe ${duplicate.name} no home game.`
+                ? `Já existe ${duplicate.name} na lista.`
                 : `${duplicate.name} já está no torneio.`}
             </p>
             {duplicate.kind === 'available' && (
@@ -513,7 +513,7 @@ export function PlayerPicker({ tournamentId, entries, variant, onAdded, onClose,
         ) : allIn ? (
           <div className="flex flex-col items-center gap-2 py-8 text-center">
             <Users className="h-10 w-10 text-text-muted" />
-            <p className="text-sm text-text-secondary">Todos os jogadores do home game já estão no torneio.</p>
+            <p className="text-sm text-text-secondary">Todos os jogadores já estão no torneio.</p>
           </div>
         ) : (
           <ul className="flex flex-col gap-1.5 pb-2">

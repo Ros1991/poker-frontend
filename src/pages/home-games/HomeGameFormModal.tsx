@@ -28,21 +28,29 @@ import type { HomeGame } from '../../types/homeGame.types'
  * Envia a logo escolhida (ou remove a marcada) depois de salvar o home game (SPEC-20261023-1213). Falha na logo não
  * desfaz o resto: avisa e segue.
  */
-async function saveLogo(homeGameId: string, logo: Blob | null, removeCurrent: boolean): Promise<void> {
+async function saveLogo(homeGameId: string, logo: Blob | null, removeCurrent: boolean, noun: string): Promise<void> {
   try {
     if (logo) await homeGameLogoApi.uploadLogo(homeGameId, logo)
     else if (removeCurrent) await homeGameLogoApi.removeLogo(homeGameId)
   } catch (err) {
     const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
-    toast.error(msg ?? 'Home game salvo, mas a logo não foi atualizada. Tente de novo.')
+    toast.error(msg ?? `${capitalize(noun)} salvo, mas a logo não foi atualizada. Tente de novo.`)
   }
 }
+
+const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1)
 
 interface HomeGameFormModalProps {
   isOpen: boolean
   onClose: () => void
-  onSuccess: () => void
+  /** Recebe o home game salvo (criado ou editado) */
+  onSuccess: (homeGame: HomeGame) => void
   homeGame?: HomeGame | null
+  /**
+   * Como a tela chama o que está sendo editado (SPEC-20261029-1724): "clube" no principal da conta (no Clube a palavra
+   * "home game" não aparece; o nome dele é o "nome do clube") e "home game" nos da Liga. Padrão: "home game".
+   */
+  noun?: 'clube' | 'home game'
 }
 
 export function HomeGameFormModal({
@@ -50,8 +58,10 @@ export function HomeGameFormModal({
   onClose,
   onSuccess,
   homeGame,
+  noun = 'home game',
 }: HomeGameFormModalProps) {
   const isEditing = !!homeGame
+  const Noun = capitalize(noun)
   // Logo do clube: escolhida aqui e enviada ao salvar (endpoint próprio)
   const [logo, setLogo] = useState<Blob | null>(null)
   const [logoRemoved, setLogoRemoved] = useState(false)
@@ -95,13 +105,13 @@ export function HomeGameFormModal({
   const createMutation = useMutation({
     mutationFn: async (data: HomeGameFormData) => {
       const created = await homeGamesApi.create(buildHomeGameRequest(data, pixType, null, showPix))
-      await saveLogo(created.id, logo, false)
+      await saveLogo(created.id, logo, false, noun)
       return created
     },
-    onSuccess: () => {
-      toast.success('Home game criado com sucesso!')
+    onSuccess: (created) => {
+      toast.success(`${Noun} criado com sucesso!`)
       void queryClient.invalidateQueries({ queryKey: MY_PLAN_QUERY_KEY })
-      onSuccess()
+      onSuccess(created)
     },
     onError: (err: unknown) => {
       // 402 (limite de home games do plano): o UpgradeModal já abriu sozinho; este formulário fecha
@@ -111,23 +121,23 @@ export function HomeGameFormModal({
         return
       }
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
-      toast.error(msg || 'Erro ao criar home game. Tente novamente.')
+      toast.error(msg || `Erro ao criar ${noun}. Tente novamente.`)
     },
   })
 
   const updateMutation = useMutation({
     mutationFn: async (data: HomeGameFormData) => {
       const updated = await homeGamesApi.update(homeGame!.id, buildHomeGameRequest(data, pixType, homeGame, showPix))
-      await saveLogo(updated.id, logo, logoRemoved && !!homeGame?.logoUrl)
+      await saveLogo(updated.id, logo, logoRemoved && !!homeGame?.logoUrl, noun)
       return updated
     },
-    onSuccess: () => {
-      toast.success('Home game atualizado com sucesso!')
-      onSuccess()
+    onSuccess: (updated) => {
+      toast.success(`${Noun} atualizado com sucesso!`)
+      onSuccess(updated)
     },
     onError: (err: unknown) => {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
-      toast.error(msg || 'Erro ao atualizar home game. Tente novamente.')
+      toast.error(msg || `Erro ao atualizar ${noun}. Tente novamente.`)
     },
   })
 
@@ -147,13 +157,13 @@ export function HomeGameFormModal({
   }
 
   // No celular o ✓ do cabeçalho faz o mesmo que o botão do rodapé e o rodapé some (SPEC-20261027-2132)
-  const submitAction = { label: isEditing ? 'Salvar' : 'Criar home game', form: 'home-game-form', loading: isSubmitting }
+  const submitAction = { label: isEditing ? 'Salvar' : `Criar ${noun}`, form: 'home-game-form', loading: isSubmitting }
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={isEditing ? 'Editar home game' : 'Novo home game'}
+      title={isEditing ? `Editar ${noun}` : `Novo ${noun}`}
       size="lg"
       submitAction={submitAction}
       footer={
@@ -167,14 +177,14 @@ export function HomeGameFormModal({
             Cancelar
           </Button>
           <Button type="submit" form="home-game-form" loading={isSubmitting}>
-            {isEditing ? 'Salvar' : 'Criar home game'}
+            {isEditing ? 'Salvar' : `Criar ${noun}`}
           </Button>
         </div>
       }
     >
       <form id="home-game-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <Input
-          label="Nome *"
+          label={noun === 'clube' ? 'Nome do clube *' : 'Nome *'}
           placeholder="Ex: Poker dos Amigos"
           error={errors.name?.message}
           {...register('name')}
@@ -182,7 +192,7 @@ export function HomeGameFormModal({
 
         <Textarea
           label="Descrição"
-          placeholder="Descrição do home game..."
+          placeholder={`Descrição do ${noun}...`}
           error={errors.description?.message}
           {...register('description')}
         />

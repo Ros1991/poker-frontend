@@ -17,7 +17,7 @@ import { Avatar } from '../../components/ui/Avatar'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { LoadingSpinner } from '../../components/common/LoadingSpinner'
-import { ROUTES, playerEditPath } from '../../constants/routes'
+import { ROUTES, homeGameSectionPath, playerEditPath } from '../../constants/routes'
 
 export function PlayerDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -57,7 +57,7 @@ export function PlayerDetailPage() {
           size="sm"
           onClick={() => navigate(ROUTES.PLAYERS)}
         >
-          Voltar para lista
+          Voltar para os jogadores
         </Button>
       </div>
     )
@@ -74,8 +74,9 @@ export function PlayerDetailPage() {
     <div className="flex flex-col gap-6 p-4 sm:p-6">
       {/* Header Nav */}
       <div className="flex items-center justify-between">
+        {/* Voltar: a seção Jogadores do home game do jogador (SPEC-20261029-1724) */}
         <button
-          onClick={() => navigate(ROUTES.PLAYERS)}
+          onClick={() => navigate(homeGameSectionPath(person.homeGameId, 'jogadores'))}
           className="flex h-10 w-10 items-center justify-center rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors"
           aria-label="Voltar"
         >

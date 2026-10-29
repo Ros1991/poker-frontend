@@ -25,7 +25,8 @@ import { usePlanGate } from '../../hooks/usePlanGate'
 import { useTabScrollReset } from '../../hooks/useTabScrollReset'
 import { PlanLock } from '../../components/plan'
 import { PlanTabLock } from '../../components/layout/PlanTabLock'
-import { TOURNAMENT_TABS, homeGameTabPath, isTabLocked, parseTournamentTab } from '../../components/layout/navTabs'
+import { TOURNAMENT_TABS, isTabLocked, parseTournamentTab } from '../../components/layout/navTabs'
+import { useHomeGame } from '../../hooks/useHomeGame'
 import type { TournamentTabKey } from '../../components/layout/navTabs'
 import { useWebSocket } from '../../hooks/useWebSocket'
 import { Badge } from '../../components/ui/Badge'
@@ -41,6 +42,7 @@ import {
 import {
   ROUTES,
   dealerMiniTvPath,
+  homeGameSectionPath,
   dealerTerminalPath,
   tournamentEditPath,
 } from '../../constants/routes'
@@ -80,6 +82,7 @@ export function TournamentDashboardPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const gate = usePlanGate()
+  const { homeGames } = useHomeGame()
   // Aba na URL (?tab=, SPEC-20261027-2132): a barra de baixo do celular, o voltar do navegador e o recarregar respeitam a
   // aba. Trocar de aba substitui a entrada do histórico (como no detalhe do home game)
   const [searchParams, setSearchParams] = useSearchParams()
@@ -237,7 +240,7 @@ export function TournamentDashboardPage() {
       setStatusConfirm(null)
       // Se cancelou, voltar para a lista de torneios do home game
       if (vars.status === 'Cancelled') {
-        navigate(`/home-games/${vars.homeGameId}?tab=torneios`)
+        navigate(homeGameSectionPath(vars.homeGameId, 'torneios'))
       }
     },
     onError: (err: unknown) => {
@@ -260,8 +263,8 @@ export function TournamentDashboardPage() {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-4">
         <p className="text-text-secondary">Torneio não encontrado.</p>
-        <Link to={ROUTES.HOME_GAMES} className="text-accent-blue hover:underline">
-          Voltar
+        <Link to={ROUTES.INICIO} className="text-accent-blue hover:underline">
+          Voltar ao Início
         </Link>
       </div>
     )
@@ -416,11 +419,11 @@ export function TournamentDashboardPage() {
       <div className="flex flex-col gap-4 rounded-xl border border-border-default bg-bg-secondary p-4 lg:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            {/* Voltar: o home game do torneio, na aba Torneios */}
+            {/* Voltar: a seção Torneios do home game do torneio (SPEC-20261029-1724) */}
             <Link
-              to={homeGameTabPath(tournament.homeGameId, 'torneios')}
-              aria-label={`Voltar para ${tournament.homeGameName}`}
-              title="Voltar para o home game"
+              to={homeGameSectionPath(tournament.homeGameId, 'torneios')}
+              aria-label="Voltar para Torneios"
+              title="Voltar para Torneios"
               className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors"
             >
               <ArrowLeft className="h-5 w-5" />
@@ -429,9 +432,12 @@ export function TournamentDashboardPage() {
               <h1 className="text-xl font-bold text-text-primary">
                 {tournament.name}
               </h1>
-              <p className="text-sm text-text-secondary">
-                {tournament.homeGameName}
-              </p>
+              {/* Nome do clube; no Mesa não existe (o principal sem nome: displayName null — SPEC-20261029-1724) */}
+              {homeGames.find((h) => h.id === tournament.homeGameId)?.displayName !== null && (
+                <p className="text-sm text-text-secondary">
+                  {tournament.homeGameName}
+                </p>
+              )}
             </div>
           </div>
 

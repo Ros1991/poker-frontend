@@ -104,22 +104,21 @@ export const MANUAL_PAGE = {
   plansTitle: 'Compare os planos',
   plansText: 'Preços e limites atualizados. O Mesa é grátis e não pede cartão.',
   plansFreeCta: 'Criar conta grátis',
-  /** Logado (integração da onda 14, como a tabela da landing): o plano grátis leva ao painel */
-  plansPanelCta: 'Abrir painel',
   plansPaidCta: 'Falar com o suporte',
   plansMessage: (plan: string) => `Olá! Li o manual e quero saber mais sobre o plano ${plan}.`,
   plansEmailSubject: (plan: string) => `Plano ${plan}`,
   /** Crédito das fotos dos jogadores de demonstração (decisão do usuário, 2026-10-26) */
   photoCredit: 'Fotos: Pexels/Unsplash',
-  demoNote: 'Os prints são de um home game de demonstração, com nomes e valores fictícios.',
+  demoNote: 'Os prints são de um clube de demonstração, com nomes e valores fictícios.',
 } as const
 
 export const MANUAL_MODULES = [
-  // ================================================================================= 1. criando o home game
+  // ================================================================================= 1. primeiros passos
+  // (o endereço continua /manual/criando-seu-home-game: links e sitemap antigos seguem valendo — SPEC-20261029-1724)
   {
     slug: 'criando-seu-home-game',
-    title: 'Criando seu home game',
-    summary: 'Conta, boas-vindas, o seu clube, jogadores, estrutura de blinds, torneio e quem ajuda a organizar.',
+    title: 'Primeiros passos',
+    summary: 'Conta, boas-vindas, o Início, o seu clube, jogadores, estrutura de blinds, torneio e quem ajuda a organizar.',
     intro: 'Do cadastro ao primeiro torneio em uns 10 minutos. Dá para fazer tudo no celular.',
     icon: 'conta',
     description:
@@ -171,11 +170,21 @@ export const MANUAL_MODULES = [
             title: 'Escolha o plano',
             text: [
               'Comece no Mesa: é grátis e não pede cartão. Ele cuida do jogo — jogadores, inscrições, rebuy, add-on, eliminações, relógio e telão.',
-              'O Clube e a Liga liberam mesas, premiação, pagamentos com PIX, custos, financeiro, ranking e o terminal do dealer. Dá para mudar quando quiser. Ao terminar, você já cai no seu clube.',
+              'O Clube e a Liga liberam mesas, premiação, pagamentos com PIX, custos, financeiro, ranking e o terminal do dealer. Dá para mudar quando quiser. Ao terminar, você cai no Início.',
             ],
             image: 'boas-vindas-plano',
             imageAlt: 'Boas-vindas, passo Seu plano: o card do Mesa grátis com o que está incluído',
             see: { slug: 'planos', label: 'Comparar os planos' },
+          },
+          {
+            title: 'O Início',
+            text: [
+              'Toda vez que você entra (ou abre pokerdagalera.com.br já logado), o site abre no Início: o seu plano, o que está acontecendo Agora — o torneio em andamento, com Painel, Telão no celular e Terminal do dealer — e os seus últimos torneios, com Novo Torneio.',
+              'Daqui você vai para tudo pelo menu: Torneios, Estruturas e Jogadores (no Clube e na Liga, também Rankings, Membros e Configurações).',
+            ],
+            image: 'inicio',
+            imageAlt: 'Início no celular: saudação, o plano, o torneio de hoje em Agora com Painel, Telão no celular e Terminal do dealer, e a barra de baixo',
+            see: { slug: 'painel-do-home-game', label: 'Navegação: o menu, a barra de baixo e Configurações' },
           },
         ],
       },
@@ -187,34 +196,34 @@ export const MANUAL_MODULES = [
             title: 'O seu clube já vem pronto',
             text: [
               'Não há nada para criar: a conta já nasce com o seu clube. Os torneios, as estruturas de blinds e os jogadores ficam nele — no Mesa e no Clube, ele é a própria conta.',
-              'No Clube e na Liga, dê um nome ao clube em Editar (ele aparece no ranking público e na lista de torneios do telão). No Mesa, o que aparece é o nome da sua conta.',
+              'No Clube e na Liga, dê um nome ao clube em Configurações → Editar (ele aparece no ranking público e na lista de torneios do telão); enquanto o nome for o padrão, o Início lembra. No Mesa, o que aparece é o nome da sua conta.',
             ],
             tip: 'O clube da conta nunca é excluído: ele só sai se você excluir a conta.',
           },
           {
             title: 'Na Liga, até 3 home games',
             text: [
-              'A Liga é para quem toca mais de um grupo (um bar, um circuito): além do clube da conta, dá para abrir mais 2 home games. Toque em Criar Home Game no menu.',
-              'Dê um nome e, se quiser, uma descrição, o local e a logo. Toque em Criar home game. Esses dois a Liga cria e exclui quando quiser.',
+              'A Liga é para quem toca mais de um grupo (um bar, um circuito): além do clube da conta, dá para abrir mais 2 home games. Toque no nome do home game no topo da tela e em Criar home game (ou em Criar home game no Início).',
+              'Dê um nome e, se quiser, uma descrição, o local e a logo. Toque em Criar home game. Esses dois a Liga cria e exclui (em Configurações) quando quiser.',
             ],
             tip: 'No celular, os formulários têm o X (cancelar) e o ✓ (salvar) no topo da tela, no lugar dos botões de baixo.',
             image: 'home-game-novo',
-            imageAlt: 'Formulário Novo home game com nome, descrição e local preenchidos e o campo da logo do clube',
+            imageAlt: 'Janela Novo home game aberta sobre o Início da Liga, com nome, descrição e local preenchidos',
           },
           {
             title: 'Informe a chave PIX do grupo',
             text: [
-              'Em Editar, preencha a Chave PIX e o Beneficiário. É o caixa padrão dos torneios: aparece no telão e no QR de pagamento.',
+              'Em Configurações, toque em Editar e preencha a Chave PIX e o Beneficiário. É o caixa padrão dos torneios: aparece no telão e no QR de pagamento.',
               'Digite do jeito que preferir — celular com DDD, CPF, CNPJ, e-mail ou chave aleatória: o sistema reconhece o tipo. Aproveite e deixe os valores padrão de buy-in, rebuy e add-on.',
             ],
             feature: 'Payments',
             image: 'home-game-pix',
-            imageAlt: 'Edição do home game com a chave PIX reconhecida como celular, o beneficiário e os valores padrão',
+            imageAlt: 'Janela Editar clube com a chave PIX reconhecida como celular, o beneficiário e os valores padrão',
           },
           {
             title: 'Cadastre os jogadores',
             text: [
-              'Na aba Jogadores do home game, toque em Novo jogador. Só o nome é obrigatório; o apelido é o que aparece no telão e no terminal.',
+              'Em Jogadores (no menu ou na barra de baixo do celular), toque em Novo jogador. Só o nome é obrigatório; o apelido é o que aparece no telão e no terminal.',
               'A foto ajuda o dealer a conferir quem é: tire na hora ou escolha da galeria. Ela aparece sempre redonda.',
             ],
             image: 'jogador-novo',
@@ -232,10 +241,10 @@ export const MANUAL_MODULES = [
           {
             title: 'Confira a lista',
             text: [
-              'A aba Jogadores mostra todo mundo do grupo, com foto, apelido e nome. O lápis edita e a lixeira remove.',
+              'Jogadores mostra todo mundo do grupo, com foto, apelido e nome. O lápis edita e a lixeira remove.',
             ],
             image: 'jogadores-lista',
-            imageAlt: 'Aba Jogadores do home game com a lista de jogadores, cada um com foto redonda',
+            imageAlt: 'Seção Jogadores com a lista de jogadores, cada um com foto redonda, e a barra de baixo com Jogadores marcado',
           },
         ],
       },
@@ -246,7 +255,7 @@ export const MANUAL_MODULES = [
           {
             title: 'Crie a estrutura e os valores padrão',
             text: [
-              'Na aba Estruturas, toque em Nova Estrutura. Dê um nome e preencha buy-in, rebuy, add-on, stacks e até que nível vale o rebuy.',
+              'Em Estruturas, toque em Nova Estrutura. Dê um nome e preencha buy-in, rebuy, add-on, stacks e até que nível vale o rebuy.',
               'A estrutura fica guardada e serve para todos os torneios do grupo: monta uma vez, usa sempre.',
             ],
             image: 'estrutura-valores',
@@ -312,7 +321,7 @@ export const MANUAL_MODULES = [
           {
             title: 'Crie o torneio',
             text: [
-              'Na aba Torneios, toque em Novo Torneio. Dê um nome, a data e escolha a estrutura: valores, limites de rebuy e add-on, custos e formato vêm preenchidos (e dá para mudar só neste torneio).',
+              'Em Torneios (ou no Início), toque em Novo Torneio. Dê um nome, a data e escolha a estrutura: valores, limites de rebuy e add-on, custos e formato vêm preenchidos (e dá para mudar só neste torneio).',
               'Escolha também o ranking da temporada, se houver, e toque em Criar torneio (no celular, o ✓ no topo).',
             ],
             image: 'torneio-novo',
@@ -336,19 +345,19 @@ export const MANUAL_MODULES = [
           {
             title: 'Adicione um membro',
             text: [
-              'Na aba Membros, toque em Adicionar Membro e busque pelo e-mail que a pessoa usou no cadastro (a conta precisa estar confirmada).',
-              'Marque Administrador do Home Game para ela cuidar dos torneios com você. Se ela também joga, vincule ao jogador.',
+              'Em Membros (Clube e Liga), toque em Adicionar Membro e busque pelo e-mail que a pessoa usou no cadastro (a conta precisa estar confirmada).',
+              'Marque Administrador para ela cuidar dos torneios com você. Se ela também joga, vincule ao jogador. Ela vê o seu clube no Início dela, em Clubes em que você participa.',
             ],
             tip: 'O Mesa não tem membros além do dono; o Clube e a Liga têm.',
             image: 'membros-adicionar',
-            imageAlt: 'Janela Adicionar Membro com a conta encontrada pelo e-mail e a opção Administrador do Home Game',
+            imageAlt: 'Janela Adicionar Membro com a conta encontrada pelo e-mail e a opção Administrador',
           },
           {
             title: 'Pronto para jogar',
             text: [
               'Agora é abrir o torneio no dia: inscrever quem chegou, ligar o relógio e o telão.',
             ],
-            see: { slug: 'painel-do-home-game', label: 'Usando a tela de administração do home game' },
+            see: { slug: 'painel-do-home-game', label: 'Navegação e o painel do torneio' },
           },
         ],
       },
@@ -510,29 +519,64 @@ export const MANUAL_MODULES = [
     ],
   },
 
-  // ================================================================================= 3. administração
+  // ================================================================================= 3. navegação e painel
+  // (o endereço continua /manual/painel-do-home-game — SPEC-20261029-1724)
   {
     slug: 'painel-do-home-game',
-    title: 'Usando a tela de administração do home game',
-    summary: 'O painel do torneio: jogadores, mesas, blinds, pagamentos, custos, financeiro, premiação, telão e ranking.',
+    title: 'Navegação e o painel do torneio',
+    summary: 'O Início, o menu, Configurações e o painel do torneio: jogadores, mesas, blinds, pagamentos, custos, financeiro, premiação, telão e ranking.',
     intro:
       'Tudo o que o terminal faz, e mais: inscrições, mesas, dinheiro, premiação e ranking. Funciona no celular e fica ainda melhor no computador.',
     icon: 'painel',
     description:
-      'Como usar o painel do torneio no Poker da Galera: inscrições, jogadores, mesas, blinds, pagamentos, custos, financeiro, premiação, telão e ranking da temporada.',
+      'Como navegar no Poker da Galera (Início, menu, barra de baixo do celular, Configurações e, na Liga, a troca de home game) e usar o painel do torneio: inscrições, jogadores, mesas, blinds, pagamentos, custos, financeiro, premiação, telão e ranking da temporada.',
     sections: [
       {
-        id: 'home-game',
-        title: 'O home game',
+        id: 'navegacao',
+        title: 'Navegação',
         steps: [
           {
-            title: 'A página do home game',
+            title: 'O Início',
             text: [
-              'Abra o grupo em Meus Home Games (no menu) ou na barra de baixo do celular. As abas são Torneios, Rankings, Estruturas, Jogadores e Membros — no celular, elas ficam na barra de baixo.',
-              'Em Torneios ficam todos os torneios, com status, data, entradas e premiação. Toque num torneio para abrir o painel.',
+              'É a primeira tela depois de entrar: o plano, o que está acontecendo Agora (Painel, Telão no celular e Terminal do dealer de cada torneio em andamento) e os últimos torneios. Na Liga, um cartão por home game; quem ajuda a organizar o clube de outra pessoa vê também Clubes em que você participa.',
+            ],
+            image: 'pc-inicio',
+            imageAlt: 'Início no computador: o menu à esquerda, o torneio de hoje em Agora e os últimos torneios do clube',
+          },
+          {
+            title: 'O menu',
+            text: [
+              'O menu à esquerda tem Início, Torneios, Estruturas e Jogadores. No Clube e na Liga aparecem também Rankings, Membros e Configurações. Embaixo ficam Meu perfil e Meu plano.',
+              'Em Torneios ficam todos os torneios, com status, data, entradas e premiação. Toque num torneio para abrir o painel; dentro dele, o menu mostra ← Torneios para voltar.',
+            ],
+            image: 'pc-torneios',
+            imageAlt: 'Seção Torneios no computador, com o menu à esquerda e Torneios marcado',
+          },
+          {
+            title: 'No celular, a barra de baixo',
+            text: [
+              'No celular as mesmas seções ficam na barra de baixo (Início, Torneios, Rankings, Estruturas, Jogadores, Membros), com a seção aberta marcada. O ☰ no topo abre o menu completo.',
             ],
             image: 'home-game-torneios',
-            imageAlt: 'Aba Torneios do home game com o torneio de hoje iniciado e os torneios finalizados da temporada',
+            imageAlt: 'Seção Torneios no celular com o torneio de hoje iniciado e a barra de baixo com Torneios marcado',
+          },
+          {
+            title: 'Configurações',
+            text: [
+              'No Clube e na Liga, Configurações reúne o nome do clube, a descrição, o local, a logo, a chave PIX e os valores padrão. Toque em Editar para mudar. No celular, ela fica no ⋯ ao lado do nome da seção.',
+              'Só quem é dono edita; quem ajuda a organizar vê os dados. No Mesa não há Configurações.',
+            ],
+            image: 'configuracoes',
+            imageAlt: 'Configurações no celular: nome do clube, descrição, local, contagens, PIX e valores padrão, com o botão Editar',
+          },
+          {
+            title: 'Na Liga, troque de home game',
+            text: [
+              'Na Liga, o nome do home game aparece no topo da tela: toque nele para trocar de home game ou para Criar home game. O menu, a barra de baixo e as seções passam a ser do escolhido.',
+              'Quem ajuda a organizar o clube de outra pessoa troca entre a própria conta e o clube do outro pelo mesmo lugar.',
+            ],
+            image: 'seletor-liga',
+            imageAlt: 'Celular com a lista do topo aberta: os home games da Liga e Criar home game',
           },
         ],
       },
@@ -544,7 +588,7 @@ export const MANUAL_MODULES = [
             title: 'Visão geral',
             text: [
               'No topo: status, relógio, jogadores, rebuys, add-ons, premiação e total. Os botões mudam conforme o torneio anda: Iniciar Torneio, Pausar, Encerrar Rebuys e Finalizar (para encerrar antes da hora; quando sobra o campeão, ele se finaliza sozinho).',
-              'Ao lado ficam TV (abre o telão) e Dealer (o QR do terminal do dealer). Abaixo, as abas; no celular, elas ficam na barra de baixo, que rola de lado.',
+              'Ao lado ficam TV (abre o telão) e Dealer (o QR do terminal do dealer). Abaixo, as abas do torneio; no celular, elas ficam na barra de baixo, que rola de lado.',
             ],
             image: 'pc-painel-torneio',
             imageAlt: 'Painel do torneio no computador: resumo no topo, botões, abas e os cards dos jogadores da Mesa 1',
@@ -645,7 +689,7 @@ export const MANUAL_MODULES = [
           {
             title: 'O ranking',
             text: [
-              'Na aba Rankings do home game, toque em Novo Ranking: pontos por colocação (tabela) ou por fórmula, e quantos piores resultados descartar.',
+              'Em Rankings, toque em Novo Ranking: pontos por colocação (tabela) ou por fórmula, e quantos piores resultados descartar.',
               'Escolha o ranking ao criar cada torneio: a classificação se atualiza sozinha com os resultados.',
             ],
             feature: 'Rankings',

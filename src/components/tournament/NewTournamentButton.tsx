@@ -6,6 +6,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { nextTournamentAllowedAt, usePlan } from '../../hooks/usePlan'
 import { usePlanGate } from '../../hooks/usePlanGate'
 import { useTimeUntil } from '../plan'
+import { tournamentNewPath } from '../../constants/routes'
 
 interface NewTournamentButtonProps {
   homeGameId: string
@@ -82,7 +83,7 @@ export function NewTournamentButton({
     <Button
       size={size}
       className={className}
-      onClick={() => navigate(`/home-games/${homeGameId}/tournaments/new`)}
+      onClick={() => navigate(tournamentNewPath(homeGameId))}
     >
       <Plus className="h-4 w-4" />
       Novo Torneio

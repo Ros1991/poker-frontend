@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, Navigate, useLocation } from 'react-router-dom'
 import type { Location } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod/v4'
@@ -11,6 +11,7 @@ import { Input } from '../../components/ui/Input'
 import { PasswordInput } from '../../components/ui/PasswordInput'
 import { Button } from '../../components/ui/Button'
 import { ROUTES } from '../../constants/routes'
+import { useAuth } from '../../hooks/useAuth'
 import * as authApi from '../../api/auth.api'
 import { errorMessage, errorStatus } from '../../utils/httpErrors'
 import { GoogleSignInSection } from '../../components/auth/GoogleSignInSection'
@@ -62,7 +63,9 @@ export function RegisterPage() {
   const location = useLocation()
   // Volta para onde a pessoa estava (ex.: o QR da TV abriu /parear/CODIGO e passou pelo login)
   const from = (location.state as { from?: Location } | null)?.from
-  const returnTo = from ? `${from.pathname}${from.search}` : ROUTES.HOME_GAMES
+  // Sem origem: o Início da conta (SPEC-20261029-1724)
+  const returnTo = from ? `${from.pathname}${from.search}` : ROUTES.INICIO
+  const { isAuthenticated } = useAuth()
   // Criar conta com o Google (SPEC-20261023-1210): conta nova já nasce confirmada e entra direto
   const google = useGoogleSignIn(returnTo)
   const [isLoading, setIsLoading] = useState(false)
@@ -117,6 +120,9 @@ export function RegisterPage() {
       setIsLoading(false)
     }
   }
+
+  // Já tem sessão (ex.: "Criar conta grátis" da landing aberta em outra aba, ou o Google acabou de entrar): Início
+  if (isAuthenticated) return <Navigate to={returnTo} replace />
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-bg-primary p-4">

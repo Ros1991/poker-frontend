@@ -145,7 +145,7 @@ export function PlayerFormFields({
             </p>
             <p className="text-xs text-text-secondary">
               {known.photoUrl
-                ? 'A foto da conta aparece no lugar da foto do cadastro, em todo home game.'
+                ? 'A foto da conta aparece no lugar da foto do cadastro, em todos os torneios.'
                 : 'A conta ainda está sem foto: vale a foto do cadastro.'}
             </p>
             {namesDiffer && (
