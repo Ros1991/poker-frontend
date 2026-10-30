@@ -22,8 +22,9 @@ interface TimebankFieldsProps {
 
 /**
  * Cartão "Timebank" (SPEC-20261029-1722, D3) no formulário do torneio (herdado da estrutura, pode trocar) e no da
- * estrutura de blinds (padrão): liga/desliga e, ligado, "Timebanks por jogador" (1 a 99) e "Segundos por timebank" (5 a
- * 300). Desligado por padrão; desligado, só o liga/desliga aparece. Em todos os planos (é controle do jogo).
+ * estrutura de blinds (padrão): liga/desliga e, ligado, "Timebanks por jogador" (1 a 99) e "Tempo de ação (segundos)" (5 a
+ * 300 — desde a SPEC-20261030-1018 o mesmo valor é o tempo de ação do cronômetro do terminal e o tempo que cada timebank
+ * dá a mais). Desligado por padrão; desligado, só o liga/desliga aparece. Em todos os planos (é controle do jogo).
  */
 export function TimebankFields({
   idPrefix,
@@ -48,7 +49,7 @@ export function TimebankFields({
       </h2>
       <p className="mb-2 text-xs text-text-secondary">
         {description ??
-          'Cada jogador começa com alguns timebanks para pedir mais tempo numa decisão. O dealer conta o tempo no celular, pelo terminal.'}
+          'Cada jogador começa com alguns timebanks para pedir mais tempo numa decisão. O dealer conta o tempo no celular, pelo cronômetro do terminal.'}
       </p>
       <label className="flex min-h-[44px] cursor-pointer items-center gap-2">
         <input
@@ -79,7 +80,7 @@ export function TimebankFields({
           />
           <Input
             id={`${idPrefix}-timebank-segundos`}
-            label="Segundos por timebank"
+            label="Tempo de ação (segundos)"
             type="number"
             min={TIMEBANK_MIN_SECONDS}
             max={TIMEBANK_MAX_SECONDS}
@@ -89,6 +90,7 @@ export function TimebankFields({
             onChange={(e) => onSecondsChange(e.target.value)}
             error={secondsError ?? undefined}
             placeholder="30"
+            helperText="O dealer dispara o cronômetro; passado esse tempo, cada timebank dá mais esse tempo ao jogador."
           />
         </div>
       )}

@@ -28,7 +28,7 @@ interface PlayerSheetProps {
   showTables?: boolean
   /** Inscrições do torneio: a Ficha diz quem este jogador eliminou (SPEC-20261026-1908) */
   entries?: TournamentEntry[]
-  /** Timebank ligado no torneio (SPEC-20261029-1722): chip "⏱ N" na Ficha, que abre a TimebankSheet */
+  /** Timebank ligado no torneio (SPEC-20261029-1722): quantos o jogador tem e o −1/+1 na Ficha (SPEC-20261030-1018) */
   timebank?: PlayerDetailsProps['timebank']
 }
 

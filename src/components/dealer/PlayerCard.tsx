@@ -6,7 +6,6 @@ import type { KnockoutType } from '../../utils/knockout'
 import type { TournamentEntry } from '../../types/entry.types'
 import { DUE_TONE_CLASS, dueStatus, entryStatusLine } from '../../utils/entryStatusLine'
 import { eliminationsText, formatCurrency, playerName } from './terminalFormat'
-import { TimebankChip } from './TimebankChip'
 
 export interface PlayerActionRules {
   canRebuy: boolean
@@ -27,11 +26,6 @@ interface PlayerCardProps {
   showSeat?: boolean
   /** Formato do torneio (SPEC-20261026-1909): no knockout, os bounties ganhos e (PKO) a cabeça */
   knockout?: KnockoutType
-  /**
-   * Timebank ligado no torneio (SPEC-20261029-1722): o chip "⏱ N" ao lado do nome; tocar abre a TimebankSheet. Ausente
-   * (torneio sem timebank) = o card fica exatamente como antes.
-   */
-  timebank?: { onOpen: () => void }
 }
 
 /**
@@ -156,21 +150,9 @@ export function PlayerCard({
   showPayment = true,
   showSeat = true,
   knockout = 'None',
-  timebank,
 }: PlayerCardProps) {
   const name = playerName(entry)
   const seat = showSeat ? entry.seatNumber : null
-  const nameButton = (
-    <button
-      type="button"
-      onClick={onOpen}
-      className={cn('flex min-w-0 items-center gap-1 rounded-lg text-left', timebank && 'flex-1')}
-      data-player-name
-    >
-      <span className="min-w-0 flex-1 truncate text-lg font-bold leading-tight text-text-primary">{name}</span>
-      <ChevronRight className="h-4 w-4 shrink-0 text-text-muted" />
-    </button>
-  )
   return (
     <div className="flex gap-2.5 rounded-xl border border-border-default bg-bg-secondary p-2" data-player-card>
       <button
@@ -194,15 +176,15 @@ export function PlayerCard({
       </button>
 
       <div className="flex min-w-0 flex-1 flex-col gap-1">
-        {timebank ? (
-          // O chip fica fora da frase do jogador (entryStatusLine), que é a mesma do telão: lá o timebank não aparece (D5)
-          <div className="flex min-w-0 items-center gap-1">
-            {nameButton}
-            <TimebankChip remaining={entry.timebanksRemaining ?? 0} onClick={timebank.onOpen} playerName={name} />
-          </div>
-        ) : (
-          nameButton
-        )}
+        <button
+          type="button"
+          onClick={onOpen}
+          className="flex min-w-0 items-center gap-1 rounded-lg text-left"
+          data-player-name
+        >
+          <span className="min-w-0 flex-1 truncate text-lg font-bold leading-tight text-text-primary">{name}</span>
+          <ChevronRight className="h-4 w-4 shrink-0 text-text-muted" />
+        </button>
         <div className="flex flex-col text-sm leading-tight">
           {/* "2 rebuys · Add-on": a mesma frase da 2ª linha do telão (utils/entryStatusLine, SPEC-20261029-1720) */}
           <span className="text-text-secondary">{entryStatusLine(entry, { showMoney: false })}</span>

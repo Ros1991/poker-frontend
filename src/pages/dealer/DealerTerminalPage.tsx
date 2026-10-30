@@ -7,7 +7,7 @@ import * as tournamentsApi from '../../api/tournaments.api'
 import * as entriesApi from '../../api/entries.api'
 import * as tablesApi from '../../api/tables.api'
 import * as timerApi from '../../api/timer.api'
-import { useBlindTimer } from '../../hooks/useBlindTimer'
+import { useTimerQuery } from '../../hooks/useTimerQuery'
 import { useWebSocket } from '../../hooks/useWebSocket'
 import { Button } from '../../components/ui/Button'
 import { LoadingSpinner } from '../../components/common/LoadingSpinner'
@@ -39,7 +39,6 @@ import {
 } from '../../components/dealer/terminalFormat'
 import { countUnseated } from '../../utils/tableBalance'
 import { isKnockout, knockoutTypeOf } from '../../utils/knockout'
-import type { TimerState } from '../../types/blind.types'
 import type { TournamentEntry } from '../../types/entry.types'
 
 interface DealerTerminalPageProps {
@@ -96,18 +95,9 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
     refetchInterval: 8000,
   })
 
-  const { formattedTime, timerState, syncFromServer } = useBlindTimer()
-
-  useQuery({
-    queryKey: ['timer', tournamentId],
-    queryFn: async () => {
-      const state = await timerApi.getState(tournamentId)
-      syncFromServer(state as TimerState)
-      return state
-    },
-    enabled: !!tournamentId,
-    refetchInterval: 10000,
-  })
+  // Relógio (SPEC-20261030-1018): busca ao abrir o terminal (também voltando do telão, com o relógio no cache) e a cada
+  // 10 s; até a 1ª sincronização o topo mostra --:-- e o Pausar/Retomar espera. Ao zerar o nível, pergunta de novo
+  const { formattedTime, timerState, synced: timerSynced, sync } = useTimerQuery(tournamentId)
 
   const allEntries = useMemo(() => entries ?? [], [entries])
   const allTables = useMemo(() => tables ?? [], [tables])
@@ -121,8 +111,8 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
   useWebSocket({
     tournamentId,
     enabled: !!tournamentId,
-    onTimerUpdate: (state) => syncFromServer(state as TimerState),
-    // Timebank usado/ajustado/desfeito em outro aparelho (SPEC-20261029-1722): o chip "⏱ N" e o histórico na hora
+    onTimerUpdate: sync,
+    // Timebank usado/ajustado/desfeito em outro aparelho (SPEC-20261029-1722): a Ficha, a lista do cronômetro e o histórico
     onEntryUpdate: () => {
       void queryClient.invalidateQueries({ queryKey: ['entries', tournamentId] })
       void queryClient.invalidateQueries({ queryKey: ['history', tournamentId] })
@@ -149,11 +139,6 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
   const actions = useTerminalActions(tournamentId, tournament, { onEliminationUndone: suggestions.close })
   const { invalidateAll } = actions
 
-  // Timebank virtual (SPEC-20261029-1722): só com o timebank ligado no torneio — o chip "⏱ N" no card, na Ficha e na
-  // lista "Jogadores", a sheet (Usar, +1, −1) e a contagem em tela cheia neste celular. Sem timebank, nada aparece.
-  const timebank = useTimebank({ tournamentId, tournament, entries: allEntries, invalidateAll, allowUse: true })
-  const timebankFor = (entry: TournamentEntry) => (timebank.enabled ? { onOpen: () => timebank.open(entry) } : undefined)
-
   const activeEntries = useMemo(() => allEntries.filter((e) => isActiveStatus(e.status)), [allEntries])
 
   // Sem controle de mesas no plano: todos que estão jogando, por nome
@@ -168,6 +153,17 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
       .filter((e) => e.tableId === selectedTable.id)
       .sort((a, b) => (a.seatNumber ?? 0) - (b.seatNumber ?? 0))
   }, [activeEntries, selectedTable])
+
+  // Timebank virtual (SPEC-20261029-1722 → cronômetro único da SPEC-20261030-1018): só com o timebank ligado no torneio —
+  // o botão do cronômetro no topo (tempo de ação; acabando, "Quem está pensando?" com os jogadores desta mesa, ou todos
+  // que estão jogando sem o recurso de mesas) e quantos timebanks cada um tem, com −1/+1, na Ficha. Sem timebank, nada.
+  const timebank = useTimebank({
+    tournamentId,
+    tournament,
+    invalidateAll,
+    candidates: canTables && selectedTable ? tableEntries : playingEntries,
+    showSeat: canTables && !!selectedTable,
+  })
 
   // A inscrição não guarda a mesa de quem saiu: lista os eliminados do torneio, mais recentes primeiro
   const eliminatedEntries = useMemo(
@@ -209,7 +205,7 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
   const pauseMutation = useMutation({
     mutationFn: () => timerApi.pause(tournamentId),
     onSuccess: (state) => {
-      syncFromServer(state as TimerState)
+      sync(state)
       toast.success('Relógio pausado')
     },
     onError: (err) => toast.error(apiErrorMessage(err, 'Erro ao pausar o relógio.')),
@@ -218,7 +214,7 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
   const resumeMutation = useMutation({
     mutationFn: () => timerApi.resume(tournamentId),
     onSuccess: (state) => {
-      syncFromServer(state as TimerState)
+      sync(state)
       toast.success('Relógio retomado')
     },
     onError: (err) => toast.error(apiErrorMessage(err, 'Erro ao retomar o relógio.')),
@@ -227,7 +223,7 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
   const nextMutation = useMutation({
     mutationFn: () => timerApi.nextLevel(tournamentId),
     onSuccess: (state) => {
-      syncFromServer(state as TimerState)
+      sync(state)
       toast.success('Próximo nível')
     },
     onError: (err) => toast.error(apiErrorMessage(err, 'Erro ao avançar o nível.')),
@@ -236,7 +232,7 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
   const prevMutation = useMutation({
     mutationFn: () => timerApi.previousLevel(tournamentId),
     onSuccess: (state) => {
-      syncFromServer(state as TimerState)
+      sync(state)
       toast.success('Nível anterior')
     },
     onError: (err) => toast.error(apiErrorMessage(err, 'Erro ao voltar o nível.')),
@@ -282,6 +278,8 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
         onSelectTable={canTables ? () => setTableSelectOpen(true) : undefined}
         formattedTime={formattedTime}
         timerState={timerState}
+        timerSynced={timerSynced}
+        timebank={timebank.enabled ? { seconds: timebank.seconds, onStart: timebank.start } : undefined}
         onPrevLevel={() => prevMutation.mutate()}
         onNextLevel={() => nextMutation.mutate()}
         onTogglePause={() => (timerState.isRunning ? pauseMutation.mutate() : resumeMutation.mutate())}
@@ -334,7 +332,6 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
                     showPayment={canPay}
                     showSeat={false}
                     knockout={knockout}
-                    timebank={timebankFor(entry)}
                   />
                 ))}
               </div>
@@ -375,7 +372,6 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
                     onEliminate={() => flows.askEliminate(entry)}
                     showPayment={canPay}
                     knockout={knockout}
-                    timebank={timebankFor(entry)}
                   />
                 ))}
               </div>
@@ -453,7 +449,6 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
         knockout={knockout}
         showPayments={canPay}
         showTables={canTables}
-        timebank={timebank.enabled ? { onOpen: timebank.open } : undefined}
       />
 
       {canTables && (
@@ -501,13 +496,17 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
         onUndo={actions.undoItem}
         showPayments={canPay}
         showTables={canTables}
-        timebank={fichaEntry ? timebankFor(fichaEntry) : undefined}
+        timebank={
+          timebank.enabled && fichaEntry
+            ? { onAdjust: (delta) => void timebank.adjust(fichaEntry, delta), adjusting: timebank.adjusting }
+            : undefined
+        }
       />
 
       {/* ── Ações do jogador (diálogos compartilhados com o painel) ── */}
       {flows.dialogs}
 
-      {/* ── Timebank: sheet e contagem em tela cheia (só com o timebank ligado) ── */}
+      {/* ── Timebank: o cronômetro em tela cheia (só com o timebank ligado) ── */}
       {timebank.dialogs}
 
       {/* ── Mesas (só com controle de mesas no plano) ── */}

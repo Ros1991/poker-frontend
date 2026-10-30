@@ -9,14 +9,17 @@ export const TIMEBANK_DEFAULT_SECONDS = 30
 export const TIMEBANK_WARNING_SECONDS = 10
 
 /**
- * Timebank virtual (SPEC-20261029-1722): o torneio usa timebank? Sem ele (null), nenhuma tela de jogo mostra chip, sheet
- * ou campo extra — só o formulário do torneio tem o liga/desliga. Nunca aparece no telão (D5).
+ * Timebank virtual (SPEC-20261029-1722): o torneio usa timebank? Sem ele (null), nenhuma tela de jogo mostra o
+ * cronômetro, a linha da Ficha ou campo extra — só o formulário do torneio tem o liga/desliga. Nunca aparece no telão (D5).
  */
 export function timebankEnabled(tournament: Pick<Tournament, 'timebankCount'> | null | undefined): boolean {
   return (tournament?.timebankCount ?? 0) > 0
 }
 
-/** Segundos de cada timebank do torneio (30 quando não veio) */
+/**
+ * Segundos configurados no torneio (30 quando não veio). Desde a SPEC-20261030-1018 é o tempo de ação do cronômetro do
+ * terminal (sem gastar nada) e também o tempo que cada timebank dá a mais, depois que o tempo de ação acaba.
+ */
 export function timebankSeconds(tournament: Pick<Tournament, 'timebankSeconds'> | null | undefined): number {
   return tournament?.timebankSeconds ?? TIMEBANK_DEFAULT_SECONDS
 }
@@ -25,6 +28,12 @@ export function timebankSeconds(tournament: Pick<Tournament, 'timebankSeconds'> 
 export function timebanksLeftText(n: number): string {
   if (n <= 0) return 'nenhum restante'
   return n === 1 ? '1 restante' : `${n} restantes`
+}
+
+/** "3 timebanks", "1 timebank", "sem timebank" (a lista "Quem está pensando?" do cronômetro) */
+export function timebankCountText(n: number): string {
+  if (n <= 0) return 'sem timebank'
+  return n === 1 ? '1 timebank' : `${n} timebanks`
 }
 
 /**

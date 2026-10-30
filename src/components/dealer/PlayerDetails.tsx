@@ -13,7 +13,6 @@ import { isKnockout, knockoutTypeOf } from '../../utils/knockout'
 import { TIMEBANK_MAX_COUNT, timebankSeconds, timebanksLeftText } from '../../utils/timebank'
 import { HistoryList } from './HistoryList'
 import { DueLabel } from './PlayerCard'
-import { TimebankChip } from './TimebankChip'
 import type { PlayerActionRules } from './PlayerCard'
 import {
   eliminatedByEntry,
@@ -57,13 +56,12 @@ export interface PlayerDetailsProps {
   /** Inscrições do torneio: dizem QUEM este jogador eliminou (sem elas a Ficha mostra só quantos) */
   entries?: TournamentEntry[]
   /**
-   * Timebank ligado no torneio (SPEC-20261029-1722): o chip "⏱ N" ao lado do nome (com `onOpen`, tocar abre a
-   * TimebankSheet — terminal e painel) e, com `onAdjust` (painel), a linha "Timebank" com −1/+1 na própria Ficha. Ausente
-   * (torneio sem timebank) = a Ficha fica como antes. Só para quem ainda joga e com o caixa aberto.
+   * Timebank ligado no torneio (SPEC-20261029-1722; desde a SPEC-20261030-1018 o uso é pelo cronômetro do topo do
+   * terminal, não por jogador): a linha "Timebank" com quantos o jogador tem e, com o caixa aberto, −1/+1 — terminal e
+   * painel. Ausente (torneio sem timebank) = a Ficha fica como antes. Só para quem ainda joga.
    */
   timebank?: {
-    onOpen?: () => void
-    onAdjust?: (delta: 1 | -1) => void
+    onAdjust: (delta: 1 | -1) => void
     adjusting?: 1 | -1 | null
   }
 }
@@ -115,7 +113,7 @@ export function PlayerDetails({
   const playActions = active && !gameActionsLocked
   // Knockout (SPEC-20261026-1909): bounties ganhos e o que está na cabeça (quem foi eliminado não tem mais cabeça)
   const knockout = isKnockout(tournament) ? knockoutTypeOf(tournament) : 'None'
-  // Timebank (SPEC-20261029-1722): só de quem ainda joga, e as ações só com o caixa aberto
+  // Timebank (SPEC-20261029-1722): só de quem ainda joga; o −1/+1 só com o caixa aberto
   const showTimebank = !!timebank && active
   const timebanksLeft = entry.timebanksRemaining ?? 0
   const adjusting = timebank?.adjusting ?? null
@@ -138,19 +136,12 @@ export function PlayerDetails({
             onPhotoChanged?.()
           }}
         />
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0">
           <p className="truncate text-xl font-bold text-text-primary">{playerName(entry)}</p>
           {entry.person.nickname && (
             <p className="truncate text-sm text-text-secondary">{entry.person.fullName}</p>
           )}
         </div>
-        {showTimebank && (
-          <TimebankChip
-            remaining={timebanksLeft}
-            onClick={playActions ? timebank?.onOpen : undefined}
-            playerName={playerName(entry)}
-          />
-        )}
       </div>
 
       <div className="mb-3 grid grid-cols-2 gap-2">
@@ -172,7 +163,7 @@ export function PlayerDetails({
           />
         </div>
       )}
-      {showTimebank && playActions && timebank?.onAdjust && (
+      {showTimebank && (
         <div
           className="mb-3 flex items-center justify-between gap-2 rounded-lg border border-border-default bg-bg-card p-2.5"
           data-timebank-details
@@ -183,32 +174,34 @@ export function PlayerDetails({
               {timebanksLeftText(timebanksLeft)} · {timebankSeconds(tournament)} s cada
             </p>
           </div>
-          <div className="flex shrink-0 gap-2" role="group" aria-label={`Ajustar os timebanks de ${playerName(entry)}`}>
-            <Button
-              variant="secondary"
-              size="sm"
-              className="min-h-[44px] min-w-[52px]"
-              disabled={timebanksLeft <= 0 || adjusting != null}
-              loading={adjusting === -1}
-              onClick={() => timebank.onAdjust?.(-1)}
-              aria-label={`Tirar um timebank de ${playerName(entry)}`}
-              data-timebank-minus
-            >
-              <Minus className="h-4 w-4" aria-hidden />1
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              className="min-h-[44px] min-w-[52px]"
-              disabled={timebanksLeft >= TIMEBANK_MAX_COUNT || adjusting != null}
-              loading={adjusting === 1}
-              onClick={() => timebank.onAdjust?.(1)}
-              aria-label={`Dar um timebank a ${playerName(entry)}`}
-              data-timebank-plus
-            >
-              <Plus className="h-4 w-4" aria-hidden />1
-            </Button>
-          </div>
+          {playActions && (
+            <div className="flex shrink-0 gap-2" role="group" aria-label={`Ajustar os timebanks de ${playerName(entry)}`}>
+              <Button
+                variant="secondary"
+                size="sm"
+                className="min-h-[44px] min-w-[52px]"
+                disabled={timebanksLeft <= 0 || adjusting != null}
+                loading={adjusting === -1}
+                onClick={() => timebank.onAdjust(-1)}
+                aria-label={`Tirar um timebank de ${playerName(entry)}`}
+                data-timebank-minus
+              >
+                <Minus className="h-4 w-4" aria-hidden />1
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                className="min-h-[44px] min-w-[52px]"
+                disabled={timebanksLeft >= TIMEBANK_MAX_COUNT || adjusting != null}
+                loading={adjusting === 1}
+                onClick={() => timebank.onAdjust(1)}
+                aria-label={`Dar um timebank a ${playerName(entry)}`}
+                data-timebank-plus
+              >
+                <Plus className="h-4 w-4" aria-hidden />1
+              </Button>
+            </div>
+          )}
         </div>
       )}
       {eliminations > 0 && victims.length > 0 && (

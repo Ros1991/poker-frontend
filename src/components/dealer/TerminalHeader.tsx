@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronDown, Pause, Play, SkipBack, SkipForward } from 'lucide-react'
+import { ChevronDown, Pause, Play, SkipBack, SkipForward, Timer } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { TerminalViewSwitch } from './TerminalViewSwitch'
 import { getDealerSession } from '../../utils/deviceSessions'
@@ -20,6 +20,16 @@ interface TerminalHeaderProps {
   onSelectTable?: () => void
   formattedTime: string
   timerState: TimerState
+  /**
+   * Relógio já sincronizado depois de abrir o terminal (SPEC-20261030-1018): até lá o relógio mostra --:--, a linha do
+   * nível fica vazia e o Pausar/Retomar espera (o estado ainda é o padrão, parado)
+   */
+  timerSynced?: boolean
+  /**
+   * Timebank ligado no torneio (SPEC-20261030-1018): o botão "Tempo" do cronômetro, entre a mesa e o relógio — conta o
+   * tempo de ação (`seconds`) e, acabando, pergunta quem está pensando. Ausente (sem timebank) = o topo fica como antes.
+   */
+  timebank?: { seconds: number; onStart: () => void }
   onPrevLevel: () => void
   onNextLevel: () => void
   onTogglePause: () => void
@@ -29,7 +39,10 @@ interface TerminalHeaderProps {
   onOpenMore: () => void
 }
 
-/** Topo fixo: torneio, seletor "Terminal | Telão" (SPEC-20261029-1721), mesa, relógio, controles do nível e o link "Mais" */
+/**
+ * Topo fixo: torneio, seletor "Terminal | Telão" (SPEC-20261029-1721), mesa, relógio, controles do nível, o cronômetro do
+ * timebank (SPEC-20261030-1018, só com timebank no torneio) e o link "Mais"
+ */
 export function TerminalHeader({
   tournamentName,
   dealerMode,
@@ -37,6 +50,8 @@ export function TerminalHeader({
   onSelectTable,
   formattedTime,
   timerState,
+  timerSynced = true,
+  timebank,
   onPrevLevel,
   onNextLevel,
   onTogglePause,
@@ -100,6 +115,21 @@ export function TerminalHeader({
             {tableName}
           </p>
         )}
+        {/* Cronômetro do timebank, entre a mesa e o relógio: o tempo de ação não gasta nada; só depois dele o dealer
+            escolhe quem está pensando. Na linha dos botões do nível não cabe um 4º botão a 375–390 px */}
+        {timebank && (
+          <Button
+            variant="secondary"
+            size="sm"
+            className="min-h-[44px] shrink-0 border-accent-orange bg-accent-orange-soft px-2.5 text-base font-semibold text-accent-orange-deep hover:bg-accent-orange-soft"
+            onClick={timebank.onStart}
+            aria-label={`Cronômetro do tempo de ação (${timebank.seconds} s)`}
+            title={`Conta ${timebank.seconds} s de tempo de ação; acabando, escolha quem está pensando para gastar 1 timebank`}
+            data-timebank-start
+          >
+            <Timer className="h-5 w-5" aria-hidden /> Tempo
+          </Button>
+        )}
         <div className="min-w-0 text-right">
           {/* Relógio rodando em marinho; pausado no único dourado que vale como texto */}
           <p
@@ -110,7 +140,10 @@ export function TerminalHeader({
             {formattedTime}
           </p>
           <p className={`mt-1 tabular-nums text-text-secondary ${levelLineSize}`} data-terminal-level>
-            {timerState.isBreak ? (
+            {!timerSynced ? (
+              // Mesma altura da linha, sem o "Nível 1 · 0/0" do estado padrão
+              <span aria-hidden>&nbsp;</span>
+            ) : timerState.isBreak ? (
               'Intervalo'
             ) : (
               <>
@@ -140,6 +173,7 @@ export function TerminalHeader({
           className="flex-1 px-1"
           onClick={onTogglePause}
           loading={toggleLoading}
+          disabled={!timerSynced || toggleLoading}
         >
           {running ? (
             <>

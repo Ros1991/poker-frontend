@@ -672,7 +672,7 @@ export function BlindStructureFormPage() {
         {/* Timebank padrão (SPEC-20261029-1722) */}
         <TimebankFields
           idPrefix="estrutura"
-          description="Padrão dos torneios criados com esta estrutura (dá para trocar no torneio). O dealer conta o tempo no celular, pelo terminal."
+          description="Padrão dos torneios criados com esta estrutura (dá para trocar no torneio). O dealer conta o tempo no celular, pelo cronômetro do terminal."
           enabled={timebankOn}
           onEnabledChange={(v) => {
             setTimebankOn(v)
