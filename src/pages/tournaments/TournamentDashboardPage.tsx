@@ -19,7 +19,7 @@ import * as entriesApi from '../../api/entries.api'
 import * as costExtrasApi from '../../api/costExtras.api'
 import * as timerApi from '../../api/timer.api'
 import * as dealerAccessApi from '../../api/dealerAccess.api'
-import { useBlindTimer } from '../../hooks/useBlindTimer'
+import { useTimerQuery } from '../../hooks/useTimerQuery'
 import { hasFeature, MY_PLAN_QUERY_KEY } from '../../hooks/usePlan'
 import { usePlanGate } from '../../hooks/usePlanGate'
 import { useTabScrollReset } from '../../hooks/useTabScrollReset'
@@ -53,7 +53,6 @@ import { PrizesTab } from './tabs/PrizesTab'
 import { PaymentsTab } from './tabs/PaymentsTab'
 import { CostExtrasTab } from './tabs/CostExtrasTab'
 import { FinancialTab } from './tabs/FinancialTab'
-import type { TimerState } from '../../types/blind.types'
 import type { TournamentStatus } from '../../types/tournament.types'
 import { isKnockout, KNOCKOUT_BADGES, knockoutTypeOf } from '../../utils/knockout'
 import type { DealerRequest } from '../../types/display.types'
@@ -170,26 +169,14 @@ export function TournamentDashboardPage() {
     ? decideDealerMutation.variables?.request.id
     : undefined
 
-  const { timerState, formattedTime, syncFromServer } = useBlindTimer(() => {
-    void queryClient.invalidateQueries({ queryKey: ['timer', id] })
-  })
-
-  // Buscar estado inicial do timer + refresh periodico
-  useQuery({
-    queryKey: ['timer', id],
-    queryFn: async () => {
-      const state = await timerApi.getState(id!)
-      syncFromServer(state as TimerState)
-      return state
-    },
-    enabled: !!id,
-    refetchInterval: 10000,
-  })
+  // Relógio (SPEC-20261030-1018): busca ao abrir o painel (também voltando do telão ou do terminal, com o relógio no cache)
+  // e a cada 10 s; até a 1ª sincronização o "Timer" mostra --:-- e o Pausar/Retomar espera. Ao zerar, pergunta de novo
+  const { timerState, formattedTime, synced: timerSynced, sync: syncTimer } = useTimerQuery(id)
 
   useWebSocket({
     tournamentId: id ?? '',
     enabled: !!id,
-    onTimerUpdate: (state) => syncFromServer(state as TimerState),
+    onTimerUpdate: syncTimer,
     onEntryUpdate: () => {
       queryClient.invalidateQueries({ queryKey: ['entries', id] })
     },
@@ -205,7 +192,7 @@ export function TournamentDashboardPage() {
   const pauseMutation = useMutation({
     mutationFn: () => timerApi.pause(id!),
     onSuccess: (data) => {
-      syncFromServer(data as TimerState)
+      syncTimer(data)
       queryClient.invalidateQueries({ queryKey: ['tournament', id] })
       toast.success('Timer pausado.')
     },
@@ -215,7 +202,7 @@ export function TournamentDashboardPage() {
   const resumeMutation = useMutation({
     mutationFn: () => timerApi.resume(id!),
     onSuccess: (data) => {
-      syncFromServer(data as TimerState)
+      syncTimer(data)
       queryClient.invalidateQueries({ queryKey: ['tournament', id] })
       toast.success('Timer retomado.')
     },
@@ -474,6 +461,8 @@ export function TournamentDashboardPage() {
                     : resumeMutation.mutate()
                 }
                 loading={pauseMutation.isPending || resumeMutation.isPending}
+                // Sem a 1ª sincronização o estado é o padrão (parado): esperar evita "Retomar" com o relógio andando
+                disabled={!timerSynced || pauseMutation.isPending || resumeMutation.isPending}
               >
                 {timerState.isRunning ? (
                   <>
@@ -514,7 +503,7 @@ export function TournamentDashboardPage() {
         >
           <div className="rounded-lg bg-bg-primary p-3">
             <p className="text-xs text-text-secondary">Timer</p>
-            <p className="text-xl font-mono font-bold text-text-primary tabular-nums">
+            <p className="text-xl font-mono font-bold text-text-primary tabular-nums" data-dashboard-timer>
               {formattedTime}
             </p>
           </div>
@@ -689,7 +678,8 @@ export function TournamentDashboardPage() {
           <BlindsTab
             tournament={tournament}
             timerState={timerState}
-            syncFromServer={syncFromServer}
+            syncFromServer={syncTimer}
+            timerSynced={timerSynced}
           />
         )}
         {activeTab === 'premiacao' && (

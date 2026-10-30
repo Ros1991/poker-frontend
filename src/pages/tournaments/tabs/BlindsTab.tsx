@@ -25,12 +25,18 @@ import { LoadingSpinner } from '../../../components/common/LoadingSpinner'
 import type { Tournament } from '../../../types/tournament.types'
 import type { TimerState } from '../../../types/blind.types'
 import { isLastLevel, isStructureFinished } from '../../../utils/timerDisplay'
+import { TIMER_PLACEHOLDER } from '../../../hooks/useTimerQuery'
 import { apiErrorMessage } from '../../../components/dealer/terminalFormat'
 
 interface BlindsTabProps {
   tournament: Tournament
   timerState: TimerState
   syncFromServer: (state: TimerState) => void
+  /**
+   * Relógio já sincronizado pelo painel depois de abrir (SPEC-20261030-1018). Até lá o estado é o padrão: o relógio mostra
+   * --:-- e os botões esperam (senão o "Iniciar" apareceria com o relógio andando)
+   */
+  timerSynced?: boolean
 }
 
 function formatNumber(n: number): string {
@@ -41,6 +47,7 @@ export function BlindsTab({
   tournament,
   timerState,
   syncFromServer,
+  timerSynced = true,
 }: BlindsTabProps) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
@@ -140,10 +147,14 @@ export function BlindsTab({
     resumeMutation.isPending ||
     nextMutation.isPending ||
     prevMutation.isPending
+  // Sem a 1ª sincronização do painel, os botões do relógio esperam (o estado ainda é o padrão)
+  const timerBlocked = isAnyLoading || !timerSynced
 
   const minutes = Math.floor(timerState.remainingSeconds / 60)
   const seconds = timerState.remainingSeconds % 60
-  const localFormattedTime = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+  const localFormattedTime = timerSynced
+    ? `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+    : TIMER_PLACEHOLDER
 
   function renumber(levels: TournamentBlindLevel[]): TournamentBlindLevel[] {
     return levels.map((l, i) => ({ ...l, levelNumber: i + 1 }))
@@ -286,7 +297,7 @@ export function BlindsTab({
             variant="secondary"
             size="sm"
             onClick={() => prevMutation.mutate()}
-            disabled={isAnyLoading}
+            disabled={timerBlocked}
             title="Nível anterior"
           >
             <SkipBack className="h-4 w-4" />
@@ -296,7 +307,7 @@ export function BlindsTab({
             <Button
               variant="success"
               onClick={() => startMutation.mutate()}
-              disabled={isAnyLoading}
+              disabled={timerBlocked}
             >
               <Play className="h-5 w-5" />
               Iniciar
@@ -305,7 +316,7 @@ export function BlindsTab({
             <Button
               variant="success"
               onClick={() => resumeMutation.mutate()}
-              disabled={isAnyLoading}
+              disabled={timerBlocked}
             >
               <Play className="h-5 w-5" />
               Retomar
@@ -314,7 +325,7 @@ export function BlindsTab({
             <Button
               variant="secondary"
               onClick={() => pauseMutation.mutate()}
-              disabled={isAnyLoading}
+              disabled={timerBlocked}
             >
               <Pause className="h-5 w-5" />
               Pausar
@@ -325,7 +336,7 @@ export function BlindsTab({
             variant="secondary"
             size="sm"
             onClick={() => nextMutation.mutate()}
-            disabled={isAnyLoading || lastLevel}
+            disabled={timerBlocked || lastLevel}
             title={lastLevel ? 'Último nível' : 'Próximo nível'}
             aria-label={lastLevel ? 'Último nível' : 'Próximo nível'}
             data-blinds-next

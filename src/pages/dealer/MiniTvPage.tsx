@@ -1,12 +1,10 @@
-import { useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { Trophy } from 'lucide-react'
 import * as tournamentsApi from '../../api/tournaments.api'
 import * as entriesApi from '../../api/entries.api'
-import * as timerApi from '../../api/timer.api'
 import * as tournamentBlindsApi from '../../api/tournamentBlinds.api'
-import { useBlindTimer } from '../../hooks/useBlindTimer'
+import { useTimerQuery } from '../../hooks/useTimerQuery'
 import { useWebSocket } from '../../hooks/useWebSocket'
 import { useWakeLock } from '../../hooks/useWakeLock'
 import { hasFeature } from '../../hooks/usePlan'
@@ -16,7 +14,6 @@ import { formatCurrency, isActiveStatus } from '../../components/dealer/terminal
 import { CompactClock, CompactClockTile } from '../../components/tv/CompactClock'
 import { FullscreenButton } from '../../components/tv/FullscreenButton'
 import { averageStack, chipsInPlay, formatChips, secondsToBreak } from '../../utils/timerDisplay'
-import type { TimerState } from '../../types/blind.types'
 
 interface MiniTvPageProps {
   /** Aberto pelo QR do dealer (sem login, só este torneio): o nome do torneio da sessão vale até o torneio carregar */
@@ -37,7 +34,6 @@ interface MiniTvPageProps {
 export function MiniTvPage({ dealerMode }: MiniTvPageProps = {}) {
   const { tournamentId: routeTournamentId } = useParams<{ tournamentId: string }>()
   const tournamentId = routeTournamentId ?? ''
-  const queryClient = useQueryClient()
 
   // As mesmas chaves do terminal: ir e voltar pelo seletor aproveita o que já veio
   const { data: tournament } = useQuery({
@@ -62,27 +58,10 @@ export function MiniTvPage({ dealerMode }: MiniTvPageProps = {}) {
     refetchInterval: 30000,
   })
 
-  // Ao zerar, pergunta ao servidor (que avança o nível sozinho), como a TV
-  const { formattedTime, timerState, syncFromServer, progressPercentage } = useBlindTimer(() => {
-    void queryClient.invalidateQueries({ queryKey: ['timer', tournamentId] })
-  })
-  // O relógio só aparece depois da primeira sincronização deste telão (o cache do terminal pode ter alguns segundos)
-  const [synced, setSynced] = useState(false)
-  const sync = (state: unknown) => {
-    syncFromServer(state as TimerState)
-    setSynced(true)
-  }
-
-  useQuery({
-    queryKey: ['timer', tournamentId],
-    queryFn: async () => {
-      const state = await timerApi.getState(tournamentId)
-      sync(state)
-      return state
-    },
-    enabled: !!tournamentId,
-    refetchInterval: 10000,
-  })
+  // Relógio (SPEC-20261030-1018): busca ao abrir, também vindo do painel ou do terminal com o relógio no cache, e só
+  // aparece depois da 1ª sincronização deste telão (o cache da tela anterior pode ter alguns segundos). Ao zerar, pergunta
+  // ao servidor (que avança o nível sozinho), como a TV
+  const { formattedTime, timerState, progressPercentage, synced, sync } = useTimerQuery(tournamentId)
 
   // Pausar, retomar, próximo/anterior em qualquer aparelho: chega na hora pelo hub do torneio
   useWebSocket({
