@@ -219,10 +219,13 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
         </a>
       </div>
 
+      {/* Recolher para só os ícones: só no computador (lg+). No celular o menu abre pelo ☰ por cima da tela e fecha ao
+          escolher, então encolher não serve para nada (SPEC-20261030-1018) */}
       <button
         onClick={() => setCollapsed(!collapsed)}
-        className="flex items-center justify-center border-t border-border-default py-3 text-text-secondary hover:text-text-primary transition-colors min-h-[44px]"
+        className="hidden min-h-[44px] items-center justify-center border-t border-border-default py-3 text-text-secondary transition-colors hover:text-text-primary lg:flex"
         aria-label={collapsed ? 'Expandir menu' : 'Recolher menu'}
+        data-sidebar-collapse
       >
         {collapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
       </button>
