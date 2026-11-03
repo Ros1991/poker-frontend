@@ -365,7 +365,8 @@ export function BlindsTab({
               </p>
             </div>
             <div className="flex gap-2 flex-wrap">
-              {!editMode && (
+              {/* Editar Valores até o intervalo de acerto (SPEC-20261103-1927); finalizado e cancelado não se editam */}
+              {!editMode && tournament.status !== 'Finished' && tournament.status !== 'Cancelled' && (
                 <Button
                   variant="ghost"
                   size="sm"
