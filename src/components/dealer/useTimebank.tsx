@@ -19,25 +19,62 @@ interface UseTimebankOptions {
   /** Recarrega inscrições, torneio e histórico (o `invalidateAll` do useTerminalActions) */
   invalidateAll: () => void
   /**
-   * Terminal do dealer: quem pode estar pensando quando o tempo de ação acaba (a mesa escolhida no topo; sem o recurso de
-   * mesas, todos que estão jogando), na ordem da lista. No painel não vem: lá só há o −1/+1 da Ficha.
+   * Terminal do dealer: quem pode estar pensando (a mesa escolhida no topo; sem o recurso de mesas, todos que estão
+   * jogando), na ordem da lista. No painel não vem: lá só há o −1/+1 da Ficha.
    */
   candidates?: TournamentEntry[]
   /** Mostra o lugar de cada um na lista "Quem está pensando?" (com o recurso de mesas) */
   showSeat?: boolean
 }
 
+/** Uma abertura do cronômetro: do toque em "Tempo" até "Encerrar" */
 interface CountdownSession {
   sound: AlertSound
+  /** `performance.now()` do toque em "Tempo": o relógio conta daqui até "Encerrar", sem parar nem voltar ao começo */
+  startedAt: number
+  /** Tempo de ação e tempo de cada timebank (o do torneio no toque; não muda no meio da contagem) */
+  seconds: number
+  /** Quem está pensando agora: escolhido a qualquer momento; trocar vale para as próximas viradas */
+  chosen: TournamentEntry | null
+  /** Timebanks de cada jogador quando ele foi escolhido pela 1ª vez nesta abertura (antes dos usos dela) */
+  startCount: Record<string, number>
+  /** Um uso por virada coberta, na ordem das viradas (o 1º cobre a virada em X, o 2º a de 2X…) */
   uses: TimebankUse[]
 }
 
+/** Viradas que já passaram (em X, 2X, 3X… desde o toque em "Tempo") */
+function turnsPassed(s: CountdownSession): number {
+  return Math.floor((performance.now() - s.startedAt) / (s.seconds * 1000))
+}
+
 /**
- * Timebank virtual no terminal e no painel. Desde a SPEC-20261030-1018 o uso é por um **cronômetro único** no topo do
- * terminal (`start`): conta o tempo de ação sem gastar nada e, só quando ele acaba, pergunta quem está pensando e gasta 1
- * timebank dele (`POST entries/{id}/timebank/use` com o id gerado no celular — o "Tentar de novo" manda o mesmo e o
- * servidor não desconta duas vezes). A contagem é local (D4): o registro vai em paralelo e, se falhar, a contagem continua.
- * Fechado o cronômetro, o toast diz o que ficou: registrado (com Desfazer) ou não registrado (com Tentar de novo).
+ * Quantos timebanks o jogador ainda pode gastar nesta abertura: os que ele tinha quando foi escolhido menos os usos dela;
+ * se o servidor já respondeu um uso dele com menos (alguém mexeu de outro aparelho), vale o do servidor.
+ */
+function availableFor(s: CountdownSession, entry: TournamentEntry): number {
+  const mine = s.uses.filter((u) => u.entry.id === entry.id)
+  let left = (s.startCount[entry.id] ?? entry.timebanksRemaining ?? 0) - mine.length
+  for (let i = mine.length - 1; i >= 0; i--) {
+    const r = mine[i].registration
+    if (r.state === 'ok') {
+      left = Math.min(left, r.remaining - (mine.length - 1 - i))
+      break
+    }
+  }
+  return Math.max(0, left)
+}
+
+/**
+ * Timebank virtual no terminal e no painel. Desde a SPEC-20261103-1928 o cronômetro do topo do terminal (`start`) é
+ * **contínuo**: conta do toque até "Encerrar" sem parar nem voltar ao começo. O tempo de ação é X (os segundos do
+ * torneio) e a cada virada (X, 2X, 3X…) gasta 1 timebank do jogador escolhido em "Quem está pensando?" — a lista fica
+ * aberta o tempo todo, dá para escolher antes da 1ª virada e trocar de jogador antes de qualquer uma. Virada que passou
+ * sem ninguém escolhido é cobrada na hora da escolha (todas de uma vez, até o que o jogador tem); sem timebank, a contagem
+ * segue como "tempo esgotado" até "Encerrar".
+ *
+ * Cada timebank gasto é um `POST entries/{id}/timebank/use` com o id gerado no celular (o "Tentar de novo" manda o mesmo e
+ * o servidor não desconta duas vezes), um de cada vez e na ordem das viradas. A contagem é local (D4) e nunca espera a
+ * rede. Fechado o cronômetro, o toast resume o que ficou: registrado (com Desfazer) ou não registrado (com Tentar de novo).
  *
  * `adjust` é o −1/+1 da Ficha (terminal e painel), com toast "Desfazer". Torneio sem timebank: `enabled` false e nada abre.
  */
@@ -46,15 +83,29 @@ export function useTimebank({ tournamentId, tournament, invalidateAll, candidate
   const seconds = timebankSeconds(tournament)
   const [adjusting, setAdjusting] = useState<1 | -1 | null>(null)
   const [session, setSession] = useState<CountdownSession | null>(null)
+  // A abertura de agora, sempre a mais recente (as respostas do servidor chegam fora da renderização)
+  const sessionRef = useRef<CountdownSession | null>(null)
   // Usos do cronômetro aberto agora (o registro que volta depois de fechado vira toast) e o som dele
   const openKeys = useRef<Set<string>>(new Set())
   const openSound = useRef<AlertSound | null>(null)
+  // Os registros saem um de cada vez, na ordem das viradas
+  const queue = useRef<Promise<void>>(Promise.resolve())
 
   useEffect(() => () => openSound.current?.close(), [])
 
-  const patchUse = useCallback((key: string, patch: Partial<TimebankUse>) => {
-    setSession((s) => (s ? { ...s, uses: s.uses.map((u) => (u.key === key ? { ...u, ...patch } : u)) } : s))
+  const commit = useCallback((next: CountdownSession | null) => {
+    sessionRef.current = next
+    setSession(next)
   }, [])
+
+  const patchUse = useCallback(
+    (key: string, patch: Partial<TimebankUse>) => {
+      const s = sessionRef.current
+      if (!s || !s.uses.some((u) => u.key === key)) return
+      commit({ ...s, uses: s.uses.map((u) => (u.key === key ? { ...u, ...patch } : u)) })
+    },
+    [commit],
+  )
 
   /** Desfaz as atividades na ordem inversa (o toast de vários timebanks desfaz todos) */
   const undoActivities = useCallback(
@@ -141,91 +192,149 @@ export function useTimebank({ tournamentId, tournament, invalidateAll, candidate
     registerRef.current = register
   }, [register])
 
-  /** Toque no cronômetro do topo: abre o tempo de ação (o som nasce neste toque, como o iOS exige). Nada é gasto aqui */
+  /** Põe o registro na fila (um POST de cada vez: o servidor recebe os usos na ordem das viradas) */
+  const enqueue = useCallback(
+    (entry: TournamentEntry, actionId: string) => {
+      const run = () => register(entry, actionId)
+      queue.current = queue.current.then(run, run)
+    },
+    [register],
+  )
+
+  /**
+   * Cobra as viradas que já passaram e ainda não têm timebank, do jogador escolhido e até quantos ele tem. Chamado a cada
+   * virada (pela contagem) e quando o dealer escolhe ou troca o jogador.
+   */
+  const settle = useCallback(() => {
+    const s = sessionRef.current
+    if (!s || !s.chosen) return
+    const entry = s.chosen
+    const missing = turnsPassed(s) - s.uses.length
+    const left = availableFor(s, entry)
+    const n = Math.min(missing, left)
+    if (n <= 0) return
+    const added: TimebankUse[] = []
+    for (let i = 0; i < n; i++) {
+      const actionId = newTimebankActionId()
+      openKeys.current.add(actionId)
+      added.push({
+        key: actionId,
+        entry,
+        turn: s.uses.length + i + 1,
+        before: left - i,
+        registration: { state: 'pending' },
+        retrying: false,
+        activityId: null,
+      })
+    }
+    commit({ ...s, uses: [...s.uses, ...added] })
+    for (const u of added) enqueue(u.entry, u.key)
+  }, [commit, enqueue])
+
+  /** Toque no cronômetro do topo: começa a contagem contínua (o som nasce neste toque, como o iOS exige) */
   const start = useCallback(() => {
     if (!enabled || !candidates) return
     const sound = createAlertSound()
     openSound.current?.close()
     openSound.current = sound
     openKeys.current = new Set()
-    setSession({ sound, uses: [] })
-  }, [enabled, candidates])
+    commit({ sound, startedAt: performance.now(), seconds, chosen: null, startCount: {}, uses: [] })
+  }, [enabled, candidates, seconds, commit])
 
-  /** Gasta 1 timebank do jogador (a escolha em "Quem está pensando?" ou o "Usar mais 1") e conta de novo */
-  const spend = useCallback(
-    (entry: TournamentEntry, before: number) => {
-      const actionId = newTimebankActionId()
-      openKeys.current.add(actionId)
-      const use: TimebankUse = { key: actionId, entry, before, registration: { state: 'pending' }, retrying: false, activityId: null }
-      setSession((s) => (s ? { ...s, uses: [...s.uses, use] } : s))
-      void register(entry, actionId)
+  /** "Quem está pensando?": escolhe (ou troca) o jogador; as viradas já passadas sem timebank são cobradas dele agora */
+  const choose = useCallback(
+    (entry: TournamentEntry) => {
+      const s = sessionRef.current
+      if (!s || s.chosen?.id === entry.id) return
+      const startCount = entry.id in s.startCount ? s.startCount : { ...s.startCount, [entry.id]: entry.timebanksRemaining ?? 0 }
+      commit({ ...s, chosen: entry, startCount })
+      settle()
     },
-    [register],
+    [commit, settle],
   )
 
-  const choose = useCallback((entry: TournamentEntry) => spend(entry, entry.timebanksRemaining ?? 0), [spend])
-
-  const spendAgain = useCallback(() => {
-    const current = session?.uses[session.uses.length - 1]
-    if (!current || current.registration.state !== 'ok' || current.registration.remaining <= 0) return
-    // O jogador como está agora na lista (foto/nome atualizados), senão o do uso anterior
-    const entry = candidates?.find((e) => e.id === current.entry.id) ?? current.entry
-    spend(entry, current.registration.remaining)
-  }, [session, candidates, spend])
-
+  /** "Tentar de novo" dos usos não registrados (o mesmo actionId de cada um: o servidor não desconta duas vezes) */
   const retry = useCallback(
-    (key: string) => {
-      const use = session?.uses.find((u) => u.key === key)
-      if (!use) return
-      patchUse(key, { retrying: true })
-      void register(use.entry, key)
+    (keys: string[]) => {
+      const s = sessionRef.current
+      if (!s) return
+      for (const key of keys) {
+        const use = s.uses.find((u) => u.key === key)
+        if (!use) continue
+        patchUse(key, { retrying: true })
+        enqueue(use.entry, key)
+      }
     },
-    [session, patchUse, register],
+    [patchUse, enqueue],
   )
 
   const close = useCallback(() => {
-    const s = session
+    const s = sessionRef.current
     if (!s) return
     s.sound.close()
     openSound.current = null
     openKeys.current = new Set()
-    setSession(null)
+    commit(null)
     const ok = s.uses.filter((u) => u.registration.state === 'ok' && u.activityId)
     if (ok.length > 0) {
-      const last = ok[ok.length - 1]
-      const name = playerName(last.entry)
-      const remaining = last.registration.state === 'ok' ? last.registration.remaining : 0
+      // Por jogador, na ordem em que apareceram (trocar de jogador no meio da contagem dá mais de um)
+      const byPlayer: { entry: TournamentEntry; count: number; remaining: number }[] = []
+      for (const u of ok) {
+        const remaining = u.registration.state === 'ok' ? u.registration.remaining : 0
+        const p = byPlayer.find((x) => x.entry.id === u.entry.id)
+        if (p) {
+          p.count++
+          p.remaining = remaining
+        } else byPlayer.push({ entry: u.entry, count: 1, remaining })
+      }
       const ids = ok.map((u) => u.activityId as string)
-      const what = ok.length === 1 ? `Timebank de ${name} registrado` : `${ok.length} timebanks de ${name} registrados`
-      toast.success(`${what} (${timebanksLeftText(remaining)})`, {
+      let what: string
+      let undoLabel: string
+      if (byPlayer.length === 1) {
+        const { entry, count, remaining } = byPlayer[0]
+        const name = playerName(entry)
+        what = `${count === 1 ? `Timebank de ${name} registrado` : `${count} timebanks de ${name} registrados`} (${timebanksLeftText(remaining)})`
+        undoLabel = count === 1 ? `timebank usado por ${name}` : `${count} timebanks usados por ${name}`
+      } else {
+        const parts = byPlayer.map((p) => `${p.count} de ${playerName(p.entry)} (${timebanksLeftText(p.remaining)})`)
+        what = `${ok.length} timebanks registrados: ${parts.join(', ')}`
+        undoLabel = `${ok.length} timebanks usados`
+      }
+      toast.success(what, {
         duration: UNDO_TOAST_MS,
-        action: {
-          label: 'Desfazer',
-          onClick: () =>
-            void undoActivities(ids, ok.length === 1 ? `timebank usado por ${name}` : `${ok.length} timebanks usados por ${name}`),
-        },
+        action: { label: 'Desfazer', onClick: () => void undoActivities(ids, undoLabel) },
       })
     }
     for (const u of s.uses) {
       if (u.registration.state === 'error') notRegisteredToast(u.entry, u.key, u.registration.message)
     }
     // pendentes: o registro termina sozinho e vira toast (o uso já não é do cronômetro aberto)
-  }, [session, undoActivities, notRegisteredToast])
+  }, [commit, undoActivities, notRegisteredToast])
 
-  const dialogs =
-    enabled && session && candidates ? (
+  let dialogs = null
+  if (enabled && session && candidates) {
+    // Quantos cada um ainda pode gastar (quem já foi escolhido nesta abertura conta os usos dela)
+    const left: Record<string, number> = {}
+    for (const c of candidates) left[c.id] = c.id in session.startCount ? availableFor(session, c) : (c.timebanksRemaining ?? 0)
+    const chosen = session.chosen ? (candidates.find((c) => c.id === session.chosen!.id) ?? session.chosen) : null
+    if (chosen && !(chosen.id in left)) left[chosen.id] = availableFor(session, chosen)
+    dialogs = (
       <TimebankCountdown
-        seconds={seconds}
+        seconds={session.seconds}
+        startedAt={session.startedAt}
         sound={session.sound}
         candidates={candidates}
         showSeat={showSeat}
+        chosen={chosen}
+        left={left}
         uses={session.uses}
+        onTurn={settle}
         onChoose={choose}
-        onUseAgain={spendAgain}
         onRetry={retry}
         onClose={close}
       />
-    ) : null
+    )
+  }
 
   return { enabled, seconds, start, adjust, adjusting, dialogs }
 }
