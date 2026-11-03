@@ -179,7 +179,7 @@ export const MANUAL_MODULES = [
           {
             title: 'O Início',
             text: [
-              'Toda vez que você entra (ou abre pokerdagalera.com.br já logado), o site abre no Início: o seu plano, o que está acontecendo Agora — o torneio em andamento, com Painel, Telão no celular e Terminal do dealer — e os seus últimos torneios, com Novo Torneio.',
+              'Toda vez que você entra (ou abre pokerdagalera.com.br já logado), o site abre no Início: o seu plano, o que está acontecendo Agora — o torneio em andamento (toque nele para abrir o painel), com Telão no celular e Terminal do dealer — e os seus últimos torneios, com Novo Torneio.',
               'Daqui você vai para tudo pelo menu: Torneios, Estruturas e Jogadores (no Clube e na Liga, também Rankings, Membros e Configurações).',
             ],
             image: 'inicio',
@@ -422,7 +422,7 @@ export const MANUAL_MODULES = [
             title: 'A tela da mesa',
             text: [
               'No topo ficam o relógio, o nível e os controles: Anterior, Pausar e Próximo. Toque no nome da mesa para trocar de mesa.',
-              'Cada jogador tem um card com foto, rebuys, add-ons e quanto deve, e os botões Rebuy, Add-on, Pagar e Eliminar.',
+              'Cada jogador tem um card com foto, rebuys, add-ons e quanto deve, e os botões Rebuy, Add-on, Pagar e Eliminar. Toque em qualquer lugar do card, fora dos botões, para abrir a Ficha do jogador.',
             ],
             tip: 'Mesas desequilibradas? O terminal avisa e sugere quem muda (Sortear quem muda ou Escolher eu mesmo).',
             image: 'terminal-mesa',
@@ -498,22 +498,24 @@ export const MANUAL_MODULES = [
           {
             title: 'Timebank',
             text: [
-              'Com o timebank ligado no torneio, o topo do terminal tem o botão Tempo, ao lado de Anterior, Pausar e Próximo. Quando alguém começar a pensar, toque nele: o celular conta o tempo de ação em tela cheia, sem gastar nenhum timebank. Se o jogador decidir antes, toque em Encerrar.',
+              'Com o timebank ligado no torneio, o topo do terminal tem o botão Tempo, ao lado de Anterior, Pausar e Próximo. Quando alguém começar a pensar, toque nele: o celular conta em tela cheia, sem parar, até você tocar em Encerrar. Os primeiros segundos são o tempo de ação e não gastam nenhum timebank — se o jogador decidir antes, toque em Encerrar.',
+              'Embaixo do relógio fica a lista Quem está pensando?, com os jogadores da mesa e quantos timebanks cada um tem. Toque em quem está pensando quando quiser (já no começo, se você souber) e troque se errou.',
               'O organizador liga o timebank no cartão Timebank do torneio (ou deixa como padrão na estrutura de blinds): quantos timebanks cada jogador ganha e o tempo de ação, em segundos. Torneio sem timebank não mostra nada disso.',
             ],
             tip: 'Quantos timebanks cada jogador ainda tem fica na Ficha dele, com −1 e +1 para tirar ou dar um (no terminal e na aba Jogadores do painel).',
             image: 'terminal-timebank',
-            imageAlt: 'Cronômetro em tela cheia com Tempo de ação · 30 s no topo, os segundos andando, a barra azul e o botão Encerrar',
+            imageAlt: 'Cronômetro em tela cheia com Tempo de ação · 30 s no topo, os segundos andando, a barra azul, o total, a lista Quem está pensando? com um jogador marcado e o botão Encerrar',
           },
           {
             title: 'A contagem do timebank',
             text: [
-              'Se o tempo de ação acabar, o celular apita, vibra e pergunta Quem está pensando?, com os jogadores da mesa e quantos timebanks cada um tem (quem não tem nenhum fica apagado). Toque no jogador: gasta 1 timebank dele e conta de novo o mesmo tempo, como Timebank de Fulano. Não usar timebank fecha sem gastar nada.',
-              'Acabou de novo? Usar mais 1 timebank gasta outro, se ele tiver; senão aparece Sem timebank — tempo esgotado. A contagem é do celular e não para se a internet cair: se o uso não for registrado, aparece Não registrado — Tentar de novo. Cada uso fica no Histórico, com o seu nome e Desfazer (o timebank volta para o jogador).',
+              'Quando o tempo de ação acaba, o celular apita e vibra, e o relógio continua: a cada vez que passa mais um tempo de ação (a virada), gasta 1 timebank de quem está marcado, sem voltar a contagem para o começo. O número grande é o que falta até a próxima virada; embaixo fica o total desde o toque. Dez segundos antes de cada virada o celular apita de novo.',
+              'Ninguém marcado na virada? A contagem segue e a tela pede Quem está pensando?; ao tocar no jogador, as viradas que já passaram são gastas na hora. Sem timebank (ou quando os dele acabam), o tempo segue contando em vermelho como tempo esgotado até você tocar em Encerrar.',
+              'A contagem é do celular e não para se a internet cair: se o uso não for registrado, aparece Não registrado — Tentar de novo. Ao encerrar, um aviso resume os timebanks gastos, com Desfazer; cada uso fica no Histórico, com o seu nome e Desfazer (o timebank volta para o jogador).',
             ],
             tip: 'No iPhone não há vibração: fica só o bipe. Deixe o som do celular ligado.',
             image: 'terminal-timebank-contagem',
-            imageAlt: 'Tela Quem está pensando? com os jogadores da mesa pelo lugar, cada um com a foto, o nome e quantos timebanks tem, um deles apagado com sem timebank, e o botão Não usar timebank',
+            imageAlt: 'Timebank de um jogador em tela cheia: os segundos até a próxima virada, a barra laranja, o total, a lista Quem está pensando? com o jogador marcado e quantos timebanks cada um tem, e o botão Encerrar',
           },
         ],
       },
@@ -580,7 +582,7 @@ export const MANUAL_MODULES = [
           {
             title: 'O Início',
             text: [
-              'É a primeira tela depois de entrar: o plano, o que está acontecendo Agora (Painel, Telão no celular e Terminal do dealer de cada torneio em andamento) e os últimos torneios. Na Liga, um cartão por home game; quem ajuda a organizar o clube de outra pessoa vê também Clubes em que você participa.',
+              'É a primeira tela depois de entrar: o plano, o que está acontecendo Agora (toque no torneio em andamento para abrir o painel, ou em Telão no celular e Terminal do dealer) e os últimos torneios. Na Liga, um cartão por home game, só com o nome: toque nele para abrir. Quem ajuda a organizar o clube de outra pessoa vê também Clubes em que você participa, com o nome do clube e de quem é.',
             ],
             image: 'pc-inicio',
             imageAlt: 'Início no computador: o menu à esquerda, o torneio de hoje em Agora e os últimos torneios do clube',
@@ -589,7 +591,7 @@ export const MANUAL_MODULES = [
             title: 'O menu',
             text: [
               'O menu à esquerda tem Início, Torneios, Estruturas e Jogadores. No Clube e na Liga aparecem também Rankings, Membros e Configurações. Embaixo ficam Meu perfil e Meu plano.',
-              'Em Torneios ficam todos os torneios, com status, data, entradas e premiação. Toque num torneio para abrir o painel; dentro dele, o menu mostra ← Torneios para voltar.',
+              'Em Torneios ficam todos os torneios, com status, data, entradas e premiação. Toque em qualquer lugar do torneio para abrir o painel; dentro dele, Torneios continua marcado no menu, e a seta no topo do painel volta para a lista.',
             ],
             image: 'pc-torneios',
             imageAlt: 'Seção Torneios no computador, com o menu à esquerda e Torneios marcado',
@@ -649,7 +651,7 @@ export const MANUAL_MODULES = [
             title: 'Jogadores',
             text: [
               'A lista é a mesma do terminal: cards por mesa com Rebuy, Add-on, Pagar e Eliminar, filtros (Jogando, Eliminados, Devendo) e o Histórico com desfazer.',
-              'Toque no nome do jogador para abrir a ficha dele.',
+              'Toque em qualquer lugar do card do jogador, fora dos botões, para abrir a ficha dele.',
             ],
             image: 'painel-jogadores',
             imageAlt: 'Aba Jogadores do painel com Adicionar, o aviso de mesas e os filtros Todos, Jogando, Eliminados e Devendo',
@@ -862,7 +864,7 @@ export const MANUAL_MODULES = [
             title: 'Como jogador, no Início',
             text: [
               'O Início mostra quantos torneios você jogou, as vitórias, quantas vezes ficou na premiação e quanto ainda está em aberto, com os 5 últimos torneios.',
-              'O torneio que está acontecendo agora aparece em Agora, com o botão Acompanhar.',
+              'O torneio que está acontecendo agora aparece em Agora: toque nele (ou em Acompanhar) para ver o relógio e a sua ficha.',
             ],
             image: 'jogador-inicio',
             imageAlt: 'Início do jogador no celular: o torneio de hoje em Agora com Acompanhar e os números em Como jogador',

@@ -2,6 +2,7 @@ import { ChevronRight, CreditCard, Crosshair, PlusCircle, RefreshCw, Skull, Swor
 import type { ReactNode } from 'react'
 import { Avatar } from '../ui/Avatar'
 import { cn } from '../../utils/cn'
+import { isCardBackgroundClick } from '../../utils/cardClick'
 import type { KnockoutType } from '../../utils/knockout'
 import type { TournamentEntry } from '../../types/entry.types'
 import { DUE_TONE_CLASS, dueStatus, entryStatusLine } from '../../utils/entryStatusLine'
@@ -136,8 +137,9 @@ function ActionButton({
  * coluna esquerda inteira (iniciais grandes sem foto) com o lugar numa etiqueta sobre ela; à
  * direita o nome, "rebuys · add-on", "Eliminou N jogadores" (só quando já eliminou alguém — SPEC-20261026-1908),
  * "Deve/Pago" e a botoeira 2×2 (Rebuy | Add-on / Pagar |
- * Eliminar). Tocar na foto ou no nome abre a Ficha. Sem Payments no plano, some "Pagar" e
- * "Deve/Pago" e Eliminar ocupa a linha de baixo inteira.
+ * Eliminar). Tocar em qualquer lugar do card fora dos botões abre a Ficha (SPEC-20261103-1928; antes, só a foto e o
+ * nome): a foto e o nome continuam botões (teclado e leitor de tela) e a seta fica como enfeite. Sem Payments no plano,
+ * some "Pagar" e "Deve/Pago" e Eliminar ocupa a linha de baixo inteira.
  */
 export function PlayerCard({
   entry,
@@ -154,7 +156,14 @@ export function PlayerCard({
   const name = playerName(entry)
   const seat = showSeat ? entry.seatNumber : null
   return (
-    <div className="flex gap-2.5 rounded-xl border border-border-default bg-bg-secondary p-2" data-player-card>
+    <div
+      // O fundo do card abre a Ficha; os botões de dentro (foto, nome, Rebuy, Add-on, Pagar, Eliminar) fazem só o deles
+      onClick={(e) => {
+        if (isCardBackgroundClick(e)) onOpen()
+      }}
+      className="flex cursor-pointer gap-2.5 rounded-xl border border-border-default bg-bg-secondary p-2"
+      data-player-card
+    >
       <button
         type="button"
         onClick={onOpen}

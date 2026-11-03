@@ -17,10 +17,12 @@ export type TimebankRegistration =
   | { state: 'ok'; remaining: number }
   | { state: 'error'; message: string }
 
-/** Um timebank gasto nesta contagem. `key` = actionId do uso: o "Tentar de novo" manda o mesmo */
+/** Um timebank gasto nesta contagem (um por virada). `key` = actionId do uso: o "Tentar de novo" manda o mesmo */
 export interface TimebankUse {
   key: string
   entry: TournamentEntry
+  /** A virada que este timebank cobre (1 = a de X segundos, 2 = a de 2X…) */
+  turn: number
   /** Timebanks do jogador quando o uso começou (antes de o servidor responder, sobram `before − 1`) */
   before: number
   registration: TimebankRegistration
@@ -28,130 +30,162 @@ export interface TimebankUse {
   activityId: string | null
 }
 
-/** Fases do cronômetro: tempo de ação → quem está pensando → timebank do jogador → esgotado (de novo, com mais 1) */
-export type TimebankPhase = 'action' | 'choose' | 'timebank' | 'expired'
+/**
+ * Fases do cronômetro contínuo: tempo de ação (antes da 1ª virada) → timebank (toda virada que passou foi coberta) →
+ * escolha (virada sem jogador escolhido: a contagem segue pedindo a escolha) ou esgotado (o escolhido não tem mais
+ * timebank: a contagem segue em vermelho até "Encerrar")
+ */
+export type TimebankPhase = 'action' | 'timebank' | 'choose' | 'expired'
 
 interface TimebankCountdownProps {
-  /** Tempo configurado no torneio: o tempo de ação e o tempo de cada timebank */
+  /** Tempo configurado no torneio: o tempo de ação e o tempo de cada timebank (as viradas são em X, 2X, 3X…) */
   seconds: number
+  /** `performance.now()` do toque em "Tempo": a contagem nunca para nem volta ao começo */
+  startedAt: number
   /** Bipe/vibração criados no toque no cronômetro (o som só sai com o AudioContext nascido num gesto) */
   sound: AlertSound
   /** Quem pode estar pensando: os jogadores da mesa escolhida no terminal (sem mesas, todos que estão jogando) */
   candidates: TournamentEntry[]
   /** Mostra o lugar de cada um na lista (com o recurso de mesas) */
   showSeat: boolean
-  /** Timebanks gastos nesta contagem (todos do mesmo jogador; o último é o que está contando) */
+  /** Quem está pensando (null = ninguém escolhido ainda) */
+  chosen: TournamentEntry | null
+  /** Timebanks que cada um ainda pode gastar, já descontados os usos desta contagem (por id da inscrição) */
+  left: Record<string, number>
+  /** Timebanks gastos nesta contagem, um por virada, na ordem */
   uses: TimebankUse[]
-  /** Escolheu quem está pensando: gasta 1 timebank dele e conta de novo */
+  /** Passou uma virada: cobra 1 timebank do escolhido (se ele tiver) */
+  onTurn: () => void
+  /** Escolheu (ou trocou) quem está pensando: as viradas já passadas sem timebank são cobradas dele na hora */
   onChoose: (entry: TournamentEntry) => void
-  /** "Usar mais 1 timebank de Fulano" depois de o timebank acabar */
-  onUseAgain: () => void
-  /** "Tentar de novo" do uso que não foi registrado (o mesmo actionId: o servidor não desconta duas vezes) */
-  onRetry: (key: string) => void
-  /** "Encerrar" / "Não usar timebank": fecha e volta à mesa */
+  /** "Tentar de novo" dos usos que não foram registrados (o mesmo actionId: o servidor não desconta duas vezes) */
+  onRetry: (keys: string[]) => void
+  /** "Encerrar": fecha e volta à mesa */
   onClose: () => void
 }
 
 /**
- * Quanto falta da contagem `runKey`, recalculado a cada 100 ms pelo relógio do aparelho a partir do início da contagem
- * (não por ticks: a aba em segundo plano não atrasa). Trocar o `runKey` começa outra contagem do zero.
+ * Quanto passou desde `startedAt`, recalculado a cada 100 ms pelo relógio do aparelho (não por ticks: a aba em segundo
+ * plano não atrasa). Nunca volta ao começo.
  */
-function useCountdownMs(totalMs: number, runKey: string): number {
-  const [run, setRun] = useState({ key: runKey, leftMs: totalMs })
+function useElapsedMs(startedAt: number): number {
+  const [now, setNow] = useState(startedAt)
   useEffect(() => {
-    const start = performance.now()
-    const id = window.setInterval(() => {
-      const left = Math.max(0, totalMs - (performance.now() - start))
-      setRun({ key: runKey, leftMs: left })
-      if (left <= 0) window.clearInterval(id)
-    }, 100)
+    const id = window.setInterval(() => setNow(performance.now()), 100)
     return () => window.clearInterval(id)
-  }, [totalMs, runKey])
-  return run.key === runKey ? run.leftMs : totalMs
+  }, [startedAt])
+  return Math.max(0, now - startedAt)
+}
+
+/** "0:47", "12:05" */
+function clock(totalSeconds: number): string {
+  const s = Math.max(0, Math.floor(totalSeconds))
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 }
 
 /**
- * Cronômetro do timebank em tela cheia no celular do dealer (SPEC-20261030-1018; antes, SPEC-20261029-1722, a contagem
- * era disparada por jogador). Um botão só no topo do terminal abre o **tempo de ação** (os segundos do torneio), que não
- * gasta nada — "Encerrar" fecha a qualquer momento (o jogador decidiu). Quando o tempo de ação acaba (bipe e vibração),
- * a tela pergunta **"Quem está pensando?"** com os jogadores da mesa e quantos timebanks cada um tem (quem não tem fica
- * desligado) ou "Não usar timebank". Escolher o jogador gasta 1 timebank dele (registrado no servidor em paralelo) e conta
- * de novo os mesmos segundos; acabando também, oferece "Usar mais 1 timebank de Fulano" (se ele tiver) ou avisa que
- * acabou. Nada é gasto antes de o tempo de ação acabar.
+ * Cronômetro do timebank em tela cheia no celular do dealer — contínuo desde a SPEC-20261103-1928 (antes, SPEC-20261030-1018,
+ * cada escolha começava outra contagem do zero). Um relógio só, do toque no "Tempo" do topo do terminal até "Encerrar":
+ * nunca para nem volta ao começo. Os primeiros X segundos são o tempo de ação (não gasta nada); em X, 2X, 3X… acontecem
+ * as viradas, e cada uma gasta 1 timebank de quem está pensando.
  *
- * A contagem é local (D4) e nunca espera a rede: o registro aparece embaixo ("Registrando…", "Registrado · N restantes" ou
- * "Não registrado — Tentar de novo"). Bipe + vibração aos 10 s e no fim de cada contagem; a tela fica acesa. Não fecha
- * por toque fora — só pelos botões.
+ * A lista "Quem está pensando?" fica na tela o tempo todo: o dealer escolhe o jogador já nos primeiros segundos, ou na
+ * virada, ou depois — e pode trocar antes de qualquer virada. Virada sem ninguém escolhido não para nada: a tela pede a
+ * escolha e, ao escolher, as viradas que passaram são cobradas na hora (até o que o jogador tem). Sem timebank (ou quando
+ * os dele acabam), a contagem segue em vermelho como "tempo esgotado" até "Encerrar".
+ *
+ * Grande: o tempo até a próxima virada (no esgotado, quanto passou dele); menor: o total desde o toque. Bipe + vibração
+ * 10 s antes de cada virada (só com tempo maior que 10 s) e na virada; depois de esgotado, silêncio. A contagem é local
+ * (D4) e nunca espera a rede: o registro aparece embaixo ("Registrando…", "Registrado · N restantes" ou "Não registrado —
+ * Tentar de novo"). A tela fica acesa e não fecha por toque fora nem por Esc — só por "Encerrar".
  */
 export function TimebankCountdown({
   seconds,
+  startedAt,
   sound,
   candidates,
   showSeat,
+  chosen,
+  left,
   uses,
+  onTurn,
   onChoose,
-  onUseAgain,
   onRetry,
   onClose,
 }: TimebankCountdownProps) {
-  const current = uses.length > 0 ? uses[uses.length - 1] : null
-  // Cada contagem tem a sua chave: o tempo de ação e cada timebank usado
-  const runKey = current?.key ?? 'tempo-de-acao'
-  const totalMs = seconds * 1000
-  const leftMs = useCountdownMs(totalMs, runKey)
-  const left = Math.ceil(leftMs / 1000)
-  const done = leftMs <= 0
-  const phase: TimebankPhase = current ? (done ? 'expired' : 'timebank') : done ? 'choose' : 'action'
-  const warning = !done && left <= TIMEBANK_WARNING_SECONDS
-  const pct = totalMs > 0 ? (leftMs / totalMs) * 100 : 0
-  // Bipe/vibração já tocados (por contagem)
-  const warnedFor = useRef<string | null>(null)
-  const endedFor = useRef<string | null>(null)
+  const elapsedMs = useElapsedMs(startedAt)
+  const periodMs = Math.max(1, seconds * 1000)
+  const turns = Math.floor(elapsedMs / periodMs)
+  const covered = uses.length
+  const chosenLeft = chosen ? (left[chosen.id] ?? 0) : 0
+  // A virada que acabou de passar ainda vai ser cobrada (o onTurn roda logo depois desta renderização)
+  const pendingCharge = chosen ? Math.min(chosenLeft, Math.max(0, turns - covered)) : 0
+  const coveredNow = covered + pendingCharge
+  const remainingNow = chosenLeft - pendingCharge
+  const phase: TimebankPhase = turns === 0 ? 'action' : turns <= coveredNow ? 'timebank' : chosen ? 'expired' : 'choose'
+  const expired = phase === 'expired'
+  const toNextMs = (turns + 1) * periodMs - elapsedMs
+  const toNext = Math.ceil(toNextMs / 1000)
+  // Esgotado: quanto passou do fim do último tempo coberto
+  const overSeconds = Math.floor((elapsedMs - (coveredNow + 1) * periodMs) / 1000)
+  const warning = !expired && toNext <= TIMEBANK_WARNING_SECONDS && seconds > TIMEBANK_WARNING_SECONDS
+  const pct = expired ? 100 : (toNextMs / periodMs) * 100
+  const unpaid = phase === 'choose' ? turns - covered : 0
+  // Bipe/vibração já tocados (por virada)
+  const warnedTurn = useRef(0)
+  const endedTurn = useRef(0)
 
   useWakeLock(true)
   useEffect(() => lockBodyScroll(), [])
 
-  // Bipe + vibração: uma vez ao chegar nos 10 s (só quando o tempo é maior que isso) e uma no fim de cada contagem
+  // Cada virada cobra o timebank do escolhido (e a escolha feita depois cobra as que passaram — no onChoose)
   useEffect(() => {
-    if (warnedFor.current !== runKey && seconds > TIMEBANK_WARNING_SECONDS && !done && left <= TIMEBANK_WARNING_SECONDS) {
-      warnedFor.current = runKey
-      sound.warn()
-    }
-    if (endedFor.current !== runKey && done) {
-      endedFor.current = runKey
-      sound.end()
-    }
-  }, [left, done, runKey, seconds, sound])
+    if (turns > 0) onTurn()
+  }, [turns, onTurn])
 
-  const name = current ? playerName(current.entry) : ''
-  // Quantos sobram ao jogador depois do uso que está contando (o do servidor quando ele já respondeu)
-  const remainingAfter = current
-    ? current.registration.state === 'ok'
-      ? current.registration.remaining
-      : Math.max(0, current.before - 1)
-    : 0
-  const canUseAgain = current?.registration.state === 'ok' && current.registration.remaining > 0
+  // Bipe + vibração aos 10 s antes de cada virada e na virada; depois que o tempo esgotou de vez, silêncio
+  useEffect(() => {
+    const audible = (k: number) => !chosen || k <= coveredNow + 1
+    const next = turns + 1
+    if (seconds > TIMEBANK_WARNING_SECONDS && warnedTurn.current < next && toNextMs <= TIMEBANK_WARNING_SECONDS * 1000) {
+      warnedTurn.current = next
+      if (audible(next)) sound.warn()
+    }
+    if (turns > endedTurn.current) {
+      endedTurn.current = turns
+      if (audible(turns)) sound.end()
+    }
+  }, [turns, toNextMs, seconds, chosen, coveredNow, sound])
+
+  const name = chosen ? playerName(chosen) : ''
   const title =
     phase === 'action'
       ? `Tempo de ação · ${seconds} s`
       : phase === 'choose'
         ? 'Tempo de ação esgotado'
-        : `Timebank de ${name} (${timebanksLeftText(remainingAfter)})`
+        : phase === 'timebank'
+          ? `Timebank de ${name} (${timebanksLeftText(remainingNow)})`
+          : `Tempo esgotado · ${name}`
 
-  const counting = phase === 'action' || phase === 'timebank'
-  const timebankRun = phase === 'timebank' || phase === 'expired'
+  // Registro: erro primeiro (com "Tentar de novo"), depois pendente, senão o último registrado
+  const errored = uses.filter((u) => u.registration.state === 'error')
+  const pendingUses = uses.filter((u) => u.registration.state === 'pending')
+  const last = uses.length > 0 ? uses[uses.length - 1] : null
+  const registration = errored.length > 0 ? 'error' : pendingUses.length > 0 ? 'pending' : last ? 'ok' : null
+  const retrying = errored.some((u) => u.retrying)
 
   return createPortal(
     <div
       className={cn(
         'fixed inset-0 z-[60] flex h-dvh flex-col',
-        phase === 'expired' || phase === 'choose' ? 'bg-accent-red-soft' : 'bg-bg-primary',
+        expired || phase === 'choose' ? 'bg-accent-red-soft' : 'bg-bg-primary',
       )}
       role="dialog"
       aria-modal="true"
       aria-label={title}
       data-timebank-countdown={phase}
       data-timebank-warning={warning ? '' : undefined}
+      data-timebank-turns={turns}
     >
       <header className="flex shrink-0 items-center justify-center gap-2 border-b border-border-default bg-bg-secondary px-3 py-2.5">
         <Timer className="h-5 w-5 shrink-0 text-accent-orange-deep" aria-hidden />
@@ -160,46 +194,135 @@ export function TimebankCountdown({
         </span>
       </header>
 
-      {phase === 'choose' ? (
-        <main className="flex min-h-0 flex-1 flex-col px-3 pt-3">
-          <h2 className="text-center text-2xl font-bold text-text-primary">Quem está pensando?</h2>
-          <p className="mb-3 text-center text-sm text-text-secondary">
-            Toque no jogador: gasta 1 timebank dele e conta mais {seconds} s.
-          </p>
-          {candidates.length === 0 ? (
-            <p className="py-8 text-center text-text-secondary">Ninguém jogando nesta mesa.</p>
-          ) : (
-            <ul className="-mx-1 flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto px-1 pb-3" data-timebank-candidates>
-              {candidates.map((entry) => {
-                const count = entry.timebanksRemaining ?? 0
-                const off = count <= 0
-                const seat = showSeat ? entry.seatNumber : null
-                return (
-                  <li key={entry.id}>
-                    <button
-                      type="button"
-                      onClick={() => onChoose(entry)}
-                      disabled={off}
-                      className={cn(
-                        'flex min-h-[56px] w-full touch-manipulation items-center gap-2.5 rounded-lg border p-2 text-left',
-                        off
-                          ? 'cursor-not-allowed border-border-default bg-bg-zebra'
-                          : 'border-border-input bg-bg-card active:scale-[0.99]',
-                      )}
-                      aria-label={`${playerName(entry)}: ${timebankCountText(count)}`}
-                      data-timebank-pick={entry.id}
-                      data-timebank-pick-left={count}
-                    >
-                      {seat != null && (
-                        <span className="w-6 shrink-0 text-center text-xs font-bold tabular-nums text-text-secondary" aria-hidden>
-                          {seat}
+      {/* O relógio: nunca para nem volta ao começo */}
+      <section className="flex shrink-0 flex-col items-center gap-1.5 px-4 pb-2 pt-3 text-center" aria-label="Contagem">
+        <p
+          className={cn(
+            'font-bold leading-none tabular-nums',
+            'text-[min(30vw,19dvh,10rem)]',
+            expired || warning ? 'text-accent-red-deep' : 'text-text-primary',
+          )}
+          aria-live="off"
+          data-timebank-countdown-left={expired ? overSeconds : toNext}
+        >
+          {expired ? `+${overSeconds}` : toNext}
+        </p>
+        <p
+          className={cn('text-base font-semibold', expired || warning ? 'text-accent-red-deep' : 'text-text-secondary')}
+          aria-live="assertive"
+        >
+          {expired
+            ? 'Tempo esgotado!'
+            : warning
+              ? 'Acabando…'
+              : phase === 'action'
+                ? 'segundos de tempo de ação'
+                : phase === 'timebank'
+                  ? 'segundos do timebank'
+                  : 'segundos até a próxima virada'}
+        </p>
+        <div
+          className="h-3 w-full max-w-md overflow-hidden rounded-full bg-bg-tertiary"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={seconds}
+          aria-valuenow={expired ? 0 : toNext}
+          aria-label="Tempo até a próxima virada"
+          data-timebank-countdown-bar
+        >
+          <div
+            className={cn(
+              'h-full rounded-full',
+              warning || expired ? 'bg-accent-red-deep' : phase === 'action' ? 'bg-accent-blue' : 'bg-accent-orange',
+            )}
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+        <p className="flex flex-wrap items-center justify-center gap-x-2 text-sm text-text-secondary">
+          <span className="tabular-nums" data-timebank-elapsed={Math.floor(elapsedMs / 1000)}>
+            Total {clock(elapsedMs / 1000)}
+          </span>
+          {chosen && (
+            <span>
+              · <span className="font-semibold text-text-primary" data-timebank-countdown-name>{name}</span> pensando
+            </span>
+          )}
+        </p>
+      </section>
+
+      {/* Quem está pensando: aberta o tempo todo (escolher antes, na virada ou depois; trocar antes de qualquer virada) */}
+      <main className="flex min-h-0 flex-1 flex-col border-t border-border-default px-3 pt-2.5">
+        {phase === 'choose' ? (
+          <div
+            className="mb-2 rounded-lg border border-accent-red-deep/40 bg-bg-card px-3 py-2 text-center"
+            role="alert"
+            data-timebank-choose-alert
+          >
+            <p className="text-base font-bold text-accent-red-deep">Quem está pensando?</p>
+            <p className="text-sm text-text-secondary">
+              {unpaid === 1
+                ? 'Passou 1 virada sem jogador: ao escolher, gasta 1 timebank dele.'
+                : `Passaram ${unpaid} viradas sem jogador: ao escolher, gasta ${unpaid} timebanks dele (até o que ele tem).`}
+            </p>
+          </div>
+        ) : (
+          <div className="mb-2 text-center">
+            <h2 className="text-lg font-bold text-text-primary">Quem está pensando?</h2>
+            <p className="text-xs text-text-secondary">
+              Escolha a qualquer momento: cada virada de {seconds} s gasta 1 timebank dele.
+            </p>
+          </div>
+        )}
+        {candidates.length === 0 ? (
+          <p className="py-6 text-center text-text-secondary">Ninguém jogando nesta mesa.</p>
+        ) : (
+          <ul
+            className="-mx-1 grid min-h-0 flex-1 auto-rows-min grid-cols-2 gap-1.5 overflow-y-auto px-1 pb-3"
+            data-timebank-candidates
+          >
+            {candidates.map((entry) => {
+              const isChosen = chosen?.id === entry.id
+              const count = Math.max(0, (left[entry.id] ?? entry.timebanksRemaining ?? 0) - (isChosen ? pendingCharge : 0))
+              const off = count <= 0
+              const seat = showSeat ? entry.seatNumber : null
+              return (
+                <li key={entry.id} className="min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => onChoose(entry)}
+                    aria-pressed={isChosen}
+                    className={cn(
+                      'flex min-h-[52px] w-full touch-manipulation items-center gap-2 rounded-lg border p-1.5 text-left active:scale-[0.99]',
+                      isChosen
+                        ? 'border-accent-orange-deep bg-accent-orange-soft ring-2 ring-accent-orange-deep'
+                        : off
+                          ? 'border-border-default bg-bg-zebra'
+                          : 'border-border-input bg-bg-card',
+                    )}
+                    aria-label={`${playerName(entry)}: ${timebankCountText(count)}${isChosen ? ' (pensando)' : ''}`}
+                    data-timebank-pick={entry.id}
+                    data-timebank-pick-left={count}
+                    data-timebank-pick-chosen={isChosen ? '' : undefined}
+                  >
+                    {seat != null && (
+                      <span className="w-5 shrink-0 text-center text-xs font-bold tabular-nums text-text-secondary" aria-hidden>
+                        {seat}
+                      </span>
+                    )}
+                    <span className="relative shrink-0">
+                      <Avatar src={entry.person.photoUrl} name={entry.person.fullName} size="sm" />
+                      {/* Marca de "pensando" sobre a foto (sem roubar a largura do nome e da contagem) */}
+                      {isChosen && (
+                        <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full border border-accent-orange-deep bg-bg-card">
+                          <Check className="h-3 w-3 text-accent-orange-deep" strokeWidth={3} aria-hidden />
                         </span>
                       )}
-                      <Avatar src={entry.person.photoUrl} name={entry.person.fullName} size="md" />
+                    </span>
+                    <span className="flex min-w-0 flex-1 flex-col">
                       <span
                         className={cn(
-                          'min-w-0 flex-1 truncate text-base font-semibold',
-                          off ? 'text-text-secondary' : 'text-text-primary',
+                          'truncate text-sm font-semibold leading-tight',
+                          off && !isChosen ? 'text-text-secondary' : 'text-text-primary',
                         )}
                         data-timebank-pick-name
                       >
@@ -207,144 +330,83 @@ export function TimebankCountdown({
                       </span>
                       <span
                         className={cn(
-                          'inline-flex shrink-0 items-center gap-1 text-sm font-semibold tabular-nums',
+                          'inline-flex items-center gap-1 whitespace-nowrap text-xs font-semibold tabular-nums',
                           off ? 'text-text-secondary' : 'text-accent-orange-deep',
                         )}
                       >
-                        {!off && <Timer className="h-4 w-4" aria-hidden />}
+                        {!off && <Timer className="h-3.5 w-3.5 shrink-0" aria-hidden />}
                         {timebankCountText(count)}
                       </span>
-                    </button>
-                  </li>
-                )
-              })}
-            </ul>
-          )}
-        </main>
-      ) : (
-        <main className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-4 py-4 text-center">
-          {timebankRun && current ? (
-            <>
-              <Avatar
-                src={current.entry.person.photoUrl}
-                name={current.entry.person.fullName}
-                size="3xl"
-                className="max-h-[22dvh] max-w-[22dvh]"
-              />
-              <p className="max-w-full break-words text-2xl font-bold leading-tight text-text-primary" data-timebank-countdown-name>
-                {name}
-              </p>
-            </>
-          ) : (
-            <p className="max-w-sm text-sm text-text-secondary" data-timebank-action-hint>
-              Sem gastar timebank. Se o tempo acabar, escolha quem está pensando para dar mais {seconds} s.
-            </p>
-          )}
-          <p
-            className={cn(
-              'font-bold leading-none tabular-nums',
-              'text-[min(42vw,32dvh,14rem)]',
-              done || warning ? 'text-accent-red-deep' : 'text-text-primary',
-            )}
-            aria-live="off"
-            data-timebank-countdown-left={left}
-          >
-            {left}
-          </p>
-          <p className={cn('text-lg font-semibold', done ? 'text-accent-red-deep' : 'text-text-secondary')} aria-live="assertive">
-            {done ? 'Tempo esgotado!' : warning ? 'Acabando…' : 'segundos'}
-          </p>
-          <div
-            className="h-3 w-full max-w-md overflow-hidden rounded-full bg-bg-tertiary"
-            role="progressbar"
-            aria-valuemin={0}
-            aria-valuemax={seconds}
-            aria-valuenow={left}
-            aria-label="Tempo que falta"
-            data-timebank-countdown-bar
-          >
-            <div
-              className={cn(
-                'h-full rounded-full',
-                warning || done ? 'bg-accent-red-deep' : timebankRun ? 'bg-accent-orange' : 'bg-accent-blue',
-              )}
-              style={{ width: `${pct}%` }}
-            />
-          </div>
-        </main>
-      )}
+                    </span>
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </main>
 
       <footer
         className="shrink-0 border-t border-border-default bg-bg-secondary px-3 pt-2.5"
         style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
       >
-        {current && (
+        {registration && (
           <div
-            className="mb-2.5 flex min-h-[44px] flex-wrap items-center justify-center gap-x-2 gap-y-1 text-sm"
-            data-timebank-registration={current.registration.state}
+            className="mb-2 flex min-h-[40px] flex-wrap items-center justify-center gap-x-2 gap-y-1 text-sm"
+            data-timebank-registration={registration}
           >
-            {current.registration.state === 'pending' && (
+            {registration === 'pending' && (
               <span className="inline-flex items-center gap-1.5 text-text-secondary">
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Registrando o uso…
               </span>
             )}
-            {current.registration.state === 'ok' && (
+            {registration === 'ok' && last?.registration.state === 'ok' && (
               <span className="inline-flex items-center gap-1.5 text-accent-green-deep">
-                <Check className="h-4 w-4" aria-hidden /> Registrado · {timebanksLeftText(current.registration.remaining)}
+                <Check className="h-4 w-4" aria-hidden />
+                {uses.length === 1
+                  ? `Registrado · ${timebanksLeftText(last.registration.remaining)}`
+                  : `${uses.length} registrados · ${playerName(last.entry)}: ${timebanksLeftText(last.registration.remaining)}`}
               </span>
             )}
-            {current.registration.state === 'error' && (
+            {registration === 'error' && (
               <>
-                <span role="alert" className="font-semibold text-accent-red-deep" title={current.registration.message}>
-                  Não registrado —
+                <span
+                  role="alert"
+                  className="font-semibold text-accent-red-deep"
+                  title={errored[0].registration.state === 'error' ? errored[0].registration.message : undefined}
+                >
+                  {errored.length === 1 ? 'Não registrado —' : `${errored.length} não registrados —`}
                 </span>
                 <Button
                   variant="secondary"
                   size="sm"
-                  onClick={() => onRetry(current.key)}
-                  loading={current.retrying}
+                  onClick={() => onRetry(errored.map((u) => u.key))}
+                  loading={retrying}
                   data-timebank-retry
                 >
-                  {!current.retrying && <RotateCw className="h-4 w-4" aria-hidden />} Tentar de novo
+                  {!retrying && <RotateCw className="h-4 w-4" aria-hidden />} Tentar de novo
                 </Button>
               </>
             )}
           </div>
         )}
 
-        {phase === 'expired' &&
-          (canUseAgain || current?.registration.state !== 'ok' ? (
-            <Button
-              size="lg"
-              className="mb-2 w-full"
-              onClick={onUseAgain}
-              disabled={!canUseAgain}
-              data-timebank-again
-            >
-              <Timer className="h-5 w-5 shrink-0" aria-hidden />
-              <span className="truncate">Usar mais 1 timebank de {name}</span>
-            </Button>
-          ) : (
-            <p className="mb-2 text-center text-base font-semibold text-accent-red-deep" role="status" data-timebank-none>
-              Sem timebank — tempo esgotado
-            </p>
-          ))}
-
-        {phase === 'choose' ? (
-          <Button size="lg" variant="secondary" className="w-full" onClick={onClose} data-timebank-skip>
-            Não usar timebank
-          </Button>
-        ) : (
-          <Button
-            size="lg"
-            variant={counting ? 'primary' : phase === 'expired' && canUseAgain ? 'secondary' : 'danger'}
-            className="w-full"
-            onClick={onClose}
-            data-timebank-close
-          >
-            Encerrar
-          </Button>
+        {expired && (
+          <p className="mb-2 text-center text-base font-semibold text-accent-red-deep" role="status" data-timebank-none>
+            {uses.some((u) => u.entry.id === chosen?.id) ? `Os timebanks de ${name} acabaram` : `${name} não tem timebank`} —
+            tempo esgotado
+          </p>
         )}
+
+        <Button
+          size="lg"
+          variant={expired ? 'danger' : phase === 'choose' ? 'secondary' : 'primary'}
+          className="w-full"
+          onClick={onClose}
+          data-timebank-close
+        >
+          Encerrar
+        </Button>
       </footer>
     </div>,
     document.body,
