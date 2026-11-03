@@ -15,6 +15,7 @@ import { COST_TYPE_DEFAULT } from '../../types/costExtra.types'
 import { isPlanLimitError } from '../../api/client'
 import { hasFeature, MY_PLAN_QUERY_KEY } from '../../hooks/usePlan'
 import { Button } from '../../components/ui/Button'
+import { NumberInput } from '../../components/ui/NumberInput'
 import { FormPageBar } from '../../components/ui/FormTopBar'
 import { Input } from '../../components/ui/Input'
 import { PixKeyInput } from '../../components/pix/PixKeyInput'
@@ -609,17 +610,13 @@ export function TournamentFormPage() {
                     >
                       <Minus className="h-4 w-4" aria-hidden />
                     </button>
-                    <input
+                    <NumberInput
                       id="quantidade-dealers"
-                      type="number"
-                      inputMode="numeric"
                       min={0}
                       max={MAX_DEALERS}
+                      integer
                       value={dealerCount}
-                      onChange={(e) => {
-                        const n = Math.trunc(Number(e.target.value))
-                        setDealerCount(Number.isFinite(n) ? Math.min(MAX_DEALERS, Math.max(0, n)) : 0)
-                      }}
+                      onValueChange={setDealerCount}
                       className="min-h-[44px] w-16 rounded-lg border border-border-input bg-bg-input px-2 text-center text-sm text-text-primary tabular-nums focus:outline-none focus:ring-2 focus:ring-border-focus"
                     />
                     <button

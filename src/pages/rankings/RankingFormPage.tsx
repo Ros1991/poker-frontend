@@ -10,6 +10,7 @@ import * as rankingsApi from '../../api/rankings.api'
 import * as homeGamesApi from '../../api/homeGames.api'
 import { Input } from '../../components/ui/Input'
 import { Button } from '../../components/ui/Button'
+import { NumberInput } from '../../components/ui/NumberInput'
 import { FormPageBar } from '../../components/ui/FormTopBar'
 import { AccessDeniedState } from '../../components/common/AccessDeniedState'
 import { isForbiddenError } from '../../utils/httpErrors'
@@ -273,12 +274,11 @@ export function RankingFormPage() {
             <h2 className="text-lg font-semibold text-text-primary mb-4">Premio Acumulado</h2>
             <div className="flex items-center gap-3">
               <span className="text-sm text-text-secondary">R$</span>
-              <input
-                type="number"
+              <NumberInput
                 min={0}
                 step={0.01}
                 value={accumulatedPrize}
-                onChange={(e) => setAccumulatedPrize(Number(e.target.value))}
+                onValueChange={setAccumulatedPrize}
                 className="w-40 rounded-lg border border-border-input bg-bg-primary px-3 py-2 text-sm text-text-primary tabular-nums focus:border-border-focus focus:outline-none"
                 placeholder="0,00"
               />
@@ -293,12 +293,11 @@ export function RankingFormPage() {
         <div className="rounded-xl border border-border-default bg-bg-secondary p-6">
           <h2 className="text-lg font-semibold text-text-primary mb-4">Descartes</h2>
           <div className="flex items-center gap-3">
-            <input
-              type="number"
+            <NumberInput
               min={0}
-              step={1}
+              integer
               value={discardCount}
-              onChange={(e) => setDiscardCount(Math.max(0, Number(e.target.value) || 0))}
+              onValueChange={setDiscardCount}
               className="w-28 rounded-lg border border-border-input bg-bg-primary px-3 py-2 text-sm text-text-primary tabular-nums focus:border-border-focus focus:outline-none"
             />
             <span className="text-sm text-text-secondary">piores resultados descartados por jogador</span>
@@ -427,14 +426,12 @@ export function RankingFormPage() {
                         onChange={(e) => setSimulatedPlayers(Number(e.target.value))}
                         className="w-20 accent-accent-blue"
                       />
-                      <input
-                        type="number"
+                      <NumberInput
                         min={2}
                         max={100}
+                        integer
                         value={simulatedPlayers}
-                        onChange={(e) =>
-                          setSimulatedPlayers(Math.max(2, Math.min(100, Number(e.target.value))))
-                        }
+                        onValueChange={setSimulatedPlayers}
                         className="w-14 rounded-lg border border-border-input bg-bg-primary px-2 py-1 text-xs text-text-primary text-center focus:border-border-focus focus:outline-none"
                       />
                     </div>
@@ -492,18 +489,17 @@ export function RankingFormPage() {
               </div>
               {tableRows.map((row, index) => (
                 <div key={index} className="grid grid-cols-[1fr_1fr_44px] gap-3 items-center">
-                  <input
-                    type="number"
+                  <NumberInput
                     min={1}
+                    integer
                     value={row.position}
-                    onChange={(e) => updateTableRow(index, 'position', Number(e.target.value))}
+                    onValueChange={(position) => updateTableRow(index, 'position', position)}
                     className="rounded-lg border border-border-input bg-bg-primary px-3 py-2 text-sm text-text-primary tabular-nums focus:border-border-focus focus:outline-none"
                   />
-                  <input
-                    type="number"
+                  <NumberInput
                     min={0}
                     value={row.points}
-                    onChange={(e) => updateTableRow(index, 'points', Number(e.target.value))}
+                    onValueChange={(points) => updateTableRow(index, 'points', points)}
                     className="rounded-lg border border-border-input bg-bg-primary px-3 py-2 text-sm text-text-primary tabular-nums focus:border-border-focus focus:outline-none"
                   />
                   <button

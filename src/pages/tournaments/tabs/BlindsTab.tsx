@@ -21,6 +21,7 @@ import * as timerApi from '../../../api/timer.api'
 import * as tournamentBlindsApi from '../../../api/tournamentBlinds.api'
 import type { TournamentBlindLevel } from '../../../api/tournamentBlinds.api'
 import { Button } from '../../../components/ui/Button'
+import { NumberInput } from '../../../components/ui/NumberInput'
 import { LoadingSpinner } from '../../../components/common/LoadingSpinner'
 import type { Tournament } from '../../../types/tournament.types'
 import type { TimerState } from '../../../types/blind.types'
@@ -453,14 +454,11 @@ export function BlindsTab({
                               className="w-full rounded border border-border-input bg-bg-input px-2 py-1 text-sm text-text-primary tabular-nums focus:outline-none focus:ring-1 focus:ring-border-focus"
                             />
                           ) : (
-                            <input
-                              type="number"
+                            <NumberInput
                               value={level.smallBlind}
-                              onChange={(e) =>
-                                updateDraftLevel(index, {
-                                  smallBlind: Number(e.target.value),
-                                })
-                              }
+                              min={0}
+                              integer
+                              onValueChange={(v) => updateDraftLevel(index, { smallBlind: v })}
                               className="w-full rounded border border-border-input bg-bg-input px-2 py-1 text-sm text-text-primary tabular-nums focus:outline-none focus:ring-1 focus:ring-border-focus"
                             />
                           )}
@@ -469,14 +467,11 @@ export function BlindsTab({
                           {level.isBreak ? (
                             <span className="text-text-muted text-xs">-</span>
                           ) : (
-                            <input
-                              type="number"
+                            <NumberInput
                               value={level.bigBlind}
-                              onChange={(e) =>
-                                updateDraftLevel(index, {
-                                  bigBlind: Number(e.target.value),
-                                })
-                              }
+                              min={0}
+                              integer
+                              onValueChange={(v) => updateDraftLevel(index, { bigBlind: v })}
                               className="w-full rounded border border-border-input bg-bg-input px-2 py-1 text-sm text-text-primary tabular-nums focus:outline-none focus:ring-1 focus:ring-border-focus"
                             />
                           )}
@@ -485,27 +480,21 @@ export function BlindsTab({
                           {level.isBreak ? (
                             <span className="text-text-muted text-xs">-</span>
                           ) : (
-                            <input
-                              type="number"
+                            <NumberInput
                               value={level.ante}
-                              onChange={(e) =>
-                                updateDraftLevel(index, {
-                                  ante: Number(e.target.value),
-                                })
-                              }
+                              min={0}
+                              integer
+                              onValueChange={(v) => updateDraftLevel(index, { ante: v })}
                               className="w-full rounded border border-border-input bg-bg-input px-2 py-1 text-sm text-text-primary tabular-nums focus:outline-none focus:ring-1 focus:ring-border-focus"
                             />
                           )}
                         </td>
                         <td className="px-2 py-1.5">
-                          <input
-                            type="number"
+                          <NumberInput
                             value={level.durationMinutes}
-                            onChange={(e) =>
-                              updateDraftLevel(index, {
-                                durationMinutes: Number(e.target.value),
-                              })
-                            }
+                            min={0}
+                            integer
+                            onValueChange={(v) => updateDraftLevel(index, { durationMinutes: v })}
                             className="w-full rounded border border-border-input bg-bg-input px-2 py-1 text-sm text-text-primary tabular-nums focus:outline-none focus:ring-1 focus:ring-border-focus"
                           />
                         </td>

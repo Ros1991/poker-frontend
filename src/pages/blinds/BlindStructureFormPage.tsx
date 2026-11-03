@@ -6,6 +6,7 @@ import { ArrowLeft, Plus, Trash2, Coffee } from 'lucide-react'
 import * as blindStructuresApi from '../../api/blindStructures.api'
 import * as homeGamesApi from '../../api/homeGames.api'
 import { Button } from '../../components/ui/Button'
+import { NumberInput } from '../../components/ui/NumberInput'
 import { FormPageBar } from '../../components/ui/FormTopBar'
 import { Input } from '../../components/ui/Input'
 import { PixKeyInput } from '../../components/pix/PixKeyInput'
@@ -908,12 +909,11 @@ export function BlindStructureFormPage() {
                           className="w-full rounded border border-border-input bg-bg-input px-2 py-1 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-border-focus"
                         />
                       ) : (
-                        <input
-                          type="number"
+                        <NumberInput
                           value={level.smallBlind}
-                          onChange={(e) =>
-                            updateLevel(level.key, 'smallBlind', Number(e.target.value))
-                          }
+                          min={0}
+                          integer
+                          onValueChange={(v) => updateLevel(level.key, 'smallBlind', v)}
                           className="w-full rounded border border-border-input bg-bg-input px-2 py-1 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-border-focus"
                         />
                       )}
@@ -922,12 +922,11 @@ export function BlindStructureFormPage() {
                       {level.isBreak ? (
                         <span className="text-text-muted text-xs">-</span>
                       ) : (
-                        <input
-                          type="number"
+                        <NumberInput
                           value={level.bigBlind}
-                          onChange={(e) =>
-                            updateLevel(level.key, 'bigBlind', Number(e.target.value))
-                          }
+                          min={0}
+                          integer
+                          onValueChange={(v) => updateLevel(level.key, 'bigBlind', v)}
                           className="w-full rounded border border-border-input bg-bg-input px-2 py-1 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-border-focus"
                         />
                       )}
@@ -936,23 +935,21 @@ export function BlindStructureFormPage() {
                       {level.isBreak ? (
                         <span className="text-text-muted text-xs">-</span>
                       ) : (
-                        <input
-                          type="number"
+                        <NumberInput
                           value={level.ante}
-                          onChange={(e) =>
-                            updateLevel(level.key, 'ante', Number(e.target.value))
-                          }
+                          min={0}
+                          integer
+                          onValueChange={(v) => updateLevel(level.key, 'ante', v)}
                           className="w-full rounded border border-border-input bg-bg-input px-2 py-1 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-border-focus"
                         />
                       )}
                     </td>
                     <td className="px-2 py-1.5">
-                      <input
-                        type="number"
+                      <NumberInput
                         value={level.durationMinutes}
-                        onChange={(e) =>
-                          updateLevel(level.key, 'durationMinutes', Number(e.target.value))
-                        }
+                        min={0}
+                        integer
+                        onValueChange={(v) => updateLevel(level.key, 'durationMinutes', v)}
                         className="w-full rounded border border-border-input bg-bg-input px-2 py-1 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-border-focus"
                       />
                     </td>

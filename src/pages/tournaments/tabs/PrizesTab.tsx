@@ -5,6 +5,7 @@ import { Trophy, Calculator, Crosshair, Lock, Medal, Plus, Minus } from 'lucide-
 import * as prizesApi from '../../../api/prizes.api'
 import type { PrizeItem } from '../../../api/prizes.api'
 import { Button } from '../../../components/ui/Button'
+import { NumberInput } from '../../../components/ui/NumberInput'
 import type { Tournament } from '../../../types/tournament.types'
 import type { TournamentEntry } from '../../../types/entry.types'
 import { bountyToReceive, isKnockout, keepsOwnHead } from '../../../utils/knockout'
@@ -270,12 +271,12 @@ export function PrizesTab({ tournament, entries }: PrizesTabProps) {
             <label htmlFor="premiacao-quantidade" className="text-sm font-medium text-text-secondary">
               Quantidade de premiados
             </label>
-            <input
+            <NumberInput
               id="premiacao-quantidade"
-              type="number"
               value={numWinners}
-              onChange={(e) => setNumWinners(Math.max(1, parseInt(e.target.value) || 1))}
+              onValueChange={setNumWinners}
               min={1}
+              integer
               className="w-32 rounded-lg border border-border-input bg-bg-input px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-border-focus"
             />
           </div>
@@ -340,14 +341,11 @@ export function PrizesTab({ tournament, entries }: PrizesTabProps) {
                         </span>
                       </td>
                       <td className="px-3 py-2 text-right">
-                        <input
-                          type="number"
-                          step="50"
+                        <NumberInput
+                          step={50}
                           value={prize.amount}
                           aria-label={`Valor do ${prize.position}º lugar`}
-                          onChange={(e) =>
-                            updatePrize(index, parseFloat(e.target.value) || 0)
-                          }
+                          onValueChange={(amount) => updatePrize(index, amount)}
                           className="w-32 rounded border border-border-input bg-bg-input px-2 py-1 text-right text-sm text-text-primary tabular-nums focus:outline-none focus:ring-1 focus:ring-border-focus"
                         />
                       </td>
