@@ -5,6 +5,8 @@
  * O `AudioContext` precisa nascer num toque do usuário (iOS e Chrome só liberam o som assim): quem usa chama
  * `createAlertSound()` no toque em "Usar timebank" e passa o objeto para a contagem. Sem Web Audio, os bipes não fazem
  * nada e a contagem segue igual.
+ *
+ * O aviso da troca de nível (SPEC-20261103-1749, `utils/levelSound.ts`) usa daqui o construtor do Web Audio e a vibração.
  */
 export interface AlertSound {
   /** Bipe curto (aviso dos 10 s) */
@@ -16,10 +18,20 @@ export interface AlertSound {
 
 type AudioContextCtor = typeof AudioContext
 
-function audioContextCtor(): AudioContextCtor | null {
+/** Construtor do Web Audio do navegador (com o nome antigo `webkit` do Safari); sem Web Audio, null */
+export function audioContextCtor(): AudioContextCtor | null {
   if (typeof window === 'undefined') return null
   const w = window as unknown as { AudioContext?: AudioContextCtor; webkitAudioContext?: AudioContextCtor }
   return w.AudioContext ?? w.webkitAudioContext ?? null
+}
+
+/** Vibra o aparelho quando o navegador deixa (`navigator.vibrate`); no iOS não existe e não faz nada */
+export function vibrate(pattern: number | number[]): void {
+  try {
+    if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') navigator.vibrate(pattern)
+  } catch {
+    // Navegador sem vibração (iOS): fica só o som
+  }
 }
 
 export function createAlertSound(): AlertSound {
@@ -54,14 +66,6 @@ export function createAlertSound(): AlertSound {
       osc.stop(end + 0.02)
     } catch {
       // Sem som não trava a contagem
-    }
-  }
-
-  function vibrate(pattern: number | number[]) {
-    try {
-      if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') navigator.vibrate(pattern)
-    } catch {
-      // Navegador sem vibração (iOS): só o bipe
     }
   }
 

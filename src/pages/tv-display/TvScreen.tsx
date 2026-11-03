@@ -6,6 +6,7 @@ import { useDisplaySession } from '../../hooks/useDisplaySession'
 import { useAuth } from '../../hooks/useAuth'
 import * as displayPairingApi from '../../api/displayPairing.api'
 import { setDisplayToken } from '../../utils/deviceSessions'
+import { armLevelSound } from '../../utils/levelSound'
 import { ROUTES } from '../../constants/routes'
 import { DisplayPairingScreen } from './DisplayPairingScreen'
 import { TvDisplayPage } from './TvDisplayPage'
@@ -21,6 +22,11 @@ function TvLoading() {
 /** A TV: QR grande enquanto aguarda um celular; o telão do torneio depois de pareada. */
 export function TvScreen() {
   const { deviceToken, status, connectionError, leave, refresh } = useDisplaySession()
+
+  // Som do telão (SPEC-20261103-1749): um toque ou tecla já na tela do QR (a tecla F, por exemplo) libera o áudio
+  useEffect(() => {
+    armLevelSound()
+  }, [])
 
   if (!deviceToken || !status) {
     return <DisplayPairingScreen code={null} connectionError={connectionError} />

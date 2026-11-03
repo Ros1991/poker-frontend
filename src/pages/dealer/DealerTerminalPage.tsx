@@ -8,6 +8,7 @@ import * as entriesApi from '../../api/entries.api'
 import * as tablesApi from '../../api/tables.api'
 import * as timerApi from '../../api/timer.api'
 import { useTimerQuery } from '../../hooks/useTimerQuery'
+import { useLevelChangeSound } from '../../hooks/useLevelChangeSound'
 import { useWebSocket } from '../../hooks/useWebSocket'
 import { Button } from '../../components/ui/Button'
 import { LoadingSpinner } from '../../components/common/LoadingSpinner'
@@ -98,6 +99,9 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
   // Relógio (SPEC-20261030-1018): busca ao abrir o terminal (também voltando do telão, com o relógio no cache) e a cada
   // 10 s; até a 1ª sincronização o topo mostra --:-- e o Pausar/Retomar espera. Ao zerar o nível, pergunta de novo
   const { formattedTime, timerState, synced: timerSynced, sync } = useTimerQuery(tournamentId)
+
+  // Som (e vibração) quando o nível sobe, a partir da 1ª sincronização do relógio; liga/desliga no "Mais" (SPEC-20261103-1749)
+  useLevelChangeSound(tournamentId, timerSynced ? timerState.currentLevel : null, timerState.isBreak, { vibrate: true })
 
   const allEntries = useMemo(() => entries ?? [], [entries])
   const allTables = useMemo(() => tables ?? [], [tables])

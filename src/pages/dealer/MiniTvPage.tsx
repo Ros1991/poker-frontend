@@ -5,6 +5,7 @@ import * as tournamentsApi from '../../api/tournaments.api'
 import * as entriesApi from '../../api/entries.api'
 import * as tournamentBlindsApi from '../../api/tournamentBlinds.api'
 import { useTimerQuery } from '../../hooks/useTimerQuery'
+import { useLevelChangeSound } from '../../hooks/useLevelChangeSound'
 import { useWebSocket } from '../../hooks/useWebSocket'
 import { useWakeLock } from '../../hooks/useWakeLock'
 import { hasFeature } from '../../hooks/usePlan'
@@ -13,6 +14,7 @@ import { TerminalViewSwitch } from '../../components/dealer/TerminalViewSwitch'
 import { formatCurrency, isActiveStatus } from '../../components/dealer/terminalFormat'
 import { CompactClock, CompactClockTile } from '../../components/tv/CompactClock'
 import { FullscreenButton } from '../../components/tv/FullscreenButton'
+import { SoundToggle } from '../../components/tv/SoundToggle'
 import { averageStack, chipsInPlay, formatChips, secondsToBreak } from '../../utils/timerDisplay'
 
 interface MiniTvPageProps {
@@ -30,6 +32,9 @@ interface MiniTvPageProps {
  * inscrições, relógio (REST + SignalR, ressincroniza ao zerar) e os níveis pela rota direta. A tela fica acesa (Wake Lock,
  * reaplicado ao voltar do segundo plano) e tem o botão de tela cheia da TV. O seletor "Terminal | Telão" do topo volta ao
  * terminal na mesma mesa.
+ *
+ * Som quando o nível muda (SPEC-20261103-1749): toca "blinds subiram" / "intervalo" e vibra; o botão de som do topo liga e
+ * desliga neste aparelho e mostra "Ativar som" enquanto o navegador não libera o áudio.
  */
 export function MiniTvPage({ dealerMode }: MiniTvPageProps = {}) {
   const { tournamentId: routeTournamentId } = useParams<{ tournamentId: string }>()
@@ -63,6 +68,9 @@ export function MiniTvPage({ dealerMode }: MiniTvPageProps = {}) {
   // ao servidor (que avança o nível sozinho), como a TV
   const { formattedTime, timerState, progressPercentage, synced, sync } = useTimerQuery(tournamentId)
 
+  // Som (e vibração) quando o nível sobe, a partir da 1ª sincronização deste telão (SPEC-20261103-1749)
+  useLevelChangeSound(tournamentId, synced ? timerState.currentLevel : null, timerState.isBreak, { vibrate: true })
+
   // Pausar, retomar, próximo/anterior em qualquer aparelho: chega na hora pelo hub do torneio
   useWebSocket({
     tournamentId,
@@ -90,6 +98,8 @@ export function MiniTvPage({ dealerMode }: MiniTvPageProps = {}) {
           {tournamentName}
         </p>
         <TerminalViewSwitch current="tv" />
+        {/* Som quando o nível muda: "Ativar som" até o navegador liberar o áudio (SPEC-20261103-1749) */}
+        <SoundToggle />
         {/* O botão da TV, aqui no topo (no canto ele cobriria os números); some em tela cheia e no iPhone */}
         <FullscreenButton className="static h-10 w-10 shrink-0 shadow-none" />
       </header>

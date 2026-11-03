@@ -1,6 +1,8 @@
-import { History, LayoutGrid, UserPlus, Users } from 'lucide-react'
+import { History, LayoutGrid, UserPlus, Users, Volume2, VolumeX } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Modal } from '../ui/Modal'
+import { cn } from '../../utils/cn'
+import { useLevelSound } from '../../hooks/useLevelChangeSound'
 
 export type MoreScreen = 'addPlayer' | 'players' | 'tables' | 'history'
 
@@ -19,6 +21,53 @@ function playersHint(showTables: boolean, showPayments: boolean): string {
   if (showTables) return 'Todos do torneio e a mesa de cada um'
   if (showPayments) return 'Todos do torneio e quanto devem'
   return 'Todos do torneio, jogando e eliminados'
+}
+
+const ROW = 'flex min-h-[56px] items-center gap-3 rounded-xl border border-border-default bg-bg-primary px-3 text-left hover:bg-bg-tertiary'
+
+/**
+ * Liga/desliga do som quando o nível muda neste aparelho (SPEC-20261103-1749) — no terminal não cabe um botão no topo a
+ * 375–390 px. Ligar toca o aviso curto de teste (e o próprio toque libera o áudio do navegador).
+ */
+function LevelSoundRow() {
+  // O toque que abriu este menu já liberou o áudio do navegador: a linha não precisa do "Ativar som" dos telões
+  const { supported, enabled, setEnabled, test } = useLevelSound()
+  if (!supported) return null
+  const hint = enabled ? 'Toca quando os blinds sobem e no intervalo' : 'Desligado neste aparelho'
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={enabled}
+      aria-label="Som quando o nível muda"
+      onClick={() => {
+        setEnabled(!enabled)
+        if (!enabled) test()
+      }}
+      className={ROW}
+      data-more-sound={enabled ? 'on' : 'off'}
+    >
+      <span className="text-accent-blue">{enabled ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block font-semibold text-text-primary">Som quando o nível muda</span>
+        <span className="block text-xs text-text-secondary">{hint}</span>
+      </span>
+      <span
+        className={cn(
+          'relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border transition-colors',
+          enabled ? 'border-accent-blue bg-accent-blue' : 'border-border-input bg-bg-tertiary',
+        )}
+        aria-hidden
+      >
+        <span
+          className={cn(
+            'inline-block h-5 w-5 rounded-full bg-bg-card shadow-sm transition-transform',
+            enabled ? 'translate-x-5' : 'translate-x-0.5',
+          )}
+        />
+      </span>
+    </button>
+  )
 }
 
 /** O que é menos usado fica aqui, para a tela da mesa ficar limpa */
@@ -40,7 +89,7 @@ export function MoreMenu({ isOpen, onClose, onSelect, showTables = true, showPay
             key={item.screen}
             type="button"
             onClick={() => onSelect(item.screen)}
-            className="flex min-h-[56px] items-center gap-3 rounded-xl border border-border-default bg-bg-primary px-3 text-left hover:bg-bg-tertiary"
+            className={ROW}
           >
             <span className="text-accent-blue">{item.icon}</span>
             <span className="min-w-0 flex-1">
@@ -49,6 +98,7 @@ export function MoreMenu({ isOpen, onClose, onSelect, showTables = true, showPay
             </span>
           </button>
         ))}
+        <LevelSoundRow />
       </div>
     </Modal>
   )

@@ -8,8 +8,10 @@ import { buildPixPayload, normalizePixKey, PIX_KEY_TYPE_LABELS } from '../../uti
 import { bountyToReceive, isKnockout, isProgressive, KNOCKOUT_BADGES, knockoutTypeOf } from '../../utils/knockout'
 import * as publicDisplayApi from '../../api/publicDisplay.api'
 import { useBlindTimer } from '../../hooks/useBlindTimer'
+import { useLevelChangeSound } from '../../hooks/useLevelChangeSound'
 import { toggleFullscreen, useFullscreen } from '../../hooks/useFullscreen'
 import { FullscreenButton } from '../../components/tv/FullscreenButton'
+import { SoundToggle } from '../../components/tv/SoundToggle'
 import {
   averageStack,
   blindsSizeClass,
@@ -185,7 +187,7 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
   const [view, setView] = useState<'clock' | 'tables'>('clock')
 
   // Tudo que o telão mostra numa consulta só, sem login (token do aparelho)
-  const { data: snapshot, error: snapshotError } = useQuery({
+  const { data: snapshot, error: snapshotError, isFetchedAfterMount } = useQuery({
     queryKey: ['tv-snapshot', deviceToken],
     queryFn: () => publicDisplayApi.getSnapshot(deviceToken),
     refetchInterval: 3000,
@@ -259,6 +261,11 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
     lastSyncRef.current = { state: next, at: Date.now() }
     syncFromServer(next)
   }, [snapshot, syncFromServer])
+
+  // Som quando o nível sobe (SPEC-20261103-1749): pelo nível do snapshot, só a partir da 1ª consulta feita depois de o
+  // telão abrir (o snapshot que ficou no cache pode ser de antes) e por torneio (o QR "Trocar torneio" troca sem remontar)
+  const soundTimer = isFetchedAfterMount && snapshot?.timer ? toTimerState(snapshot.timer) : null
+  useLevelChangeSound(`${deviceToken}:${tournament?.id ?? ''}`, soundTimer?.currentLevel ?? null, soundTimer?.isBreak ?? false)
 
   // Relógio de parede (coluna direita)
   const [now, setNow] = useState(() => new Date())
@@ -429,7 +436,9 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
           <div className="flex shrink-0 items-center gap-5 whitespace-nowrap text-base text-text-secondary">
             {/* Abaixo de 1600 px some, para o cabeçalho caber numa linha e não empurrar nada por cima do Nível */}
             <span className="max-[1599px]:hidden" data-tv-fullscreen-hint>Pressione F para tela cheia</span>
-            <span>
+            {/* Abaixo de 1440 px a data some (a hora continua na coluna direita): o botão de som (SPEC-20261103-1749) entrou
+                no cabeçalho e, com o selo do knockout, o nome do torneio ficava numa letra só em 1280/1366 */}
+            <span className="max-[1439px]:hidden" data-tv-date>
               {now.toLocaleDateString('pt-BR', {
                 day: '2-digit',
                 month: 'long',
@@ -476,6 +485,8 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
                 </div>
               </div>
             )}
+            {/* Som quando o nível muda (SPEC-20261103-1749): "Ativar som" até alguém tocar na página ou apertar uma tecla */}
+            <SoundToggle size="lg" />
             <Button
               type="button"
               variant="secondary"
