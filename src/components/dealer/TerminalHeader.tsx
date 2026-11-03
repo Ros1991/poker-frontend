@@ -30,6 +30,11 @@ interface TerminalHeaderProps {
    * tempo de ação (`seconds`) e, acabando, pergunta quem está pensando. Ausente (sem timebank) = o topo fica como antes.
    */
   timebank?: { seconds: number; onStart: () => void }
+  /**
+   * Torneio que ainda não começou (rascunho ou inscrições abertas, SPEC-20261103-1927): o botão do meio vira "Iniciar torneio"
+   * (liga o relógio e o torneio passa para Em andamento) no lugar de Pausar/Retomar
+   */
+  startTournament?: { onStart: () => void; loading: boolean }
   onPrevLevel: () => void
   onNextLevel: () => void
   onTogglePause: () => void
@@ -52,6 +57,7 @@ export function TerminalHeader({
   timerState,
   timerSynced = true,
   timebank,
+  startTournament,
   onPrevLevel,
   onNextLevel,
   onTogglePause,
@@ -167,6 +173,19 @@ export function TerminalHeader({
         <Button variant="secondary" size="sm" className="flex-1 px-1" onClick={onPrevLevel} loading={prevLoading}>
           <SkipBack className="h-4 w-4" /> Anterior
         </Button>
+        {startTournament ? (
+          <Button
+            variant="success"
+            size="sm"
+            className="flex-1 px-1"
+            onClick={startTournament.onStart}
+            loading={startTournament.loading}
+            disabled={startTournament.loading}
+            data-terminal-start
+          >
+            <Play className="h-4 w-4" /> Iniciar torneio
+          </Button>
+        ) : (
         <Button
           variant={running ? 'secondary' : 'success'}
           size="sm"
@@ -185,6 +204,7 @@ export function TerminalHeader({
             </>
           )}
         </Button>
+        )}
         {/* No último nível o "Próximo" desliga e vira "Último nível" (para continuar, o organizador acrescenta níveis) */}
         <Button
           variant="secondary"

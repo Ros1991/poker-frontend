@@ -55,4 +55,9 @@ export interface PixSuggestion {
   matchScore: number
   suggestedPixAmount: number
   isCashBox?: boolean
+  /**
+   * O favorecido deste custo ("Para quem") é o jogador que está pagando (SPEC-20261103-1927): o pagamento com este destino
+   * vira abatimento, sem dinheiro trocar de mãos. Só vem com o `entryId` no pedido
+   */
+  payerIsBeneficiary?: boolean
 }

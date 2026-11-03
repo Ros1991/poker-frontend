@@ -116,6 +116,12 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
     tournamentId,
     enabled: !!tournamentId,
     onTimerUpdate: sync,
+    // Torneio começou (relógio ligado em outro aparelho ou "Iniciar Torneio" do painel) ou foi editado no painel
+    // (SPEC-20261103-1927): o status (o botão "Iniciar torneio" some) e o devido dos jogadores
+    onTournamentUpdate: () => {
+      void queryClient.invalidateQueries({ queryKey: ['tournament', tournamentId] })
+      void queryClient.invalidateQueries({ queryKey: ['entries', tournamentId] })
+    },
     // Timebank usado/ajustado/desfeito em outro aparelho (SPEC-20261029-1722): a Ficha, a lista do cronômetro e o histórico
     onEntryUpdate: () => {
       void queryClient.invalidateQueries({ queryKey: ['entries', tournamentId] })
@@ -224,6 +230,23 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
     onError: (err) => toast.error(apiErrorMessage(err, 'Erro ao retomar o relógio.')),
   })
 
+  // Torneio em rascunho (ou com inscrições abertas): o botão do meio é "Iniciar torneio" (SPEC-20261103-1927). O resume
+  // aceita o token do dealer e, no servidor, faz a mesma transição do "Iniciar Torneio" do painel (status Em andamento,
+  // relógio ligado, auditoria); com o relógio já andando (rascunho de antes), só acerta o status
+  const notStarted = tournament?.status === 'Draft' || tournament?.status === 'OpenForRegistration'
+  const startTournamentMutation = useMutation({
+    mutationFn: () => timerApi.resume(tournamentId),
+    onSuccess: (state) => {
+      sync(state)
+      void queryClient.invalidateQueries({ queryKey: ['tournament', tournamentId] })
+      toast.success('Torneio iniciado')
+    },
+    onError: (err) => {
+      toast.error(apiErrorMessage(err, 'Erro ao iniciar o torneio.'))
+      void queryClient.invalidateQueries({ queryKey: ['tournament', tournamentId] })
+    },
+  })
+
   const nextMutation = useMutation({
     mutationFn: () => timerApi.nextLevel(tournamentId),
     onSuccess: (state) => {
@@ -284,6 +307,11 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
         timerState={timerState}
         timerSynced={timerSynced}
         timebank={timebank.enabled ? { seconds: timebank.seconds, onStart: timebank.start } : undefined}
+        startTournament={
+          notStarted
+            ? { onStart: () => startTournamentMutation.mutate(), loading: startTournamentMutation.isPending }
+            : undefined
+        }
         onPrevLevel={() => prevMutation.mutate()}
         onNextLevel={() => nextMutation.mutate()}
         onTogglePause={() => (timerState.isRunning ? pauseMutation.mutate() : resumeMutation.mutate())}

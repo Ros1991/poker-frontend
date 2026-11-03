@@ -29,6 +29,8 @@ export type HistoryActivityType =
   | 'TimebankUsed'
   /** Dealer/organizador deu ou tirou um timebank (+1/−1) — SPEC-20261029-1722; desfaz pelo histórico */
   | 'TimebankAdjusted'
+  /** Valores do torneio mudaram com gente inscrita e o devido foi recalculado — SPEC-20261103-1927 */
+  | 'TournamentValuesChanged'
 
 export interface HistoryItem {
   /** "{kind}:{refId}" — único na lista */

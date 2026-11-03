@@ -54,3 +54,8 @@ export async function getSaved(tournamentId: string): Promise<SavedPrize[]> {
   )
   return response.data
 }
+
+/** Desfaz a confirmação da premiação (SPEC-20261103-1927): para mudar os valores do torneio com a premiação confirmada */
+export async function unconfirm(tournamentId: string): Promise<void> {
+  await apiClient.post(`/tournaments/${tournamentId}/prizes/unconfirm`)
+}

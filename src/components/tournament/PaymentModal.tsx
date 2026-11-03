@@ -22,7 +22,8 @@ interface PaymentModalProps {
   tournamentId: string
 }
 
-type PaymentMethod = 'Pix' | 'Dinheiro' | 'Transferencia' | 'Abater'
+/** 'Transferencia' é o "Misto" da tela (PIX + dinheiro). Sem "Abater" desde a SPEC-20261103-1927: o abatimento sai do destino */
+type PaymentMethod = 'Pix' | 'Dinheiro' | 'Transferencia'
 
 /** Destino escolhido = o Caixa (gestor financeiro), que não tem custo nem limite */
 const CASH_KEY = 'caixa'
@@ -60,6 +61,28 @@ function limitTo(raw: string, cap: number | null): { shown: string; value: numbe
 interface Registered {
   /** "R$ 150,00 para Dealer" — o que foi lançado e para onde */
   lines: string[]
+  /** Foi abatimento (o favorecido do custo pagando para ele mesmo) */
+  settlement?: boolean
+}
+
+/** Forma do lançamento na lista "Pagamentos registrados" */
+function methodLabel(method: string | null): string | null {
+  switch (method) {
+    case null:
+      return null
+    case 'Compensacao':
+      return 'abatimento'
+    case 'Mixed':
+    case 'Misto':
+      return 'misto'
+    case 'Pix':
+      return 'PIX'
+    case 'Dinheiro':
+    case 'Cash':
+      return 'dinheiro'
+    default:
+      return method
+  }
 }
 
 export function PaymentModal({
@@ -77,12 +100,11 @@ export function PaymentModal({
   const [registered, setRegistered] = useState<Registered | null>(null)
   const [showQr, setShowQr] = useState(false)
 
+  // Com o jogador: o custo do qual ele é o favorecido vem marcado (payerIsBeneficiary) e vira abatimento
   const { data: pixSuggestionsRaw } = useQuery({
-    queryKey: ['pixSuggestions', tournamentId],
-    queryFn: () => paymentsApi.getPixSuggestions(tournamentId),
-    enabled:
-      isOpen &&
-      (method === 'Pix' || method === 'Transferencia' || method === 'Abater'),
+    queryKey: ['pixSuggestions', tournamentId, entry?.id],
+    queryFn: () => paymentsApi.getPixSuggestions(tournamentId, entry?.id),
+    enabled: isOpen && !!entry && (method === 'Pix' || method === 'Transferencia'),
   })
 
   // Chave do dia (QR do caixa): o mesmo torneio que o painel e o terminal já carregam
@@ -138,10 +160,15 @@ export function PaymentModal({
     (s) => !!s.costExtraId && !s.isCashBox && s.pendingAmount > EPS,
   )
 
-  // No modo "Abater" só fazem sentido custos reais (não o caixa).
+  // Sem "Abater" (SPEC-20261103-1927): escolher um custo como destino já abate dele o valor. No misto (PIX + dinheiro) não
+  // aparece o custo do qual o próprio jogador é o favorecido — esse vira abatimento, sem dinheiro trocar de mãos
   const destinations: PixSuggestion[] =
-    method === 'Abater' ? costDestinations : [cashBox, ...costDestinations]
+    method === 'Transferencia'
+      ? [cashBox, ...costDestinations.filter((d) => !d.payerIsBeneficiary)]
+      : [cashBox, ...costDestinations]
   const selected = destinations.find((d) => keyOf(d) === selectedKey) ?? null
+  /** Destino = custo do qual quem paga é o favorecido: o lançamento sai como abatimento (o servidor grava assim) */
+  const settling = method === 'Pix' && !!selected?.payerIsBeneficiary
 
   // Pre-preencher com o valor pendente quando abre o modal (destino: o caixa). Ajuste de estado durante o render
   // (padrão do React para "resetar quando a prop muda"), sem efeito em cascata.
@@ -165,8 +192,9 @@ export function PaymentModal({
     mutationFn: paymentsApi.create,
     onSuccess: (_data, vars) => {
       invalidatePaymentData()
-      toast.success('Pagamento registrado!')
-      setRegistered({ lines: [describeLaunch(vars)] })
+      const settled = isSettlement(vars)
+      toast.success(settled ? 'Abatimento registrado!' : 'Pagamento registrado!')
+      setRegistered({ lines: [describeLaunch(vars)], settlement: settled })
     },
     onError: (err: unknown) => {
       // O destino pode ter recebido de outro jogador nesse meio tempo: recarrega o "só recebe mais"
@@ -212,27 +240,7 @@ export function PaymentModal({
     },
   })
 
-  const settleMutation = useMutation({
-    mutationFn: (vars: { costExtraId: string; amount: number }) =>
-      paymentsApi.settleAgainstCost(
-        tournamentId,
-        entry!.id,
-        vars.costExtraId,
-        vars.amount,
-      ),
-    onSuccess: (_data, vars) => {
-      invalidatePaymentData()
-      toast.success('Abatimento registrado!')
-      const cost = costDestinations.find((c) => c.costExtraId === vars.costExtraId)
-      setRegistered({ lines: [`${formatCurrency(vars.amount)} abatidos de ${cost?.description ?? 'custo'}`] })
-    },
-    onError: (err: unknown) => {
-      queryClient.invalidateQueries({ queryKey: ['pixSuggestions', tournamentId] })
-      toast.error(errorMessage(err) || 'Erro ao registrar abatimento.')
-    },
-  })
-
-  const busy = paymentMutation.isPending || settleMutation.isPending || splitMutation.isPending
+  const busy = paymentMutation.isPending || splitMutation.isPending
 
   function handleClose() {
     setMethod('Pix')
@@ -249,13 +257,11 @@ export function PaymentModal({
 
   const pending = round2(entry.totalDue - entry.totalPaid)
 
-  // Limite do destino escolhido: PIX/misto → o que o custo ainda recebe (caixa sem limite); abater → o menor entre o
-  // que o jogador deve e o que o custo ainda recebe; dinheiro vai sempre para o caixa
+  // Limite do destino escolhido: PIX/misto → o que o custo ainda recebe (caixa sem limite); abatimento (o próprio custo do
+  // jogador) → o menor entre o que o jogador deve e o que o custo ainda recebe; dinheiro vai sempre para o caixa
   const cap: number | null =
-    method === 'Abater'
-      ? selected
-        ? round2(Math.max(0, Math.min(pending, selected.pendingAmount)))
-        : null
+    settling && selected
+      ? round2(Math.max(0, Math.min(pending, selected.pendingAmount)))
       : (method === 'Pix' || method === 'Transferencia') && selected && !selected.isCashBox
         ? round2(selected.pendingAmount)
         : null
@@ -269,10 +275,20 @@ export function PaymentModal({
     return !s || s.isCashBox ? 'o caixa' : s.description
   }
 
+  /** Lançamento com destino no custo do qual quem paga é o favorecido: o servidor grava como abatimento */
+  function isSettlement(p: paymentsApi.CreatePaymentInput): boolean {
+    return (
+      p.method !== 'Mixed' &&
+      !!p.pixDestinationCostExtraId &&
+      !!costDestinations.find((c) => c.costExtraId === p.pixDestinationCostExtraId)?.payerIsBeneficiary
+    )
+  }
+
   function describeLaunch(p: paymentsApi.CreatePaymentInput): string {
     const dest = p.pixDestinationCostExtraId
       ? (costDestinations.find((c) => c.costExtraId === p.pixDestinationCostExtraId)?.description ?? 'custo')
       : 'o caixa'
+    if (isSettlement(p)) return `${formatCurrency(p.amount)} abatidos de ${dest}`
     if (p.method === 'Mixed' && p.pixDestinationCostExtraId)
       return `${formatCurrency(p.pixAmount ?? 0)} em PIX para ${dest} e ${formatCurrency(p.cashAmount ?? 0)} em dinheiro para o caixa`
     return `${formatCurrency(p.amount)} para ${dest}`
@@ -309,19 +325,6 @@ export function PaymentModal({
   function handleConfirm() {
     if (!entry) return
 
-    if (method === 'Abater') {
-      if (!selected?.costExtraId) {
-        toast.error('Selecione o custo a abater.')
-        return
-      }
-      if (destValue <= 0) {
-        toast.error('Informe um valor válido.')
-        return
-      }
-      settleMutation.mutate({ costExtraId: selected.costExtraId, amount: destValue })
-      return
-    }
-
     // Destino escolhido que saiu da lista (outro terminal quitou o custo): nunca troca sozinho para o caixa
     if ((method === 'Pix' || method === 'Transferencia') && !selected) {
       toast.error('Escolha o destino do PIX.')
@@ -356,11 +359,11 @@ export function PaymentModal({
   const remainderTargets = costDestinations.filter(
     (d) => keyOf(d) !== selectedKey && d.pendingAmount >= overflow - EPS,
   )
-  const showLimit = (method === 'Pix' || method === 'Transferencia') && overflow > EPS && !!selected
+  const showLimit = (method === 'Pix' || method === 'Transferencia') && overflow > EPS && !!selected && !settling
 
   // QR do PIX com o valor (caixa = chave do dia; custo = a chave do custo); só com chave válida e valor > 0
   const qrPayload =
-    (method === 'Pix' || method === 'Transferencia') && selected && destValue > 0
+    (method === 'Pix' || method === 'Transferencia') && selected && !settling && destValue > 0
       ? buildPixPayload(selected.pixKey, undefined, undefined, destValue)
       : null
 
@@ -380,10 +383,10 @@ export function PaymentModal({
               <Button
                 variant="success"
                 onClick={handleConfirm}
-                loading={paymentMutation.isPending || settleMutation.isPending}
+                loading={paymentMutation.isPending}
                 disabled={busy}
               >
-                {method === 'Abater' ? 'Confirmar Abatimento' : 'Confirmar Pagamento'}
+                {settling ? 'Confirmar abatimento' : 'Confirmar Pagamento'}
               </Button>
             </div>
           )
@@ -407,7 +410,7 @@ export function PaymentModal({
               </svg>
             </div>
             <p className="text-text-primary font-semibold">
-              Pagamento registrado!
+              {registered.settlement ? 'Abatimento registrado!' : 'Pagamento registrado!'}
             </p>
             <ul className="flex flex-col items-center gap-1 text-center text-sm text-text-secondary tabular-nums" data-payment-registered>
               {registered.lines.map((line) => (
@@ -454,14 +457,16 @@ export function PaymentModal({
                 Método
               </label>
               <div className="flex flex-wrap gap-2">
-                {(['Pix', 'Dinheiro', 'Transferencia', 'Abater'] as PaymentMethod[]).map(
+                {(['Pix', 'Dinheiro', 'Transferencia'] as PaymentMethod[]).map(
                   (m) => (
                     <button
                       key={m}
                       type="button"
+                      data-payment-method={m}
+                      aria-pressed={method === m}
                       onClick={() => {
                         setMethod(m)
-                        setSelectedKey(m === 'Abater' ? null : CASH_KEY)
+                        setSelectedKey(CASH_KEY)
                         setShowQr(false)
                       }}
                       className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors min-h-[40px] ${
@@ -475,13 +480,6 @@ export function PaymentModal({
                   ),
                 )}
               </div>
-              {method === 'Abater' && (
-                <p className="text-xs text-text-secondary">
-                  Quita a dívida do jogador contra um custo do qual é favorecido
-                  (ex.: dono/staff que também jogou). Reduz o saldo do jogador e o
-                  "a receber" do custo, sem dinheiro trocar de mãos.
-                </p>
-              )}
             </div>
 
             {/* Amount fields based on method — o campo do destino mostra no máximo o que ele ainda recebe */}
@@ -520,13 +518,16 @@ export function PaymentModal({
               />
             )}
 
-            {/* PIX destination suggestions / custo a abater — caixa primeiro */}
-            {(method === 'Pix' || method === 'Transferencia' || method === 'Abater') &&
+            {/* Para onde vai o PIX — caixa primeiro; um custo como destino já abate dele o valor */}
+            {(method === 'Pix' || method === 'Transferencia') &&
               destinations.length > 0 && (
                 <div className="flex flex-col gap-1.5">
                   <label className="text-sm font-medium text-text-secondary">
-                    {method === 'Abater' ? 'Abater de qual custo' : 'Destino PIX'}
+                    Destino PIX
                   </label>
+                  <p className="text-xs text-text-secondary">
+                    Um custo como destino já abate dele o que o jogador pagou.
+                  </p>
                   <div className="max-h-[30dvh] overflow-y-auto overscroll-contain flex flex-col gap-1" data-payment-destinations>
                     {destinations.map((suggestion) => (
                       <button
@@ -553,10 +554,16 @@ export function PaymentModal({
                               {suggestion.beneficiary}
                             </p>
                           )}
-                          {suggestion.pixKey && (
-                            <p className="text-xs text-accent-blue truncate">
-                              {formatPixKey(suggestion.pixKey)}
+                          {suggestion.payerIsBeneficiary ? (
+                            <p className="text-xs font-semibold text-accent-green-deep" data-destination-own>
+                              É dele: vira abatimento
                             </p>
+                          ) : (
+                            suggestion.pixKey && (
+                              <p className="text-xs text-accent-blue truncate">
+                                {formatPixKey(suggestion.pixKey)}
+                              </p>
+                            )
                           )}
                         </div>
                         {!suggestion.isCashBox && suggestion.pendingAmount > 0 && (
@@ -617,8 +624,16 @@ export function PaymentModal({
               </div>
             )}
 
+            {/* Destino = custo do próprio jogador: abatimento, sem dinheiro trocar de mãos (SPEC-20261103-1927) */}
+            {settling && selected && (
+              <p className="rounded-lg border border-accent-green/40 bg-accent-green-soft p-3 text-sm text-text-primary" data-payment-settle>
+                {entry.person.nickname || entry.person.fullName} é o favorecido de {selected.description}: o valor é abatido do que
+                ele tem a receber, sem dinheiro trocar de mãos.
+              </p>
+            )}
+
             {/* Abatimento acima do que o custo comporta (ou do que o jogador deve): o campo limita e explica */}
-            {method === 'Abater' && selected && overflow > EPS && (
+            {settling && selected && overflow > EPS && (
               <p role="alert" className="rounded-lg border border-accent-gold bg-accent-gold-soft p-3 text-sm text-text-primary" data-payment-limit>
                 {selected.pendingAmount < pending - EPS
                   ? `${selected.description} só recebe mais ${formatCurrency(selected.pendingAmount)}. O restante continua pendente para pagar por PIX ou dinheiro.`
@@ -663,9 +678,9 @@ export function PaymentModal({
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-text-primary tabular-nums">
                           {formatCurrency(p.amount)}
-                          {p.paymentMethod && (
+                          {methodLabel(p.paymentMethod) && (
                             <span className="ml-2 text-xs text-text-secondary">
-                              via {p.paymentMethod}
+                              via {methodLabel(p.paymentMethod)}
                             </span>
                           )}
                         </p>
@@ -690,12 +705,6 @@ export function PaymentModal({
               )}
             </div>
 
-            {method === 'Abater' && destinations.length === 0 && (
-              <p className="text-xs text-accent-gold-deep">
-                Nenhum custo disponível para abatimento (precisa de um custo com
-                saldo a receber, como staff ou ranking).
-              </p>
-            )}
           </div>
         )}
       </Modal>

@@ -43,18 +43,6 @@ export async function getByEntry(
   return response.data
 }
 
-export async function settleAgainstCost(
-  tournamentId: string,
-  entryId: string,
-  costExtraId: string,
-  amount: number,
-): Promise<void> {
-  await apiClient.post(
-    `/tournaments/${tournamentId}/payments/entries/${entryId}/settle-against-cost`,
-    { costExtraId, amount },
-  )
-}
-
 export async function reversePayment(
   tournamentId: string,
   entryId: string,
@@ -103,11 +91,14 @@ export async function getBreakdown(tournamentId: string): Promise<PaymentBreakdo
  * Destinos do PIX: o Caixa (custo marcado como caixa, se houver, com isCashBox) primeiro; depois os custos que ainda
  * têm a receber, cada um com pendingAmount = o máximo que ainda recebe (SPEC-20261026-1906).
  */
+/** Destinos do PIX; com `entryId`, o custo do qual quem paga é o favorecido vem com `payerIsBeneficiary` (SPEC-20261103-1927) */
 export async function getPixSuggestions(
   tournamentId: string,
+  entryId?: string,
 ): Promise<PixSuggestion[]> {
   const response = await apiClient.get<PixSuggestion[]>(
     `/tournaments/${tournamentId}/payments/pix-suggestions`,
+    { params: entryId ? { entryId } : undefined },
   )
   return response.data
 }

@@ -97,11 +97,13 @@ export function BlindsTab({
     onError: () => toast.error('Erro ao salvar blinds.'),
   })
 
+  // Ligar o relógio de um rascunho começa o torneio (SPEC-20261103-1927): o cabeçalho relê o status
   const startMutation = useMutation({
     mutationFn: () => timerApi.start(tournament.id),
     onSuccess: (data) => {
       syncFromServer(data)
-      toast.success('Timer iniciado!')
+      void queryClient.invalidateQueries({ queryKey: ['tournament', tournament.id] })
+      toast.success(tournament.status === 'Draft' || tournament.status === 'OpenForRegistration' ? 'Torneio iniciado!' : 'Timer iniciado!')
     },
     onError: () => toast.error('Erro ao iniciar timer.'),
   })
@@ -119,6 +121,7 @@ export function BlindsTab({
     mutationFn: () => timerApi.resume(tournament.id),
     onSuccess: (data) => {
       syncFromServer(data)
+      void queryClient.invalidateQueries({ queryKey: ['tournament', tournament.id] })
       toast.success('Timer retomado!')
     },
     onError: () => toast.error('Erro ao retomar timer.'),

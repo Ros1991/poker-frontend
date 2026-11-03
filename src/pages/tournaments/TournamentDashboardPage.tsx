@@ -439,11 +439,14 @@ export function TournamentDashboardPage() {
                 </span>
               </Badge>
             )}
-            {tournament.status === 'Draft' && (
+            {/* Editar até o intervalo de acerto (SPEC-20261103-1927): com o torneio andando, mudar valores recalcula o devido
+                dos jogadores; finalizado e cancelado não se editam */}
+            {!tournamentOver && (
               <Button
                 variant="secondary"
                 size="sm"
                 onClick={() => navigate(tournamentEditPath(tournament.id))}
+                data-tournament-edit
               >
                 <Pencil className="h-4 w-4" />
                 Editar

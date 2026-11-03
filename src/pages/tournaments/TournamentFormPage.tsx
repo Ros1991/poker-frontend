@@ -26,6 +26,7 @@ import { checkPixKey, toPixKeyPayload, type PixKeyType } from '../../utils/pix'
 import { bountyError, knockoutTypeOf } from '../../utils/knockout'
 import { LoadingSpinner } from '../../components/common/LoadingSpinner'
 import { tournamentDashboardPath } from '../../constants/routes'
+import type { Tournament } from '../../types/tournament.types'
 
 const tournamentSchema = z.object({
   name: z.string().min(1, 'Nome obrigatório'),
@@ -70,6 +71,27 @@ function formatCurrency(value: number): string {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
 }
 
+/**
+ * Algum valor que mexe no dinheiro mudou (SPEC-20261103-1927)? Nulo e zero são iguais, como no servidor; a contribuição ao
+ * ranking sem valor não conta.
+ */
+function moneyChangedFrom(
+  a: Pick<Tournament, 'buyInAmount' | 'rebuyAmount' | 'addonAmount' | 'staffAmount' | 'rankingContribMode' | 'rankingContribValue' | 'knockoutType' | 'bountyAmount'>,
+  b: typeof a,
+): boolean {
+  const n = (v: number | null | undefined) => v ?? 0
+  const ranking = (t: typeof a) => (t.rankingContribMode && n(t.rankingContribValue) > 0 ? `${t.rankingContribMode}:${n(t.rankingContribValue)}` : '')
+  return (
+    n(a.buyInAmount) !== n(b.buyInAmount) ||
+    n(a.rebuyAmount) !== n(b.rebuyAmount) ||
+    n(a.addonAmount) !== n(b.addonAmount) ||
+    n(a.staffAmount) !== n(b.staffAmount) ||
+    ranking(a) !== ranking(b) ||
+    a.knockoutType !== b.knockoutType ||
+    n(a.bountyAmount) !== n(b.bountyAmount)
+  )
+}
+
 export function TournamentFormPage() {
   const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
@@ -89,6 +111,14 @@ export function TournamentFormPage() {
   })
 
   const homeGameId = isEditMode ? existingTournament?.homeGameId : id
+
+  // Torneio iniciado também se edita (SPEC-20261103-1927): depois de começar, a estrutura de blinds e o formato knockout
+  // ficam travados (os níveis se editam na aba Blinds); com inscritos, mudar valores recalcula o devido de cada jogador e os
+  // totais (o servidor faz). Com a premiação confirmada, os valores ficam travados: desfaz-se a confirmação na Premiação
+  const started = isEditMode && !!existingTournament && existingTournament.status !== 'Draft'
+  const hasEntries = isEditMode && (existingTournament?.totalEntries ?? 0) > 0
+  const moneyLocked = isEditMode && !!existingTournament?.prizeConfirmed
+  const MONEY_LOCKED_TEXT = 'A premiação já foi confirmada: para mudar este valor, desfaça a confirmação na aba Premiação.'
 
   const {
     register,
@@ -350,7 +380,15 @@ export function TournamentFormPage() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['tournaments'] })
       queryClient.invalidateQueries({ queryKey: ['tournament', tournamentId] })
-      toast.success('Torneio atualizado com sucesso!')
+      // Valores mudados recalculam o devido, os custos automáticos e os totais (SPEC-20261103-1927)
+      for (const key of ['entries', 'costExtras', 'paymentSummary', 'paymentTotalsByMethod', 'paymentBreakdown', 'pixSuggestions', 'history'])
+        queryClient.invalidateQueries({ queryKey: [key, tournamentId] })
+      const recalculated = hasEntries && !!existingTournament && moneyChangedFrom(existingTournament, data)
+      toast.success(
+        recalculated
+          ? 'Torneio atualizado! O que cada jogador deve foi recalculado.'
+          : 'Torneio atualizado com sucesso!',
+      )
       navigate(tournamentDashboardPath(data.id))
     },
     onError: (err: unknown) => {
@@ -477,6 +515,31 @@ export function TournamentFormPage() {
         </div>
       </div>
 
+      {/* Torneio com inscritos (e já iniciado): o que muda ao salvar (SPEC-20261103-1927) */}
+      {(started || hasEntries) && (
+        <div
+          className="mb-4 rounded-xl border border-accent-blue/30 bg-accent-blue-soft p-4 text-sm text-text-primary"
+          data-edit-recalc-notice
+        >
+          {started && <p className="font-semibold">Este torneio já começou.</p>}
+          <p className={started ? 'mt-1' : undefined}>
+            Mudar buy-in, rebuy, add-on, staff, contribuição ao ranking ou bounty recalcula o que cada jogador deve e os
+            totais do torneio (premiação, custos e líquido). O que já foi pago fica como está.
+          </p>
+          {started && (
+            <p className="mt-1 text-text-secondary">
+              A estrutura de blinds e o formato do torneio não mudam mais. Fichas, limites, PIX, timebank, nome e data podem
+              mudar sem mexer no dinheiro.
+            </p>
+          )}
+          {moneyLocked && (
+            <p className="mt-1 font-semibold text-accent-gold-deep" data-edit-money-locked>
+              A premiação já foi confirmada: os valores ficam travados. Para mudar, desfaça a confirmação na aba Premiação.
+            </p>
+          )}
+        </div>
+      )}
+
       <form
         id="tournament-form"
         onSubmit={handleSubmit(onSubmit)}
@@ -527,7 +590,8 @@ export function TournamentFormPage() {
             </label>
             <select
               {...register('blindStructureId')}
-              className="min-h-[44px] w-full rounded-lg border border-border-input bg-bg-input px-3 py-2.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-border-focus"
+              disabled={started}
+              className="min-h-[44px] w-full rounded-lg border border-border-input bg-bg-input px-3 py-2.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-border-focus disabled:cursor-not-allowed disabled:opacity-50"
             >
               <option value="">Selecione...</option>
               {blindStructures?.map((bs) => (
@@ -539,8 +603,10 @@ export function TournamentFormPage() {
                 </option>
               ))}
             </select>
-            <p className="text-xs text-text-secondary">
-              Ao selecionar, os valores abaixo serão preenchidos automaticamente
+            <p className="text-xs text-text-secondary" data-structure-hint>
+              {started
+                ? 'A estrutura não muda depois que o torneio começa. Para mudar os níveis, use a aba Blinds do painel.'
+                : 'Ao selecionar, os valores abaixo serão preenchidos automaticamente'}
             </p>
           </div>
 
@@ -662,6 +728,7 @@ export function TournamentFormPage() {
               type="number"
               step="0.01"
               {...register('buyInAmount')}
+              disabled={moneyLocked}
               error={errors.buyInAmount?.message}
             />
             <Input
@@ -669,6 +736,7 @@ export function TournamentFormPage() {
               type="number"
               step="0.01"
               {...register('rebuyAmount')}
+              disabled={moneyLocked}
               error={errors.rebuyAmount?.message}
             />
             <Input
@@ -676,6 +744,7 @@ export function TournamentFormPage() {
               type="number"
               step="0.01"
               {...register('addonAmount')}
+              disabled={moneyLocked}
               error={errors.addonAmount?.message}
             />
           </div>
@@ -706,6 +775,8 @@ export function TournamentFormPage() {
           buyIn={Number(watch('buyInAmount')) || 0}
           rebuy={Number(watch('rebuyAmount')) || 0}
           error={errors.bountyAmount?.message}
+          typeLockedReason={started ? 'O formato não muda depois que o torneio começa.' : null}
+          bountyLockedReason={moneyLocked ? MONEY_LOCKED_TEXT : null}
         />
 
         {/* Staff e Ranking (custos automáticos) — só com Payments no plano do dono */}
@@ -719,6 +790,7 @@ export function TournamentFormPage() {
             type="number"
             step="0.01"
             {...register('staffAmount')}
+            disabled={moneyLocked}
             error={errors.staffAmount?.message}
           />
           {!showRanking ? null : watch('rankingId') ? (
@@ -729,7 +801,8 @@ export function TournamentFormPage() {
                 </label>
                 <select
                   {...register('rankingContribMode')}
-                  className="min-h-[44px] w-full rounded-lg border border-border-input bg-bg-input px-3 py-2.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-border-focus"
+                  disabled={moneyLocked}
+                  className="min-h-[44px] w-full rounded-lg border border-border-input bg-bg-input px-3 py-2.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-border-focus disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <option value="PerPlayer">Valor fixo por jogador</option>
                   <option value="Percent">% do líquido</option>
@@ -744,6 +817,7 @@ export function TournamentFormPage() {
                 type="number"
                 step="0.01"
                 {...register('rankingContribValue')}
+                disabled={moneyLocked}
                 error={errors.rankingContribValue?.message}
               />
             </div>
@@ -846,9 +920,11 @@ export function TournamentFormPage() {
           countError={errors.timebankCount?.message}
           secondsError={errors.timebankSeconds?.message}
           note={
-            isEditMode && (existingTournament?.totalEntries ?? 0) > 0
-              ? 'Mudar a quantidade vale para todos os inscritos: cada um volta a ter esse número de timebanks.'
-              : null
+            !hasEntries
+              ? null
+              : started
+                ? 'Mudar a quantidade soma (ou tira) a diferença de cada inscrito: quem já usou continua com o que usou a menos.'
+                : 'Mudar a quantidade vale para todos os inscritos: cada um volta a ter esse número de timebanks.'
           }
         />
 

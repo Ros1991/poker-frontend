@@ -5,6 +5,7 @@ import { Trophy, Calculator, Crosshair, Lock, Medal, Plus, Minus } from 'lucide-
 import * as prizesApi from '../../../api/prizes.api'
 import type { PrizeItem } from '../../../api/prizes.api'
 import { Button } from '../../../components/ui/Button'
+import { ConfirmDialog } from '../../../components/ui/ConfirmDialog'
 import { NumberInput } from '../../../components/ui/NumberInput'
 import type { Tournament } from '../../../types/tournament.types'
 import type { TournamentEntry } from '../../../types/entry.types'
@@ -95,10 +96,34 @@ export function PrizesTab({ tournament, entries }: PrizesTabProps) {
     },
   })
 
+  // Desfazer a confirmação (SPEC-20261103-1927): é o caminho para mudar buy-in, rebuy, add-on, staff, ranking ou bounty com o
+  // torneio andando (os prêmios são % do líquido). Só antes de finalizar e sem prêmio pago (o servidor confere de novo)
+  const [unconfirmOpen, setUnconfirmOpen] = useState(false)
+  const [anyPrizePaid, setAnyPrizePaid] = useState(false)
+  const canUnconfirm =
+    tournament.prizeConfirmed && !anyPrizePaid && tournament.status !== 'Finished' && tournament.status !== 'Cancelled'
+  const unconfirmMutation = useMutation({
+    mutationFn: () => prizesApi.unconfirm(tournament.id),
+    onSuccess: () => {
+      setUnconfirmOpen(false)
+      queryClient.invalidateQueries({ queryKey: ['tournament', tournament.id] })
+      queryClient.invalidateQueries({ queryKey: ['entries', tournament.id] })
+      toast.success('Confirmação desfeita: agora dá para mudar os valores do torneio.')
+      // A aba volta a sugerir pelo líquido de agora
+      calculateMutation.mutate({ count: Math.max(1, prizes.length || numWinners), mode: 'open' })
+    },
+    onError: (err: unknown) => {
+      setUnconfirmOpen(false)
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+      toast.error(msg || 'Não foi possível desfazer a confirmação.')
+    },
+  })
+
   // Carregar prêmios SALVOS quando a premiação já foi confirmada (em vez de recalcular)
   const savedMutation = useMutation({
     mutationFn: () => prizesApi.getSaved(tournament.id),
     onSuccess: (data) => {
+      setAnyPrizePaid(data.some((p) => p.paid))
       setPrizes(
         data.map((p) => ({
           position: p.position,
@@ -409,10 +434,17 @@ export function PrizesTab({ tournament, entries }: PrizesTabProps) {
           {/* Confirmar = salvar (sempre disponível, inclusive após confirmar) */}
           <div className="flex items-center justify-between gap-3 mt-4">
             {tournament.prizeConfirmed ? (
-              <span className="flex items-center gap-2 text-sm text-accent-green-deep">
-                <Lock className="h-4 w-4" />
-                Premiação confirmada — pode editar e salvar de novo
-              </span>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <span className="flex items-center gap-2 text-sm text-accent-green-deep">
+                  <Lock className="h-4 w-4" />
+                  Premiação confirmada — pode editar e salvar de novo
+                </span>
+                {canUnconfirm && (
+                  <Button variant="ghost" size="sm" onClick={() => setUnconfirmOpen(true)} data-prize-unconfirm>
+                    Desfazer confirmação
+                  </Button>
+                )}
+              </div>
             ) : (
               <span />
             )}
@@ -428,6 +460,17 @@ export function PrizesTab({ tournament, entries }: PrizesTabProps) {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={unconfirmOpen}
+        onClose={() => setUnconfirmOpen(false)}
+        onConfirm={() => unconfirmMutation.mutate()}
+        title="Desfazer a confirmação?"
+        message="Os valores saem dos premiados e a premiação volta a ser sugerida pelo líquido de agora. Use para mudar buy-in, rebuy, add-on, staff, ranking ou bounty do torneio; depois, confirme a premiação de novo."
+        confirmLabel="Desfazer confirmação"
+        variant="warning"
+        loading={unconfirmMutation.isPending}
+      />
 
       {knockout && (
         <KnockoutSettlement

@@ -21,6 +21,13 @@ interface KnockoutFieldsProps {
   error?: string | null
   /** Texto de cima (estrutura: "padrão dos torneios criados com esta estrutura") */
   description?: string
+  /**
+   * Torneio já começou (SPEC-20261103-1927): o formato não muda — os cartões ficam travados e este texto explica. O valor do
+   * bounty continua editável (salvo `bountyLockedReason`)
+   */
+  typeLockedReason?: string | null
+  /** Valor do bounty travado (premiação confirmada, SPEC-20261103-1927), com a explicação */
+  bountyLockedReason?: string | null
 }
 
 /**
@@ -38,7 +45,10 @@ export function KnockoutFields({
   rebuy,
   error,
   description,
+  typeLockedReason,
+  bountyLockedReason,
 }: KnockoutFieldsProps) {
+  const typeLocked = !!typeLockedReason
   const value = Number(bounty) || 0
   const knockout = type !== 'None'
   const toPool = Math.max(0, Math.round((buyIn - value) * 100) / 100)
@@ -69,11 +79,12 @@ export function KnockoutFields({
               aria-describedby={`${idPrefix}-knockout-${k}-desc`}
               data-knockout-option={k}
               onClick={() => onTypeChange(k)}
+              disabled={typeLocked}
               className={cn(
-                'flex min-h-[44px] w-full min-w-0 items-start gap-3 rounded-lg border-2 px-3 py-3 text-left transition-colors',
+                'flex min-h-[44px] w-full min-w-0 items-start gap-3 rounded-lg border-2 px-3 py-3 text-left transition-colors disabled:cursor-not-allowed',
                 selected
                   ? 'border-accent-blue bg-accent-blue-soft'
-                  : 'border-border-input bg-bg-input hover:bg-bg-tertiary',
+                  : cn('border-border-input bg-bg-input', !typeLocked && 'hover:bg-bg-tertiary'),
               )}
             >
               {/* Bolinha de rádio: o escolhido fica marcado também sem depender só da cor */}
@@ -111,6 +122,11 @@ export function KnockoutFields({
           )
         })}
       </div>
+      {typeLocked && (
+        <p className="mt-2 text-xs text-text-secondary" data-knockout-type-locked>
+          {typeLockedReason}
+        </p>
+      )}
 
       {knockout && (
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -125,6 +141,8 @@ export function KnockoutFields({
             onChange={(e) => onBountyChange(e.target.value)}
             error={error ?? undefined}
             placeholder="Ex.: 50"
+            disabled={!!bountyLockedReason}
+            helperText={bountyLockedReason ?? undefined}
           />
           <div className="rounded-lg border border-border-default bg-bg-primary p-3 text-sm" data-knockout-split>
             {bountyTooBig ? (
