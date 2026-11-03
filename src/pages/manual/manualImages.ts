@@ -101,6 +101,8 @@ import imgTerminalEliminar400 from '../../assets/manual/terminal-eliminar-400.we
 import imgTerminalEliminar750 from '../../assets/manual/terminal-eliminar-750.webp'
 import imgTerminalHistorico400 from '../../assets/manual/terminal-historico-400.webp'
 import imgTerminalHistorico750 from '../../assets/manual/terminal-historico-750.webp'
+import imgTerminalIniciar400 from '../../assets/manual/terminal-iniciar-400.webp'
+import imgTerminalIniciar750 from '../../assets/manual/terminal-iniciar-750.webp'
 import imgTerminalMais400 from '../../assets/manual/terminal-mais-400.webp'
 import imgTerminalMais750 from '../../assets/manual/terminal-mais-750.webp'
 import imgTerminalMesa400 from '../../assets/manual/terminal-mesa-400.webp'
@@ -121,6 +123,8 @@ import imgTerminalTimebank400 from '../../assets/manual/terminal-timebank-400.we
 import imgTerminalTimebank750 from '../../assets/manual/terminal-timebank-750.webp'
 import imgTerminalTimebankContagem400 from '../../assets/manual/terminal-timebank-contagem-400.webp'
 import imgTerminalTimebankContagem750 from '../../assets/manual/terminal-timebank-contagem-750.webp'
+import imgTorneioEditarAndamento400 from '../../assets/manual/torneio-editar-andamento-400.webp'
+import imgTorneioEditarAndamento750 from '../../assets/manual/torneio-editar-andamento-750.webp'
 import imgTorneioNovo400 from '../../assets/manual/torneio-novo-400.webp'
 import imgTorneioNovo750 from '../../assets/manual/torneio-novo-750.webp'
 import imgTorneioNovoDealers400 from '../../assets/manual/torneio-novo-dealers-400.webp'
@@ -528,6 +532,14 @@ export const MANUAL_IMAGES = {
     height: 1520,
     kind: 'phone',
   },
+  'terminal-iniciar': {
+    src: imgTerminalIniciar400,
+    full: imgTerminalIniciar750,
+    srcSet: `${imgTerminalIniciar400} 400w, ${imgTerminalIniciar750} 750w`,
+    width: 750,
+    height: 1520,
+    kind: 'phone',
+  },
   'terminal-mais': {
     src: imgTerminalMais400,
     full: imgTerminalMais750,
@@ -604,6 +616,14 @@ export const MANUAL_IMAGES = {
     src: imgTerminalTimebankContagem400,
     full: imgTerminalTimebankContagem750,
     srcSet: `${imgTerminalTimebankContagem400} 400w, ${imgTerminalTimebankContagem750} 750w`,
+    width: 750,
+    height: 1520,
+    kind: 'phone',
+  },
+  'torneio-editar-andamento': {
+    src: imgTorneioEditarAndamento400,
+    full: imgTorneioEditarAndamento750,
+    srcSet: `${imgTorneioEditarAndamento400} 400w, ${imgTorneioEditarAndamento750} 750w`,
     width: 750,
     height: 1520,
     kind: 'phone',

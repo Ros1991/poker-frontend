@@ -429,6 +429,15 @@ export const MANUAL_MODULES = [
             imageAlt: 'Terminal do dealer no celular: Terminal e Telão no topo, relógio, controles do nível e os cards dos jogadores da Mesa 1',
           },
           {
+            title: 'Inicie o torneio',
+            text: [
+              'Enquanto o torneio é rascunho, o botão do meio, no topo, é Iniciar torneio. Tocar liga o relógio e o torneio passa para Em andamento: é o mesmo Iniciar Torneio do painel.',
+              'Depois disso, o botão vira Pausar e Retomar. Ligar o relógio de um rascunho pela aba Blinds do painel também começa o torneio.',
+            ],
+            image: 'terminal-iniciar',
+            imageAlt: 'Terminal do dealer de um torneio em rascunho, com o botão verde Iniciar torneio entre Anterior e Próximo',
+          },
+          {
             title: 'Telão no celular',
             text: [
               'Sem TV na sala? Toque em Telão, no topo do terminal: o celular vira um telão pequeno, com o nível, o relógio, os blinds e o ante, o próximo nível, o próximo intervalo, quantos estão jogando, as fichas em jogo, a média e a premiação.',
@@ -469,12 +478,13 @@ export const MANUAL_MODULES = [
           {
             title: 'Receba o pagamento',
             text: [
-              'Toque em Pagar. Escolha o método (Pix, Dinheiro, Misto ou Abater) e o valor.',
-              'No PIX, escolha para onde vai: o caixa do dia ou um custo (churrasco, dealer…), cada um até o que ainda falta receber.',
+              'Toque em Pagar. Escolha o método (Pix, Dinheiro ou Misto) e o valor.',
+              'No PIX, escolha para onde vai: o caixa do dia ou um custo (churrasco, dealer…), cada um até o que ainda falta receber. Escolher um custo já abate dele o que o jogador pagou.',
             ],
+            tip: 'Quem paga é o favorecido do custo (o nome em Para quem, na aba Custos, é o dele)? O destino aparece com "É dele: vira abatimento": a dívida dele é quitada contra o que ele tem a receber, sem dinheiro trocar de mãos.',
             feature: 'Payments',
             image: 'terminal-pagar',
-            imageAlt: 'Janela Registrar Pagamento com o jogador, o método Pix, o valor e os destinos do PIX',
+            imageAlt: 'Janela Registrar Pagamento com o jogador, os métodos Pix, Dinheiro e Misto, o valor e os destinos do PIX, o caixa primeiro',
           },
           {
             title: 'QR do PIX com o valor',
@@ -631,7 +641,7 @@ export const MANUAL_MODULES = [
           {
             title: 'Visão geral',
             text: [
-              'No topo: status, relógio, jogadores, rebuys, add-ons, premiação e total. Os botões mudam conforme o torneio anda: Iniciar Torneio, Pausar, Encerrar Rebuys e Finalizar (para encerrar antes da hora; quando sobra o campeão, ele se finaliza sozinho).',
+              'No topo: status, relógio, jogadores, rebuys, add-ons, premiação e total. Os botões mudam conforme o torneio anda: Editar, Iniciar Torneio, Pausar, Encerrar Rebuys e Finalizar (para encerrar antes da hora; quando sobra o campeão, ele se finaliza sozinho).',
               'Ao lado ficam Telão (o relógio e os blinds no celular ou numa tela ao lado) e Dealer (o QR do terminal do dealer). Abaixo, as abas do torneio; no celular, elas ficam na barra de baixo, que rola de lado.',
             ],
             image: 'pc-painel-torneio',
@@ -646,6 +656,16 @@ export const MANUAL_MODULES = [
             tip: 'Sem ninguém marcado, Cadastrar e adicionar cadastra o jogador novo e já põe no torneio. Com alguém marcado, Cadastrar e selecionar junta o novo aos marcados.',
             image: 'painel-adicionar',
             imageAlt: 'Janela Adicionar jogadores do painel com um jogador marcado',
+          },
+          {
+            title: 'Edite o torneio, mesmo em andamento',
+            text: [
+              'Toque em Editar, no topo do painel, até o intervalo de acerto (finalizado e cancelado não se editam). Mudar buy-in, rebuy, add-on, staff, contribuição ao ranking ou bounty recalcula o que cada jogador deve e os totais do torneio: premiação, custos e líquido. O que já foi pago fica como está, e o Histórico registra a mudança.',
+              'Depois que o torneio começa, a estrutura de blinds (os níveis se editam na aba Blinds) e o formato (Normal, Knockout ou PKO) ficam travados. Fichas, limites, PIX, timebank, nome e data mudam sem mexer no dinheiro.',
+            ],
+            tip: 'Com a premiação confirmada, os valores ficam travados: na aba Premiação, toque em Desfazer confirmação, mude os valores e confirme a premiação de novo.',
+            image: 'torneio-editar-andamento',
+            imageAlt: 'Formulário Editar Torneio no celular de um torneio em andamento, com o aviso de que mudar valores recalcula o que cada jogador deve e de que a estrutura e o formato não mudam mais',
           },
           {
             title: 'Jogadores',
@@ -706,6 +726,7 @@ export const MANUAL_MODULES = [
             title: 'Premiação',
             text: [
               'Informe quantos jogadores são premiados e toque em Recalcular: o sistema sugere os valores e as porcentagens. Ajuste se quiser e toque em Confirmar Premiação.',
+              'Confirmada, dá para editar e salvar de novo. Para mudar os valores do torneio depois, toque em Desfazer confirmação (antes de pagar algum prêmio).',
               'A colocação de cada um sai das eliminações.',
             ],
             feature: 'Prizes',
