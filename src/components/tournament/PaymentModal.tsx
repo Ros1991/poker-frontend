@@ -355,9 +355,10 @@ export function PaymentModal({
     })
   }
 
-  // Outros destinos que comportam o restante inteiro (o caixa sempre comporta)
+  // Outros destinos que comportam o restante inteiro (o caixa sempre comporta). Sem o custo do qual o próprio jogador é o
+  // favorecido: o restante de um pagamento não vira abatimento (revisão da SPEC-20261103-1927)
   const remainderTargets = costDestinations.filter(
-    (d) => keyOf(d) !== selectedKey && d.pendingAmount >= overflow - EPS,
+    (d) => keyOf(d) !== selectedKey && !d.payerIsBeneficiary && d.pendingAmount >= overflow - EPS,
   )
   const showLimit = (method === 'Pix' || method === 'Transferencia') && overflow > EPS && !!selected && !settling
 

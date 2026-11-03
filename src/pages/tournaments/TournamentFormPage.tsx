@@ -67,6 +67,9 @@ type TournamentFormData = z.infer<typeof tournamentSchema>
 /** Mesmo limite do backend (TournamentService.MaxDealerCount). */
 const MAX_DEALERS = 20
 
+/** Edição com o home game ainda carregando (ou com a leitura falhando): salvar espera (revisão da SPEC-20261103-1927) */
+const HOME_GAME_WAIT_TEXT = 'Aguarde carregar o home game do torneio para salvar.'
+
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
 }
@@ -114,8 +117,13 @@ export function TournamentFormPage() {
 
   // Torneio iniciado também se edita (SPEC-20261103-1927): depois de começar, a estrutura de blinds e o formato knockout
   // ficam travados (os níveis se editam na aba Blinds); com inscritos, mudar valores recalcula o devido de cada jogador e os
-  // totais (o servidor faz). Com a premiação confirmada, os valores ficam travados: desfaz-se a confirmação na Premiação
-  const started = isEditMode && !!existingTournament && existingTournament.status !== 'Draft'
+  // totais (o servidor faz). Com a premiação confirmada, os valores (e o ranking) ficam travados: desfaz-se a confirmação na
+  // Premiação. "Começou" é a regra do relógio no servidor (IsBeforeStart): inscrições abertas ainda trocam estrutura e formato
+  const started =
+    isEditMode &&
+    !!existingTournament &&
+    existingTournament.status !== 'Draft' &&
+    existingTournament.status !== 'OpenForRegistration'
   const hasEntries = isEditMode && (existingTournament?.totalEntries ?? 0) > 0
   const moneyLocked = isEditMode && !!existingTournament?.prizeConfirmed
   const MONEY_LOCKED_TEXT = 'A premiação já foi confirmada: para mudar este valor, desfaça a confirmação na aba Premiação.'
@@ -169,11 +177,20 @@ export function TournamentFormPage() {
   const initialLoadedStructureIdRef = useRef<string | null>(null)
 
   // Home game info (para mostrar o nome)
-  const { data: homeGame } = useQuery({
+  const {
+    data: homeGame,
+    isError: homeGameFailed,
+    isFetching: homeGameFetching,
+    refetch: refetchHomeGame,
+  } = useQuery({
     queryKey: ['homeGame', homeGameId],
     queryFn: () => homeGamesApi.getById(homeGameId!),
     enabled: !!homeGameId,
   })
+  // Edição sem o home game (ainda carregando ou a leitura falhou): o plano é desconhecido e os campos de staff, ranking e PIX
+  // do dia nem aparecem — antes, salvar assim tirava o staff e o ranking de todos os jogadores e apagava o PIX do dia (revisão
+  // da SPEC-20261103-1927; o servidor agora também mantém o campo ausente). Salvar fica desligado até ele chegar
+  const waitingHomeGame = isEditMode && !homeGame
 
   // Recursos do plano do DONO do home game (SPEC-20261023-1205). Só decide com o home game
   // carregado: sem Payments somem staff, contribuição/ranking e PIX do dia (no Mesa o torneio não
@@ -306,6 +323,15 @@ export function TournamentFormPage() {
     if (current) setValue('blindStructureId', current)
   }, [isEditMode, blindStructures, getValues, setValue])
 
+  // Mesmo caso do ranking (revisão da SPEC-20261103-1927): a lista só é pedida depois do home game, então o seletor aparecia
+  // como "Nenhum" com o ranking do torneio guardado no formulário — e, travado pela premiação confirmada, não dava nem para
+  // conferir. Reaplica o valor quando a lista chega
+  useEffect(() => {
+    if (!isEditMode || !rankings) return
+    const current = getValues('rankingId')
+    if (current) setValue('rankingId', current)
+  }, [isEditMode, rankings, getValues, setValue])
+
   // Pre-preencher campos em modo edicao
   useEffect(() => {
     if (!isEditMode || !existingTournament) return
@@ -401,6 +427,11 @@ export function TournamentFormPage() {
   })
 
   function onSubmit(data: TournamentFormData) {
+    // Mesmo com o botão desligado (Enter num campo): sem o home game o envio sairia sem staff, ranking e PIX do dia
+    if (waitingHomeGame) {
+      toast.error(HOME_GAME_WAIT_TEXT)
+      return
+    }
     const hasRanking = showRanking && !!data.rankingId
     // Chave do dia no formato dos bancos: inválida ou ambígua (CPF × celular sem escolha) não deixa salvar
     const savedPix = existingTournament?.responsiblePixKey ?? null
@@ -432,9 +463,19 @@ export function TournamentFormPage() {
         return
       }
     }
+    // Ranking (vínculo, modo e valor da contribuição) e staff só vão quando aparecem na tela: sem o campo no corpo, a edição
+    // mantém o gravado (o servidor confere); "nenhum ranking" vai como null explícito
+    const ranking = showRanking
+      ? {
+          rankingId: hasRanking ? data.rankingId : null,
+          // Sem ranking vinculado, não faz sentido contribuição acumulada.
+          rankingContribMode: hasRanking ? data.rankingContribMode : null,
+          rankingContribValue: hasRanking ? data.rankingContribValue : null,
+        }
+      : { rankingId: undefined, rankingContribMode: undefined, rankingContribValue: undefined }
     const payload = {
       ...data,
-      rankingId: hasRanking ? data.rankingId : undefined,
+      ...ranking,
       blindStructureId: data.blindStructureId || undefined,
       // 0 = "não informado" → backend guarda null e o telão usa o stack inicial
       rebuyStack: data.rebuyStack || undefined,
@@ -445,10 +486,7 @@ export function TournamentFormPage() {
         data.addonAllowed && Number.isInteger(data.maxAddons) && data.maxAddons >= 0 && data.maxAddons <= 99
           ? data.maxAddons
           : undefined,
-      // Sem ranking vinculado, não faz sentido contribuição acumulada.
-      rankingContribMode: hasRanking ? data.rankingContribMode : undefined,
-      rankingContribValue: hasRanking ? data.rankingContribValue : 0,
-      // Sem Payments no plano: nada de staff nem PIX do dia (o backend também força nulo)
+      // Sem Payments no plano: nada de staff nem PIX do dia (o backend mantém o gravado na edição e força nulo na criação)
       staffAmount: canPay ? data.staffAmount : undefined,
       responsiblePixKey: canPay ? pix.key : undefined,
       responsiblePixKeyType: canPay ? pix.type : undefined,
@@ -486,6 +524,8 @@ export function TournamentFormPage() {
   }
 
   const isPending = createMutation.isPending || updateMutation.isPending
+  // Salvar desligado enquanto salva e, na edição, até o home game chegar
+  const saveDisabled = isPending || waitingHomeGame
 
   return (
     <div className="mx-auto max-w-2xl p-4 sm:p-6">
@@ -496,7 +536,12 @@ export function TournamentFormPage() {
         subtitle={homeGame?.name}
         onCancel={() => navigate(-1)}
         cancelDisabled={isPending}
-        submit={{ label: isEditMode ? 'Salvar alterações' : 'Criar torneio', form: 'tournament-form', loading: isPending }}
+        submit={{
+          label: isEditMode ? 'Salvar alterações' : 'Criar torneio',
+          form: 'tournament-form',
+          loading: isPending,
+          disabled: saveDisabled,
+        }}
       />
       <div className="mb-6 hidden items-center gap-3 sm:flex">
         <button
@@ -514,6 +559,28 @@ export function TournamentFormPage() {
           )}
         </div>
       </div>
+
+      {/* Edição sem o home game: carregando ou a leitura falhou (salvar fica desligado até ele chegar) */}
+      {waitingHomeGame &&
+        (homeGameFailed && !homeGameFetching ? (
+          <div
+            role="alert"
+            className="mb-4 flex flex-col gap-3 rounded-xl border border-accent-red/40 bg-accent-red-soft p-4 text-sm text-text-primary sm:flex-row sm:items-center sm:justify-between"
+            data-edit-homegame-error
+          >
+            <p>
+              Não foi possível carregar o home game deste torneio. Sem ele, a tela não mostra o staff, o ranking e o PIX do
+              dia; tente de novo para poder salvar.
+            </p>
+            <Button type="button" variant="secondary" size="md" onClick={() => void refetchHomeGame()}>
+              Tentar de novo
+            </Button>
+          </div>
+        ) : (
+          <p className="mb-4 text-sm text-text-secondary" data-edit-homegame-loading>
+            Carregando o home game do torneio… Salvar fica liberado quando ele chegar.
+          </p>
+        ))}
 
       {/* Torneio com inscritos (e já iniciado): o que muda ao salvar (SPEC-20261103-1927) */}
       {(started || hasEntries) && (
@@ -534,7 +601,8 @@ export function TournamentFormPage() {
           )}
           {moneyLocked && (
             <p className="mt-1 font-semibold text-accent-gold-deep" data-edit-money-locked>
-              A premiação já foi confirmada: os valores ficam travados. Para mudar, desfaça a confirmação na aba Premiação.
+              A premiação já foi confirmada: os valores e o ranking ficam travados. Para mudar, desfaça a confirmação na aba
+              Premiação.
             </p>
           )}
         </div>
@@ -615,9 +683,12 @@ export function TournamentFormPage() {
               <label className="text-sm font-medium text-text-secondary">
                 Ranking
               </label>
+              {/* Com a premiação confirmada, trocar o ranking pode recriar o custo do acumulado (o líquido mudaria) */}
               <select
                 {...register('rankingId')}
-                className="min-h-[44px] w-full rounded-lg border border-border-input bg-bg-input px-3 py-2.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-border-focus"
+                disabled={moneyLocked}
+                title={moneyLocked ? MONEY_LOCKED_TEXT : undefined}
+                className="min-h-[44px] w-full rounded-lg border border-border-input bg-bg-input px-3 py-2.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-border-focus disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <option value="">Nenhum</option>
                 {rankings?.map((r) => (
@@ -938,7 +1009,7 @@ export function TournamentFormPage() {
           >
             Cancelar
           </Button>
-          <Button type="submit" loading={isPending}>
+          <Button type="submit" loading={isPending} disabled={saveDisabled}>
             {isEditMode ? 'Salvar alterações' : 'Criar torneio'}
           </Button>
         </div>
