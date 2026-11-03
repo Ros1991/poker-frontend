@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowRight,
   CalendarDays,
+  ChevronRight,
   Crown,
   LayoutDashboard,
   Lightbulb,
@@ -36,6 +37,7 @@ import {
   tournamentDashboardPath,
 } from '../../constants/routes'
 import { cn } from '../../utils/cn'
+import { CARD_CONTROLS, CARD_LINK } from '../../utils/cardClick'
 import type { BadgeColor } from '../../components/ui/Badge'
 import type { HomeGame } from '../../types/homeGame.types'
 import type { Inicio, InicioHomeGame, InicioLiveTournament, InicioTournament } from '../../types/inicio.types'
@@ -137,9 +139,11 @@ interface InicioPageProps {
  * confirmado e as boas-vindas caem aqui). Diz o que está acontecendo agora:
  * - saudação e o plano (selo + Meu plano);
  * - Agora: torneios iniciados dos home games que a conta acessa, com Painel, Telão no celular (SPEC-20261029-1721) e
- *   Terminal do dealer;
+ *   Terminal do dealer — o cartão inteiro abre o painel (SPEC-20261103-1928);
  * - Mesa e Clube: Meus torneios (os 5 últimos + Novo torneio); Liga: um cartão por home game, com Criar home game;
  * - Clubes em que você participa (membro do clube de outra pessoa);
+ * - os cartões de clube (os home games da Liga e os clubes de que a conta participa) têm só o nome — e o dono, quando é
+ *   de outra pessoa —, sem o último/próximo torneio, e abrem o clube (SPEC-20261103-1928);
  * - no Clube/Liga, enquanto o nome do clube é o padrão, a dica dispensável "Dê um nome ao seu clube em Configurações";
  * - Como jogador (SPEC-20261029-1726, `GET me/player`): os números de quem joga, os 5 últimos torneios e "Ver todos" →
  *   /meus-torneios; sem nenhuma inscrição vinculada, a dica de pedir ao organizador para cadastrar o e-mail da conta. O
@@ -351,9 +355,9 @@ function InicioContent({
             ))
           }
         >
-          <div className="grid gap-3 md:grid-cols-2">
+          <div className="grid gap-2 md:grid-cols-2">
             {owned.map((hg) => (
-              <OwnedHomeGameCard key={hg.id} homeGame={hg} label={labelOf(hg, myName)} />
+              <ClubCard key={hg.id} homeGame={hg} label={labelOf(hg, myName)} />
             ))}
           </div>
         </Section>
@@ -383,9 +387,9 @@ function InicioContent({
       {/* Clubes de outras pessoas em que a conta é membro */}
       {others.length > 0 && (
         <Section id="clubes" title="Clubes em que você participa" icon={Users}>
-          <div className="grid gap-3 md:grid-cols-2">
+          <div className="grid gap-2 md:grid-cols-2">
             {others.map((hg) => (
-              <MemberClubCard key={hg.id} homeGame={hg} label={labelOf(hg, myName)} />
+              <ClubCard key={hg.id} homeGame={hg} label={labelOf(hg, myName)} owner={hg.ownerName} />
             ))}
           </div>
         </Section>
@@ -445,20 +449,25 @@ function FollowLink({ tournamentId, primary = false }: { tournamentId: string; p
   )
 }
 
-/** Torneio acontecendo em que a conta só joga (o clube é de outra pessoa): Acompanhar */
+/** Torneio acontecendo em que a conta só joga (o clube é de outra pessoa): o cartão todo abre o torneio ao vivo dela */
 function PlayerLiveCard({ tournament: t }: { tournament: MyTournament }) {
   const state = playerLiveState(t)
   const result = resultText(t)
   const mine = result && result !== 'Jogando' ? ` · ${result}` : isStillPlaying(t) ? ' · jogando' : ''
   return (
     <article
-      className="flex flex-col gap-3 rounded-xl border border-accent-blue/30 bg-bg-secondary p-4"
+      className="relative flex flex-col gap-3 rounded-xl border border-accent-blue/30 bg-bg-secondary p-4 transition-colors hover:border-accent-blue/60 hover:bg-bg-tertiary"
       data-inicio-live={t.tournamentId}
       data-inicio-live-player
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <h3 className="truncate font-semibold text-text-primary">{t.name}</h3>
+          <h3 className="truncate font-semibold text-text-primary">
+            {/* O cartão inteiro é este link (SPEC-20261103-1928) */}
+            <Link to={myTournamentLivePath(t.tournamentId)} className={CARD_LINK} data-inicio-card-link>
+              {t.name}
+            </Link>
+          </h3>
           <p className="mt-0.5 line-clamp-2 text-xs text-text-secondary">
             {t.homeGameLabel} · {t.currentLevel ? `Nível ${t.currentLevel} · ` : ''}
             {t.playersRemaining} de {t.totalEntries} jogando
@@ -469,7 +478,7 @@ function PlayerLiveCard({ tournament: t }: { tournament: MyTournament }) {
         </Badge>
       </div>
       <p className="text-xs text-text-secondary">Você está inscrito{mine}</p>
-      <div className="flex flex-wrap gap-2">
+      <div className={cn(CARD_CONTROLS, 'flex flex-wrap gap-2')}>
         <FollowLink tournamentId={t.tournamentId} primary />
       </div>
     </article>
@@ -482,6 +491,10 @@ function playerLiveState(t: MyTournament): { label: string; color: BadgeColor } 
   return t.isTimerRunning ? { label: 'Em andamento', color: 'green' } : { label: 'Pausado', color: 'yellow' }
 }
 
+/**
+ * Torneio acontecendo num clube que a conta acessa: o cartão todo abre o painel do torneio (SPEC-20261103-1928); os botões
+ * de dentro (Acompanhar, Painel, Telão no celular, Terminal do dealer) continuam fazendo só o que fazem
+ */
 function LiveCard({
   tournament: t,
   showHomeGame,
@@ -497,12 +510,16 @@ function LiveCard({
   const state = liveState(t)
   return (
     <article
-      className="flex flex-col gap-3 rounded-xl border border-accent-blue/30 bg-bg-secondary p-4"
+      className="relative flex flex-col gap-3 rounded-xl border border-accent-blue/30 bg-bg-secondary p-4 transition-colors hover:border-accent-blue/60 hover:bg-bg-tertiary"
       data-inicio-live={t.id}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <h3 className="truncate font-semibold text-text-primary">{t.name}</h3>
+          <h3 className="truncate font-semibold text-text-primary">
+            <Link to={tournamentDashboardPath(t.id)} className={CARD_LINK} data-inicio-card-link>
+              {t.name}
+            </Link>
+          </h3>
           <p className="mt-0.5 truncate text-xs text-text-secondary">
             {showHomeGame && (t.homeGameName ?? myName) ? `${t.homeGameName ?? myName} · ` : ''}
             {t.currentLevel ? `Nível ${t.currentLevel} · ` : ''}
@@ -513,7 +530,7 @@ function LiveCard({
           {state.label}
         </Badge>
       </div>
-      <div className="flex flex-wrap gap-2">
+      <div className={cn(CARD_CONTROLS, 'flex flex-wrap gap-2')}>
         {follow && <FollowLink tournamentId={t.id} />}
         <Link to={tournamentDashboardPath(t.id)} className={linkButton('primary')} data-inicio-action="painel">
           <LayoutDashboard className="h-4 w-4" aria-hidden />
@@ -563,62 +580,41 @@ function TournamentRows({ tournaments, empty }: { tournaments: InicioTournament[
   )
 }
 
-function OwnedHomeGameCard({ homeGame: hg, label }: { homeGame: InicioHomeGame; label: string }) {
+/**
+ * Cartão de um clube no Início (SPEC-20261103-1928): só o nome — e "de Fulano" quando o clube é de outra pessoa —, sem o
+ * último/próximo torneio; o cartão inteiro abre o clube (a seção Torneios dele). "Principal"/"Inativo" ficam como selo.
+ */
+function ClubCard({
+  homeGame: hg,
+  label,
+  owner,
+}: {
+  homeGame: InicioHomeGame
+  label: string
+  /** Dono, quando o clube é de outra pessoa */
+  owner?: string | null
+}) {
   return (
-    <article className="flex flex-col rounded-xl border border-border-default bg-bg-secondary" data-inicio-home-game={hg.id}>
-      <div className="flex items-start justify-between gap-2 px-4 pt-4">
-        <div className="min-w-0">
-          <h3 className="truncate font-semibold text-text-primary">{label}</h3>
-          <p className="mt-0.5 text-xs text-text-secondary">{plural(hg.tournamentCount, 'torneio', 'torneios')}</p>
-        </div>
+    <Link
+      to={homeGameSectionPath(hg.id, 'torneios')}
+      className={cn(
+        'flex min-h-[64px] items-center gap-3 rounded-xl border border-border-default bg-bg-secondary px-4 py-3 transition-colors hover:border-accent-blue/50 hover:bg-bg-tertiary',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue',
+      )}
+      data-inicio-home-game={hg.isOwner ? hg.id : undefined}
+      data-inicio-club={hg.isOwner ? undefined : hg.id}
+    >
+      <div className="min-w-0 flex-1">
+        <h3 className="truncate font-semibold text-text-primary">{label}</h3>
+        {owner && <p className="mt-0.5 truncate text-xs text-text-secondary">de {owner}</p>}
+      </div>
+      {(hg.isPrimary && hg.isOwner) || !hg.isActive ? (
         <div className="flex shrink-0 gap-1">
-          {hg.isPrimary && <Badge color="blue">Principal</Badge>}
+          {hg.isPrimary && hg.isOwner && <Badge color="blue">Principal</Badge>}
           {!hg.isActive && <Badge color="gray">Inativo</Badge>}
         </div>
-      </div>
-      <div className="mt-2 flex-1">
-        <TournamentRows tournaments={hg.recent.slice(0, 3)} empty="Nenhum torneio ainda." />
-      </div>
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border-default px-4 py-3">
-        <Link to={homeGameSectionPath(hg.id, 'torneios')} className={linkButton('ghost')}>
-          Abrir
-          <ArrowRight className="h-4 w-4" aria-hidden />
-        </Link>
-        <NewTournamentButton homeGameId={hg.id} ownerId={hg.ownerId} homeGameName={label} size="sm" />
-      </div>
-    </article>
-  )
-}
-
-function MemberClubCard({ homeGame: hg, label }: { homeGame: InicioHomeGame; label: string }) {
-  const highlight = hg.next ?? hg.last
-  return (
-    <article className="flex flex-col gap-3 rounded-xl border border-border-default bg-bg-secondary p-4" data-inicio-club={hg.id}>
-      <div className="min-w-0">
-        <h3 className="truncate font-semibold text-text-primary">{label}</h3>
-        {hg.ownerName && <p className="mt-0.5 truncate text-xs text-text-secondary">de {hg.ownerName}</p>}
-      </div>
-      {highlight ? (
-        <Link
-          to={tournamentDashboardPath(highlight.id)}
-          className="flex items-center gap-3 rounded-lg bg-bg-primary px-3 py-2 transition-colors hover:bg-bg-tertiary"
-        >
-          <div className="min-w-0 flex-1">
-            <p className="text-xs text-text-secondary">{hg.next ? 'Próximo torneio' : 'Último torneio'}</p>
-            <p className="truncate text-sm font-medium text-text-primary">{highlight.name}</p>
-            <p className="text-xs text-text-secondary">{formatDay(highlight.date)}</p>
-          </div>
-          <Badge color={TOURNAMENT_STATUS_COLORS[highlight.status] ?? 'gray'} className="shrink-0">
-            {TOURNAMENT_STATUS_LABELS[highlight.status] ?? highlight.status}
-          </Badge>
-        </Link>
-      ) : (
-        <p className="text-sm text-text-secondary">Nenhum torneio ainda.</p>
-      )}
-      <Link to={homeGameSectionPath(hg.id, 'torneios')} className={cn(linkButton('secondary'), 'self-start')}>
-        Abrir o clube
-        <ArrowRight className="h-4 w-4" aria-hidden />
-      </Link>
-    </article>
+      ) : null}
+      <ChevronRight className="h-5 w-5 shrink-0 text-text-muted" aria-hidden />
+    </Link>
   )
 }

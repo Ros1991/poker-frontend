@@ -2,7 +2,6 @@ import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import {
-  ArrowLeft,
   BookOpen,
   ChevronLeft,
   ChevronRight,
@@ -64,7 +63,8 @@ function Divider() {
  * - Liga (ou conta que acessa mais de um home game): o mesmo, com o nome do home game atual no topo do bloco — a troca
  *   fica no seletor do cabeçalho. Não existe mais a lista "Meus Home Games".
  * As seções seguem o plano do DONO do home game e a permissão de quem está logado (`visibleHomeGameSections`). Dentro de
- * um torneio, o mesmo menu com "← Torneios" e a seção Torneios marcada (o painel do torneio não muda de layout).
+ * um torneio, o mesmo menu com a seção Torneios marcada (o painel do torneio não muda de layout e tem o voltar no topo;
+ * desde a SPEC-20261103-1928 não há mais o "← Torneios" repetido logo acima).
  * Na Conta, "Meus torneios" (área do jogador, SPEC-20261029-1726) aparece só quando a conta tem pelo menos uma inscrição
  * vinculada (`GET me/player`).
  */
@@ -141,22 +141,8 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
               </div>
             )}
             <ul className={cn('flex flex-col gap-1 px-2', !(showSelector && current && !collapsed) && 'mt-1')}>
-              {/* Dentro de um torneio: volta para a lista de torneios */}
-              {route.tournamentId && route.homeGameId && (
-                <li>
-                  <Link
-                    to={homeGameSectionPath(route.homeGameId, 'torneios')}
-                    onClick={onNavigate}
-                    title={collapsed ? 'Voltar para Torneios' : undefined}
-                    className={itemClass(false, collapsed)}
-                    data-sidebar-back
-                  >
-                    <ArrowLeft className="h-5 w-5 flex-shrink-0" aria-hidden />
-                    {!collapsed && <span>Torneios</span>}
-                    {collapsed && <span className="sr-only">Voltar para Torneios</span>}
-                  </Link>
-                </li>
-              )}
+              {/* Dentro de um torneio fica só a seção Torneios marcada: o "← Torneios" que vinha antes dela saiu (era o
+                  mesmo destino, um embaixo do outro — SPEC-20261103-1928); o painel do torneio tem o voltar no topo */}
               {sections.map((key) => (
                 <li key={key}>{sectionItem(key)}</li>
               ))}
