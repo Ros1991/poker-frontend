@@ -104,7 +104,8 @@ export function CompactClock({
       className={cn('grid w-full gap-4 landscape:grid-cols-2 landscape:items-center landscape:gap-6', className)}
       data-compact-clock
     >
-      <section className="flex min-w-0 flex-col items-center gap-2" aria-label="Relógio">
+      {/* @container: o relógio mede a largura desta coluna (cqw), não a da janela — SPEC-20261103-1742 */}
+      <section className="@container flex min-w-0 flex-col items-center gap-2" aria-label="Relógio">
         <div className="flex flex-wrap items-center justify-center gap-2">
           {structureFinished ? (
             <span
@@ -136,11 +137,14 @@ export function CompactClock({
           )}
         </div>
 
-        {/* Relógio: em pé pela largura do celular, deitado pela altura; a cor muda no último minuto e nos 30 s finais */}
+        {/* Relógio pela largura da PRÓPRIA coluna (32cqw: "MM:SS" em fonte mono ocupa ~2,8 em, então cabe com folga), em pé
+            até 10rem e deitado até 30% da altura; a cor muda no último minuto e nos 30 s finais. Antes era pela janela
+            (min(30vh, 14vw) deitado): no computador a fonte passava de 260 px numa coluna de ~500 px e o relógio cobria os
+            quadros (SPEC-20261103-1742) */}
         <p
           className={cn(
             'font-mono font-bold leading-none tracking-tighter tabular-nums transition-colors duration-500',
-            'text-[length:min(30vw,10rem)] landscape:text-[length:min(30vh,14vw)]',
+            'text-[length:min(32cqw,10rem)] landscape:text-[length:min(32cqw,30vh)]',
             timerUrgencyClass(timerState.remainingSeconds),
           )}
           data-compact-time
