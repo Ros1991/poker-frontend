@@ -439,6 +439,16 @@ export const MANUAL_MODULES = [
             imageAlt: 'Telão no celular: Terminal e Telão no topo, o nível, o relógio grande, a barra, os blinds, o próximo nível, o próximo intervalo, jogando, fichas em jogo, média e premiação',
           },
           {
+            title: 'Som quando o nível muda',
+            text: [
+              'Quando o nível sobe, o terminal, o telão no celular e o telão da TV tocam um aviso: três notas subindo quando os blinds sobem e duas notas quando começa o intervalo. No celular, ele também vibra. Pausar, retomar e voltar um nível não tocam.',
+              'O navegador só libera o som depois de um toque na tela. Enquanto isso, o telão mostra o botão Ativar som no alto: toque nele (ou em qualquer lugar da tela) e um aviso curto confirma que o som está ligado.',
+            ],
+            tip: 'Para desligar neste aparelho: no telão, toque no alto-falante do topo; no terminal, em Mais › Som quando o nível muda. Cada aparelho guarda a sua escolha.',
+            image: 'terminal-som',
+            imageAlt: 'Telão no celular com o botão Ativar som em dourado no topo, entre Terminal e Telão e o botão de tela cheia, e o relógio do nível embaixo',
+          },
+          {
             title: 'Rebuy',
             text: [
               'Toque em Rebuy no card do jogador. A confirmação mostra a foto e o nome, para conferir que é a pessoa certa, e o valor.',
@@ -513,9 +523,11 @@ export const MANUAL_MODULES = [
         steps: [
           {
             title: 'O menu Mais',
-            text: ['Em Mais, no topo, ficam Adicionar jogador, Jogadores (todos do torneio), Mesas e Histórico.'],
+            text: [
+              'Em Mais, no topo, ficam Adicionar jogador, Jogadores (todos do torneio), Mesas e Histórico, e o liga/desliga do som quando o nível muda neste celular.',
+            ],
             image: 'terminal-mais',
-            imageAlt: 'Menu Mais do terminal com Adicionar jogador, Jogadores, Mesas e Histórico',
+            imageAlt: 'Menu Mais do terminal com Adicionar jogador, Jogadores, Mesas, Histórico e Som quando o nível muda, ligado',
           },
           {
             title: 'Inscreva quem chegou',
@@ -782,7 +794,16 @@ export const MANUAL_MODULES = [
             ],
             tip: 'No Mesa, o telão mostra o relógio, os jogadores e os eliminados.',
             image: 'tv-telao',
-            imageAlt: 'Telão do torneio na TV: relógio grande, blinds 100/200, jogadores por mesa, PIX com QR e premiação',
+            imageAlt: 'Telão do torneio na TV: relógio grande, blinds, jogadores por mesa, PIX com QR, premiação e o botão Ativar som no alto',
+          },
+          {
+            title: 'Som quando o nível muda',
+            text: [
+              'A TV toca um aviso quando os blinds sobem (três notas subindo) e quando começa o intervalo (duas notas). O navegador só libera o som depois de um toque, clique ou tecla: até lá, o botão Ativar som fica no alto, ao lado do Voltar.',
+              'Clique nele, toque na tela ou aperte uma tecla (o F da tela cheia também vale): um aviso curto confirma. Depois, o alto-falante no mesmo lugar liga e desliga o som desta TV.',
+            ],
+            tip: 'Ligue o volume da TV. Se a página for recarregada, o Ativar som volta até o próximo toque ou tecla.',
+            see: { slug: 'terminal-do-dealer', label: 'O mesmo aviso no terminal e no telão do celular' },
           },
           {
             title: 'Troque de torneio',
