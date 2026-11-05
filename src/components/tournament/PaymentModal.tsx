@@ -2,13 +2,15 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { QRCodeSVG } from 'qrcode.react'
-import { AlertTriangle, Copy, Phone, QrCode, RotateCcw } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Copy, Phone, QrCode, RotateCcw } from 'lucide-react'
+import * as entriesApi from '../../api/entries.api'
 import * as paymentsApi from '../../api/payments.api'
 import * as tournamentsApi from '../../api/tournaments.api'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
 import { PlayerConfirmHeader } from '../dealer/PlayerConfirmHeader'
+import { isPaidUp } from '../dealer/terminalFormat'
 import type { TournamentEntry } from '../../types/entry.types'
 import type { PixSuggestion } from '../../types/costExtra.types'
 import { buildPixPayload, formatPixKey } from '../../utils/pix'
@@ -20,6 +22,12 @@ interface PaymentModalProps {
   onClose: () => void
   entry: TournamentEntry | null
   tournamentId: string
+  /**
+   * "Pago" do card (SPEC-20261105-1707, terminal e aba Jogadores): sem dívida e com pagamento feito, o modal abre no
+   * resumo "como foi pago" (forma, destino, valor e hora de cada lançamento, com o estorno), com o "Lançar outro
+   * pagamento" para o formulário de sempre. Sem isto (aba Pagamentos), abre sempre no formulário.
+   */
+  paidSummary?: boolean
 }
 
 /** 'Transferencia' é o "Misto" da tela (PIX + dinheiro). Sem "Abater" desde a SPEC-20261103-1927: o abatimento sai do destino */
@@ -85,11 +93,91 @@ function methodLabel(method: string | null): string | null {
   }
 }
 
+/** HH:mm no fuso do aparelho */
+function timeLabel(iso: string): string {
+  return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+}
+
+/** Descrições gravadas pelo próprio app (já ditas pela forma e pelo destino): não repetem na lista */
+const AUTO_DESCRIPTION = /^(Destino PIX:|Pagamento - |Abatimento de )/
+
+/**
+ * Para onde foi cada lançamento (SPEC-20261105-1707): "para o caixa", "para Dealer (Fulano)", o misto com as duas partes
+ * e o abatimento ("abatido de Dealer (Fulano)"). O destino é o custo do PIX; sem destino (ou o custo-caixa), o caixa.
+ */
+function destinationText(p: paymentsApi.EntryPaymentItem): string {
+  const description = p.pixDestinationDescription?.trim()
+  const beneficiary = p.pixDestinationBeneficiary?.trim()
+  const cost =
+    p.pixDestinationId && !p.pixDestinationIsCashBox && description
+      ? beneficiary && !description.toLowerCase().includes(beneficiary.toLowerCase())
+        ? `${description} (${beneficiary})`
+        : description
+      : null
+  if (p.type === 'Settlement' || p.paymentMethod === 'Compensacao') return cost ? `abatido de ${cost}` : 'abatimento'
+  if (p.paymentMethod === 'Mixed' || p.paymentMethod === 'Misto')
+    return `${formatCurrency(p.pixAmount ?? 0)} em PIX para ${cost ?? 'o caixa'} e ${formatCurrency(p.cashAmount ?? 0)} em dinheiro para o caixa`
+  if (p.paymentMethod === 'Dinheiro' || p.paymentMethod === 'Cash') return 'para o caixa'
+  return `para ${cost ?? 'o caixa'}`
+}
+
+/** Pagamentos já registrados do jogador (formulário e "como foi pago"): forma, destino, valor, hora e o estorno */
+function EntryPaymentsList({
+  payments,
+  onReverse,
+  reversing,
+}: {
+  payments: paymentsApi.EntryPaymentItem[] | undefined
+  onReverse: (id: string) => void
+  reversing: boolean
+}) {
+  if (!payments || payments.length === 0)
+    return <p className="py-2 text-center text-xs text-text-secondary">Nenhum pagamento registrado ainda.</p>
+  return (
+    <div className="flex max-h-[30dvh] flex-col gap-1.5 overflow-y-auto overscroll-contain" data-entry-payments>
+      {payments.map((p) => (
+        <div key={p.id} className="flex items-center justify-between gap-2 rounded-lg bg-bg-primary p-2 text-sm" data-entry-payment>
+          <div className="min-w-0 flex-1">
+            <p className="flex flex-wrap items-baseline gap-x-2 font-semibold tabular-nums text-text-primary">
+              {formatCurrency(p.amount)}
+              {methodLabel(p.paymentMethod) && (
+                <span className="text-xs font-normal text-text-secondary" data-entry-payment-method>
+                  via {methodLabel(p.paymentMethod)}
+                </span>
+              )}
+              <span className="ml-auto text-xs font-normal text-text-secondary" data-entry-payment-time>
+                {timeLabel(p.createdAt)}
+              </span>
+            </p>
+            <p className="text-xs text-text-secondary" data-entry-payment-destination>
+              {destinationText(p)}
+            </p>
+            {p.description && !AUTO_DESCRIPTION.test(p.description) && (
+              <p className="truncate text-xs text-text-secondary">{p.description}</p>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => onReverse(p.id)}
+            disabled={reversing}
+            className="shrink-0 rounded p-1.5 text-text-secondary transition-colors hover:bg-accent-red-soft hover:text-accent-red"
+            title="Estornar pagamento"
+            aria-label={`Estornar pagamento de ${formatCurrency(p.amount)}`}
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export function PaymentModal({
   isOpen,
   onClose,
-  entry,
+  entry: openedEntry,
   tournamentId,
+  paidSummary = false,
 }: PaymentModalProps) {
   const queryClient = useQueryClient()
   const [method, setMethod] = useState<PaymentMethod>('Pix')
@@ -99,6 +187,18 @@ export function PaymentModal({
   const [selectedKey, setSelectedKey] = useState<string | null>(CASH_KEY)
   const [registered, setRegistered] = useState<Registered | null>(null)
   const [showQr, setShowQr] = useState(false)
+  // "Lançar outro pagamento" no resumo do "Pago": volta ao formulário de sempre
+  const [formForced, setFormForced] = useState(false)
+
+  // A inscrição como está agora (SPEC-20261105-1707): a lista que o terminal e o painel já mantêm no cache (só lê, não
+  // busca). Um estorno feito aqui (ou um rebuy em outro aparelho) atualiza o total, o pago e o "Pago"/formulário sem
+  // fechar o modal; sem a lista no cache vale a inscrição de quando abriu.
+  const { data: cachedEntries } = useQuery({
+    queryKey: ['entries', tournamentId],
+    queryFn: () => entriesApi.getAll(tournamentId),
+    enabled: false,
+  })
+  const entry = (openedEntry && cachedEntries?.find((e) => e.id === openedEntry.id)) || openedEntry
 
   // Com o jogador: o custo do qual ele é o favorecido vem marcado (payerIsBeneficiary) e vira abatimento
   const { data: pixSuggestionsRaw } = useQuery({
@@ -172,7 +272,8 @@ export function PaymentModal({
 
   // Pre-preencher com o valor pendente quando abre o modal (destino: o caixa). Ajuste de estado durante o render
   // (padrão do React para "resetar quando a prop muda"), sem efeito em cascata.
-  const openedFor = isOpen ? entry : null
+  // Pela inscrição de quando abriu (a do cache muda a cada consulta e apagaria o que foi digitado)
+  const openedFor = isOpen ? openedEntry : null
   const [prevOpenedFor, setPrevOpenedFor] = useState<TournamentEntry | null>(null)
   if (openedFor !== prevOpenedFor) {
     setPrevOpenedFor(openedFor)
@@ -185,6 +286,7 @@ export function PaymentModal({
       setCashAmount('')
       setRegistered(null)
       setShowQr(false)
+      setFormForced(false)
     }
   }
 
@@ -250,12 +352,15 @@ export function PaymentModal({
     setSelectedKey(CASH_KEY)
     setRegistered(null)
     setShowQr(false)
+    setFormForced(false)
     onClose()
   }
 
   if (!entry) return null
 
   const pending = round2(entry.totalDue - entry.totalPaid)
+  // "Pago" (SPEC-20261105-1707): não deve nada (ou pagou a mais) e já pagou algo — o resumo de como foi pago
+  const paidView = paidSummary && !registered && !formForced && isPaidUp(entry)
 
   // Limite do destino escolhido: PIX/misto → o que o custo ainda recebe (caixa sem limite); abatimento (o próprio custo do
   // jogador) → o menor entre o que o jogador deve e o que o custo ainda recebe; dinheiro vai sempre para o caixa
@@ -373,10 +478,19 @@ export function PaymentModal({
       <Modal
         isOpen={isOpen}
         onClose={handleClose}
-        title="Registrar Pagamento"
+        title={paidView ? 'Pago' : 'Registrar Pagamento'}
         size="md"
         footer={
-          registered ? undefined : (
+          registered ? undefined : paidView ? (
+            <div className="flex flex-wrap justify-end gap-3">
+              <Button variant="ghost" onClick={() => setFormForced(true)} data-payment-new>
+                Lançar outro pagamento
+              </Button>
+              <Button variant="secondary" onClick={handleClose} data-payment-close>
+                Fechar
+              </Button>
+            </div>
+          ) : (
             <div className="flex gap-3 justify-end">
               <Button variant="ghost" onClick={handleClose} disabled={busy}>
                 Cancelar
@@ -431,9 +545,44 @@ export function PaymentModal({
               </a>
             )}
 
-            <Button variant="ghost" onClick={handleClose}>
+            {/* Botão de verdade, com contorno (SPEC-20261105-1707): só o texto se confundia com as linhas acima */}
+            <Button variant="secondary" onClick={handleClose} className="min-w-[8rem]" data-payment-close>
               Fechar
             </Button>
+          </div>
+        ) : paidView ? (
+          // "Pago" (SPEC-20261105-1707): como e para quem foi pago, com o estorno de cada lançamento
+          <div className="flex flex-col gap-4" data-payment-paid>
+            <PlayerConfirmHeader
+              person={entry.person}
+              className="mb-0"
+              detail={
+                <div className="flex flex-wrap gap-x-4 gap-y-1 tabular-nums">
+                  <span>Total: {formatCurrency(entry.totalDue)}</span>
+                  <span>Pago: {formatCurrency(entry.totalPaid)}</span>
+                  {pending < -EPS && (
+                    <span className="font-semibold text-accent-blue">Pagou a mais: {formatCurrency(-pending)}</span>
+                  )}
+                </div>
+              }
+            />
+            <p className="flex items-center gap-2 rounded-lg border-2 border-accent-green-deep bg-accent-green-soft p-3 text-sm font-semibold text-accent-green-deep">
+              <CheckCircle2 className="h-5 w-5 shrink-0" aria-hidden />
+              Não deve nada.
+            </p>
+            <div>
+              <p className="mb-2 text-xs font-semibold uppercase text-text-secondary">
+                Como foi pago
+                {existingPayments && existingPayments.length > 0 && (
+                  <span className="ml-1 normal-case">({existingPayments.length})</span>
+                )}
+              </p>
+              <EntryPaymentsList
+                payments={existingPayments}
+                onReverse={(id) => reverseMutation.mutate(id)}
+                reversing={reverseMutation.isPending}
+              />
+            </div>
           </div>
         ) : (
           <div className="flex flex-col gap-4">
@@ -665,45 +814,11 @@ export function PaymentModal({
                   </span>
                 )}
               </p>
-              {!existingPayments || existingPayments.length === 0 ? (
-                <p className="text-xs text-text-secondary text-center py-2">
-                  Nenhum pagamento registrado ainda.
-                </p>
-              ) : (
-                <div className="flex flex-col gap-1.5 max-h-[30dvh] overflow-y-auto overscroll-contain">
-                  {existingPayments.map((p) => (
-                    <div
-                      key={p.id}
-                      className="flex items-center justify-between rounded-lg bg-bg-primary p-2 text-sm"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-text-primary tabular-nums">
-                          {formatCurrency(p.amount)}
-                          {methodLabel(p.paymentMethod) && (
-                            <span className="ml-2 text-xs text-text-secondary">
-                              via {methodLabel(p.paymentMethod)}
-                            </span>
-                          )}
-                        </p>
-                        {p.description && (
-                          <p className="text-xs text-text-secondary truncate">
-                            {p.description}
-                          </p>
-                        )}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => reverseMutation.mutate(p.id)}
-                        disabled={reverseMutation.isPending}
-                        className="p-1.5 rounded text-text-secondary hover:text-accent-red hover:bg-accent-red-soft transition-colors"
-                        title="Estornar pagamento"
-                      >
-                        <RotateCcw className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <EntryPaymentsList
+                payments={existingPayments}
+                onReverse={(id) => reverseMutation.mutate(id)}
+                reversing={reverseMutation.isPending}
+              />
             </div>
 
           </div>

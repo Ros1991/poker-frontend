@@ -167,8 +167,16 @@ export function joinNames(names: string[]): string {
 }
 
 /** Quanto falta pagar (nunca negativo) */
-export function amountDue(entry: TournamentEntry): number {
+export function amountDue(entry: Pick<TournamentEntry, 'totalDue' | 'totalPaid'>): number {
   return Math.max(0, entry.totalDue - entry.totalPaid)
+}
+
+/**
+ * Já pagou tudo (SPEC-20261105-1707): nada a pagar (`amountDue` zerado nos centavos, inclusive quem pagou a mais) e algum
+ * pagamento feito. O botão "Pagar" do card vira "Pago" e abre o detalhe de como foi pago; dívida nova volta a "Pagar".
+ */
+export function isPaidUp(entry: Pick<TournamentEntry, 'totalDue' | 'totalPaid'>): boolean {
+  return Math.round(amountDue(entry) * 100) === 0 && entry.totalPaid > 0.004
 }
 
 /** "Mesa 2, lugar 5" / "Sem mesa" */
@@ -193,6 +201,17 @@ export function statusLabel(entry: TournamentEntry): string {
     default:
       return entry.status
   }
+}
+
+/**
+ * Rebuy/add-on fora do período (SPEC-20261105-1707): o 409 `{ code: "outside_window", message, level }` do servidor; null
+ * para qualquer outro erro. Quem chama pergunta "<message> Lançar mesmo assim?" e repete com `confirmOutsideWindow`.
+ */
+export function outsideWindowError(err: unknown): { message: string; level: number | null } | null {
+  const res = (err as { response?: { status?: number; data?: { code?: string; message?: string; level?: number | null } } })
+    ?.response
+  if (res?.status !== 409 || res.data?.code !== 'outside_window') return null
+  return { message: res.data.message || 'O período acabou.', level: res.data.level ?? null }
 }
 
 /** Mensagem de erro do servidor ({ message }) ou o texto padrão */

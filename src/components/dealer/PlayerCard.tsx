@@ -1,12 +1,12 @@
-import { ChevronRight, CreditCard, Crosshair, PlusCircle, RefreshCw, Skull, Swords } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { CheckCircle2, ChevronRight, CreditCard, Crosshair, GripVertical, PlusCircle, RefreshCw, Skull, Swords } from 'lucide-react'
+import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react'
 import { Avatar } from '../ui/Avatar'
 import { cn } from '../../utils/cn'
 import { isCardBackgroundClick } from '../../utils/cardClick'
 import type { KnockoutType } from '../../utils/knockout'
 import type { TournamentEntry } from '../../types/entry.types'
 import { DUE_TONE_CLASS, dueStatus, entryStatusLine } from '../../utils/entryStatusLine'
-import { eliminationsText, formatCurrency, playerName } from './terminalFormat'
+import { eliminationsText, formatCurrency, isPaidUp, playerName } from './terminalFormat'
 
 export interface PlayerActionRules {
   canRebuy: boolean
@@ -27,6 +27,18 @@ interface PlayerCardProps {
   showSeat?: boolean
   /** Formato do torneio (SPEC-20261026-1909): no knockout, os bounties ganhos e (PKO) a cabeça */
   knockout?: KnockoutType
+  /**
+   * Arrastar pela alça (SPEC-20261105-1707, terminal com o recurso de mesas): a alça no canto de cima à esquerda, acima
+   * da foto, começa o arrasto na hora (sem segurar); o card vira um lugar onde soltar (`data-seat`/`data-table-id`, o
+   * que o `useSeatDrag` procura). Sem isto não há alça.
+   */
+  drag?: {
+    tableId: string
+    seatNumber: number
+    onHandlePointerDown: (e: ReactPointerEvent<HTMLElement>) => void
+    /** Este card é o que está sendo arrastado / o que está sob o dedo (soltar troca os dois) */
+    state?: 'source' | 'target' | null
+  }
 }
 
 /**
@@ -102,7 +114,7 @@ function ActionButton({
   icon: ReactNode
   onClick: () => void
   disabled?: boolean
-  tone: 'rebuy' | 'addon' | 'pay' | 'danger'
+  tone: 'rebuy' | 'addon' | 'pay' | 'paid' | 'danger'
   className?: string
 }) {
   return (
@@ -122,6 +134,8 @@ function ActionButton({
         tone === 'rebuy' && 'bg-accent-blue text-white',
         tone === 'addon' && 'bg-accent-gold text-text-primary',
         tone === 'pay' && 'bg-accent-green-deep text-white',
+        // "Pago" (SPEC-20261105-1707): contorno verde, sem preencher — dá para ver de longe que não deve nada
+        tone === 'paid' && 'border-2 border-accent-green-deep bg-accent-green-soft text-accent-green-deep',
         tone === 'danger' && 'bg-accent-red-deep text-white',
         className,
       )}
@@ -140,6 +154,9 @@ function ActionButton({
  * Eliminar). Tocar em qualquer lugar do card fora dos botões abre a Ficha (SPEC-20261103-1928; antes, só a foto e o
  * nome): a foto e o nome continuam botões (teclado e leitor de tela) e a seta fica como enfeite. Sem Payments no plano,
  * some "Pagar" e "Deve/Pago" e Eliminar ocupa a linha de baixo inteira.
+ * Sem dívida e com algum pagamento feito (SPEC-20261105-1707, `isPaidUp`, também quem pagou a mais), o "Pagar" vira
+ * "Pago" (contorno verde, ícone de confirmado) e abre o mesmo `onPay` — o PaymentModal mostra como e para quem foi pago.
+ * Com `drag` (terminal com mesas), a alça acima da foto arrasta o jogador para trocar de lugar com outro da mesa.
  */
 export function PlayerCard({
   entry,
@@ -152,37 +169,76 @@ export function PlayerCard({
   showPayment = true,
   showSeat = true,
   knockout = 'None',
+  drag,
 }: PlayerCardProps) {
   const name = playerName(entry)
   const seat = showSeat ? entry.seatNumber : null
+  const paid = isPaidUp(entry)
+  const photo = (
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-label={`Abrir ficha de ${name}`}
+      className={cn(
+        'flex items-center justify-center rounded-lg',
+        drag ? 'w-full flex-1' : 'w-[30%] min-w-[88px] max-w-[128px] shrink-0 self-stretch',
+      )}
+      data-player-photo
+    >
+      <span className="relative block w-full">
+        <Avatar src={entry.person.photoUrl} name={entry.person.fullName} size="fill" />
+        {seat != null && (
+          <span
+            aria-label={`Lugar ${seat}`}
+            className="absolute left-0 top-0 rounded-full border border-border-default bg-bg-card px-2 text-xs font-bold tabular-nums text-text-primary"
+          >
+            {seat}
+          </span>
+        )}
+      </span>
+    </button>
+  )
   return (
     <div
       // O fundo do card abre a Ficha; os botões de dentro (foto, nome, Rebuy, Add-on, Pagar, Eliminar) fazem só o deles
       onClick={(e) => {
         if (isCardBackgroundClick(e)) onOpen()
       }}
-      className="flex cursor-pointer gap-2.5 rounded-xl border border-border-default bg-bg-secondary p-2"
+      className={cn(
+        'flex cursor-pointer gap-2.5 rounded-xl border border-border-default bg-bg-secondary p-2',
+        drag?.state === 'source' && 'border-dashed border-accent-blue opacity-60',
+        drag?.state === 'target' && 'border-accent-gold bg-accent-gold-soft ring-2 ring-accent-gold',
+      )}
       data-player-card
+      {...(drag
+        ? {
+            'data-seat': drag.seatNumber,
+            'data-table-id': drag.tableId,
+            'data-drop-target': drag.state === 'target' ? 'swap' : undefined,
+          }
+        : {})}
     >
-      <button
-        type="button"
-        onClick={onOpen}
-        aria-label={`Abrir ficha de ${name}`}
-        className="flex w-[30%] min-w-[88px] max-w-[128px] shrink-0 items-center justify-center self-stretch rounded-lg"
-        data-player-photo
-      >
-        <span className="relative block w-full">
-          <Avatar src={entry.person.photoUrl} name={entry.person.fullName} size="fill" />
-          {seat != null && (
-            <span
-              aria-label={`Lugar ${seat}`}
-              className="absolute left-0 top-0 rounded-full border border-border-default bg-bg-card px-2 text-xs font-bold tabular-nums text-text-primary"
-            >
-              {seat}
-            </span>
-          )}
-        </span>
-      </button>
+      {drag ? (
+        <div className="flex w-[30%] min-w-[88px] max-w-[128px] shrink-0 flex-col gap-1 self-stretch">
+          {/* Alça: arrasta na hora (touch-action none: o dedo nela não rola a lista); tocar sem arrastar não abre nada
+              (data-card-ignore). O ícone de "grip" e o aria-label, sem rótulo visível */}
+          <div
+            role="button"
+            tabIndex={-1}
+            aria-label={`Arrastar ${name} para trocar de lugar`}
+            title="Arraste até outro jogador da mesa para trocar os dois de lugar"
+            onPointerDown={drag.onHandlePointerDown}
+            className="flex min-h-[40px] w-full cursor-grab touch-none select-none items-center justify-start rounded-lg border border-border-default bg-bg-card px-2 text-text-secondary [-webkit-touch-callout:none] active:cursor-grabbing"
+            data-drag-handle
+            data-card-ignore
+          >
+            <GripVertical className="h-5 w-5" aria-hidden />
+          </div>
+          {photo}
+        </div>
+      ) : (
+        photo
+      )}
 
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <button
@@ -219,15 +275,24 @@ export function PlayerCard({
             disabled={!rules.canAddon}
             tone="addon"
           />
-          {showPayment && (
-            <ActionButton
-              label="Pagar"
-              ariaLabel={`Pagar de ${name}`}
-              icon={<CreditCard className="h-5 w-5 shrink-0" />}
-              onClick={onPay}
-              tone="pay"
-            />
-          )}
+          {showPayment &&
+            (paid ? (
+              <ActionButton
+                label="Pago"
+                ariaLabel={`Pago: ver como ${name} pagou`}
+                icon={<CheckCircle2 className="h-5 w-5 shrink-0" />}
+                onClick={onPay}
+                tone="paid"
+              />
+            ) : (
+              <ActionButton
+                label="Pagar"
+                ariaLabel={`Pagar de ${name}`}
+                icon={<CreditCard className="h-5 w-5 shrink-0" />}
+                onClick={onPay}
+                tone="pay"
+              />
+            ))}
           <ActionButton
             label="Eliminar"
             ariaLabel={`Eliminar ${name}`}

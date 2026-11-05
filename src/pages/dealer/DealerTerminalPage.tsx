@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ChevronDown, ChevronRight, Shuffle, UserPlus } from 'lucide-react'
+import { ArrowRightLeft, ChevronDown, ChevronRight, Shuffle, UserPlus } from 'lucide-react'
 import { toast } from 'sonner'
 import * as tournamentsApi from '../../api/tournaments.api'
 import * as entriesApi from '../../api/entries.api'
@@ -38,6 +38,10 @@ import {
   playerName,
   tableLabel,
 } from '../../components/dealer/terminalFormat'
+import { Avatar } from '../../components/ui/Avatar'
+import { useSeatDrag } from '../tournaments/tabs/useSeatDrag'
+import { useSeatDrop } from '../tournaments/tabs/useSeatDrop'
+import { SeatDragGhost } from '../tournaments/tabs/SeatDragGhost'
 import { countUnseated } from '../../utils/tableBalance'
 import { isKnockout, knockoutTypeOf } from '../../utils/knockout'
 import type { TournamentEntry } from '../../types/entry.types'
@@ -163,6 +167,30 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
       .filter((e) => e.tableId === selectedTable.id)
       .sort((a, b) => (a.seatNumber ?? 0) - (b.seatNumber ?? 0))
   }, [activeEntries, selectedTable])
+
+  // Arrastar na lista da mesa (SPEC-20261105-1707): a alça acima da foto arrasta na hora; soltar sobre outro jogador da
+  // mesa troca os dois (POST tables/swap — o mesmo do arrastar da tela Mesas, com a tela mudando na hora e o
+  // "Fulano e Beltrano trocaram de lugar"); soltar fora cancela. O TablesUpdate do servidor atualiza os outros aparelhos.
+  const seatDrop = useSeatDrop({
+    tournamentId,
+    nameOf: (entryId, fallback) => {
+      const e = allEntries.find((x) => x.id === entryId)
+      return e ? playerName(e) : fallback
+    },
+    tableNameOf: (tableId) => {
+      const t = allTables.find((x) => x.id === tableId)
+      return t ? tableLabel(t) : 'Mesa'
+    },
+  })
+  const seatDrag = useSeatDrag((source, target) => {
+    const other = tableEntries.find((e) => e.tableId === target.tableId && e.seatNumber === target.seatNumber)
+    if (!other || other.id === source.entryId) return
+    seatDrop.mutate({ source, target, other: { id: other.id, name: playerName(other) } })
+  })
+  const listDrag = seatDrag.drag
+  const listDragOther = listDrag?.target
+    ? (tableEntries.find((e) => e.tableId === listDrag.target!.tableId && e.seatNumber === listDrag.target!.seatNumber) ?? null)
+    : null
 
   // Timebank virtual (SPEC-20261029-1722 → cronômetro único da SPEC-20261030-1018): só com o timebank ligado no torneio —
   // o botão do cronômetro no topo (tempo de ação; acabando, "Quem está pensando?" com os jogadores desta mesa, ou todos
@@ -392,23 +420,69 @@ export function DealerTerminalPage({ dealerMode }: DealerTerminalPageProps = {})
               <p className="py-8 text-center text-text-secondary">Nenhum jogador nesta mesa.</p>
             ) : (
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                {tableEntries.map((entry) => (
-                  <PlayerCard
-                    key={entry.id}
-                    entry={entry}
-                    rules={rulesFor(entry)}
-                    onOpen={() => setFichaEntryId(entry.id)}
-                    onRebuy={() => flows.askRebuy(entry)}
-                    onAddon={() => flows.askAddon(entry)}
-                    onPay={() => flows.openPayment(entry)}
-                    onEliminate={() => flows.askEliminate(entry)}
-                    showPayment={canPay}
-                    knockout={knockout}
-                  />
-                ))}
+                {tableEntries.map((entry) => {
+                  const tableId = entry.tableId
+                  const seatNumber = entry.seatNumber
+                  // Só quem tem lugar na mesa arrasta e recebe (mais de um jogador: com um só não há com quem trocar)
+                  const draggable = !!tableId && seatNumber != null && tableEntries.length > 1
+                  return (
+                    <PlayerCard
+                      key={entry.id}
+                      entry={entry}
+                      rules={rulesFor(entry)}
+                      onOpen={() => setFichaEntryId(entry.id)}
+                      onRebuy={() => flows.askRebuy(entry)}
+                      onAddon={() => flows.askAddon(entry)}
+                      onPay={() => flows.openPayment(entry)}
+                      onEliminate={() => flows.askEliminate(entry)}
+                      showPayment={canPay}
+                      knockout={knockout}
+                      drag={
+                        draggable
+                          ? {
+                              tableId,
+                              seatNumber,
+                              onHandlePointerDown: (e) =>
+                                seatDrag.onPointerDown(
+                                  e,
+                                  { entryId: entry.id, name: playerName(entry), photo: entry.person.photoUrl, tableId, seatNumber },
+                                  { immediate: true },
+                                ),
+                              state:
+                                listDrag?.source.entryId === entry.id
+                                  ? 'source'
+                                  : listDragOther?.id === entry.id
+                                    ? 'target'
+                                    : null,
+                            }
+                          : undefined
+                      }
+                    />
+                  )
+                })}
               </div>
             )}
           </>
+        )}
+
+        {/* Quem está sendo arrastado pela alça: segue o dedo, acima dele, sempre dentro da tela */}
+        {listDrag && (
+          <SeatDragGhost x={listDrag.x} y={listDrag.y} className="max-w-[18rem] rounded-xl p-2 pr-3">
+            <Avatar src={listDrag.source.photo} name={listDrag.source.name} size="lg" />
+            <span className="flex min-w-0 flex-col" data-list-drag-ghost>
+              <span className="truncate text-base font-bold text-text-primary">{listDrag.source.name}</span>
+              <span className="flex items-center gap-1 truncate text-xs text-text-secondary">
+                {listDragOther ? (
+                  <>
+                    <ArrowRightLeft className="h-3 w-3 shrink-0" aria-hidden="true" />
+                    Trocar com {playerName(listDragOther)}
+                  </>
+                ) : (
+                  'Solte sobre outro jogador'
+                )}
+              </span>
+            </span>
+          </SeatDragGhost>
         )}
 
         {eliminatedEntries.length > 0 && (
