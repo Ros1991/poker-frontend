@@ -42,12 +42,23 @@ const toasterStyle = {
  * Toaster do app. Posição pelo useToasterPlacement: no celular embaixo (o "Desfazer" ao alcance do polegar, sem
  * cobrir o relógio do terminal) e no topo enquanto houver modal/tela cheia aberta (nunca por cima do rodapé dela);
  * no computador, canto superior direito. Componente próprio: mudar a posição não re-renderiza o app inteiro.
+ *
+ * Fechar (SPEC-20261105-1708): arrastar o toast para o lado (esquerda ou direita) ou para a borda da tela onde ele está
+ * tira o toast, no toque e no mouse, e o X no canto também fecha. O sonner, por padrão, só aceita as direções do nome da
+ * posição: no celular ("bottom-center"/"top-center") era só para baixo ou para cima — arrastar para o lado não fazia
+ * nada. No máximo 3 na tela (no celular com diálogo aberto, 1); duração padrão do sonner (4 s), o "Desfazer" 10 s.
  */
 function AppToaster() {
   const placement = useToasterPlacement()
+  const edge = placement.position?.startsWith('top') ? 'top' : 'bottom'
   return (
     <Toaster
+      visibleToasts={3}
       {...placement}
+      swipeDirections={['left', 'right', edge]}
+      closeButton
+      containerAriaLabel="Avisos"
+      toastOptions={{ closeButtonAriaLabel: 'Fechar aviso' }}
       richColors
       // Tema único (D8): não segue o modo escuro do SO
       theme="light"

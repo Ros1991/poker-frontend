@@ -204,3 +204,16 @@ select {
     pointer-events: none;
   }
 }
+
+/* X dos toasts (SPEC-20261105-1708): 24 px à vista e 44 px de toque — o padrão do sonner (20 px) era difícil de acertar
+   com o dedo. A área extra é do próprio botão (::after), então só ela fecha; o resto do toast continua arrastável. */
+[data-sonner-toaster] [data-sonner-toast][data-styled='true'] [data-close-button] {
+  width: 24px;
+  height: 24px;
+}
+
+[data-sonner-toaster] [data-sonner-toast] [data-close-button]::after {
+  content: '';
+  position: absolute;
+  inset: -10px;
+}

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { AlarmClock, History, Pencil, Phone, Trash2, UserPlus, Users } from 'lucide-react'
+import { AlarmClock, Pencil, Phone, Trash2, UserPlus } from 'lucide-react'
 import * as entriesApi from '../../../api/entries.api'
 import * as personsApi from '../../../api/persons.api'
 import * as tablesApi from '../../../api/tables.api'
@@ -17,7 +17,6 @@ import { AddPlayerModal } from '../../../components/tournament/AddPlayerModal'
 import { PlayerFormDialog } from '../../../components/players/PlayerFormDialog'
 import { DrawTablesDialog } from '../../../components/dealer/DrawTablesDialog'
 import { EliminatedPlayerRow } from '../../../components/dealer/EliminatedPlayerRow'
-import { HistoryList } from '../../../components/dealer/HistoryList'
 import { MovePlayerDialog } from '../../../components/dealer/MovePlayerDialog'
 import { usePlayerActionDialogs } from '../../../components/dealer/PlayerActionDialogs'
 import { PlayerCard } from '../../../components/dealer/PlayerCard'
@@ -50,7 +49,6 @@ interface EntriesTabProps {
   entries: TournamentEntry[]
 }
 
-type View = 'players' | 'history'
 type Filter = 'all' | 'playing' | 'eliminated' | 'owing'
 
 /** Intervalo do terminal: o painel vê o que o dealer faz (L12) */
@@ -69,6 +67,8 @@ function SectionTitle({ children }: { children: ReactNode }) {
  * PlayerCard, a Ficha (PlayerDetails), HistoryList com "Desfazer" amarrado ao item exato e o useTerminalActions com o
  * toast "Desfazer" — mais o que só o organizador tem (editar jogador, WhatsApp, excluir inscrição, filtros por
  * estado, busca, bônus de pontualidade, grade de 2–3 colunas no computador). Tudo que se desfaz passa pelo histórico.
+ * O histórico do torneio inteiro abre pelo botão Histórico do topo do painel (SPEC-20261105-1708: antes era uma
+ * alternância Jogadores | Histórico aqui dentro); na Ficha fica o histórico do jogador.
  *
  * Plano do dono (SPEC-20261023-1205, `tournament.planFeatures`): sem Payments não há Pagar, "Deve/Pago", filtro
  * Devendo nem PaymentModal, e os pagamentos do histórico ficam sem "Desfazer"; sem Tables não há agrupamento por mesa,
@@ -91,10 +91,8 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
   const isInProgress =
     tournament.status === 'Draft' || tournament.status === 'OpenForRegistration' || tournament.status === 'InProgress'
 
-  const [view, setView] = useState<View>('players')
   const [filter, setFilter] = useState<Filter>('all')
   const [search, setSearch] = useState('')
-  const [historySearch, setHistorySearch] = useState('')
   const [fichaEntryId, setFichaEntryId] = useState<string | null>(null)
   const [removeConfirm, setRemoveConfirm] = useState<TournamentEntry | null>(null)
   const [editPerson, setEditPerson] = useState<Person | null>(null)
@@ -337,33 +335,6 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <h2 className="text-lg font-semibold text-text-primary">Jogadores ({entries.length})</h2>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <div
-            role="tablist"
-            aria-label="O que ver"
-            className="grid grid-cols-2 rounded-lg border border-border-input bg-bg-card p-0.5"
-          >
-            {(
-              [
-                { key: 'players', label: 'Jogadores', icon: Users },
-                { key: 'history', label: 'Histórico', icon: History },
-              ] as const
-            ).map(({ key, label, icon: Icon }) => (
-              <button
-                key={key}
-                type="button"
-                role="tab"
-                aria-selected={view === key}
-                onClick={() => setView(key)}
-                className={cn(
-                  'flex min-h-[44px] items-center justify-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors',
-                  view === key ? 'bg-accent-blue text-white' : 'text-text-secondary hover:text-text-primary',
-                )}
-              >
-                <Icon className="h-4 w-4" />
-                {label}
-              </button>
-            ))}
-          </div>
           <button
             type="button"
             onClick={() => {
@@ -386,24 +357,7 @@ export function EntriesTab({ tournament, entries }: EntriesTabProps) {
         </div>
       </div>
 
-      {view === 'history' ? (
-        <section className="flex flex-col gap-3" data-entries-history>
-          <SearchInput
-            value={historySearch}
-            onChange={setHistorySearch}
-            placeholder="Buscar jogador"
-            debounceMs={150}
-            className="w-full sm:max-w-sm"
-          />
-          <HistoryList
-            tournamentId={tid}
-            search={historySearch}
-            onUndo={actions.undoItem}
-            paymentsLocked={!canPay}
-            entries={entries}
-          />
-        </section>
-      ) : entries.length === 0 ? (
+      {entries.length === 0 ? (
         <div className="py-12 text-center">
           <UserPlus className="mx-auto mb-3 h-10 w-10 text-text-muted" />
           <p className="text-text-secondary">Nenhum jogador inscrito ainda.</p>

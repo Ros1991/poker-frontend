@@ -13,6 +13,8 @@ import {
   Pencil,
   UserCheck,
   Crosshair,
+  History,
+  RotateCcw,
 } from 'lucide-react'
 import * as tournamentsApi from '../../api/tournaments.api'
 import * as entriesApi from '../../api/entries.api'
@@ -34,6 +36,8 @@ import { Button } from '../../components/ui/Button'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { LoadingSpinner } from '../../components/common/LoadingSpinner'
 import { DealerQrModal } from '../../components/tournament/DealerQrModal'
+import { HistorySheet } from '../../components/dealer/HistorySheet'
+import { useTerminalActions } from '../../components/dealer/useTerminalActions'
 import { apiErrorMessage, formatTime } from '../../components/dealer/terminalFormat'
 import {
   TOURNAMENT_STATUS_LABELS,
@@ -70,6 +74,12 @@ function formatCurrency(value: number): string {
   }).format(value)
 }
 
+/**
+ * Status que o selo do cabeçalho não mostra (SPEC-20261105-1708): torneio andando já se vê pelo relógio e pelo Pausar —
+ * o "Iniciado" ao lado dos botões só repetia. Rascunho, "Rebuys Finalizados", Finalizado e Cancelado continuam com o selo.
+ */
+const STATUS_WITHOUT_BADGE: TournamentStatus[] = ['OpenForRegistration', 'InProgress']
+
 /** 401/403/404: a consulta periódica dos pedidos do dealer não insiste */
 function isAccessError(err: unknown): boolean {
   const status = (err as { response?: { status?: number } } | null)?.response?.status
@@ -91,6 +101,8 @@ export function TournamentDashboardPage() {
   const tabContentRef = useRef<HTMLDivElement>(null)
   useTabScrollReset(activeTab, id, tabContentRef)
   const [dealerQrOpen, setDealerQrOpen] = useState(false)
+  // Histórico do torneio no topo do painel (SPEC-20261105-1708; antes era uma alternância dentro da aba Jogadores)
+  const [historyOpen, setHistoryOpen] = useState(false)
   const [statusConfirm, setStatusConfirm] = useState<{
     status: TournamentStatus
     label: string
@@ -116,7 +128,6 @@ export function TournamentDashboardPage() {
   const canCostExtras = can('CostExtras')
   const canDealerQr = can('DealerQr')
   const canFinancial = can('Financial')
-  const canPrizes = can('Prizes')
 
   const { data: costExtras = [] } = useQuery({
     queryKey: ['costExtras', id],
@@ -137,6 +148,9 @@ export function TournamentDashboardPage() {
       isAccessError(query.state.error) || document.visibilityState !== 'visible' ? false : 5000,
     retry: false,
   })
+  // "Desfazer" do Histórico do topo: o mesmo do terminal e da aba Jogadores (desfaz o item exato, toast e relê o que mudou)
+  const historyActions = useTerminalActions(id ?? '', tournament)
+
   const pendingDealerRequests = dealerRequests.filter((r) => r.status === 'Pending')
   const connectedDealers = dealerRequests.filter((r) => r.status === 'Approved')
 
@@ -264,15 +278,16 @@ export function TournamentDashboardPage() {
     tournament.status
 
   const activeEntries = entries.filter((e) => e.status === 'Active' || e.status === 'Registered')
-
-  // Sem premiação no plano não há o que confirmar antes de finalizar
-  const finishMessage = canPrizes
-    ? 'Deseja finalizar o torneio? Certifique-se de que a premiação está confirmada.'
-    : 'Deseja finalizar o torneio?'
+  const showStatusBadge = !STATUS_WITHOUT_BADGE.includes(tournament.status as TournamentStatus)
 
   const activeTabFeature = TOURNAMENT_TABS.find((t) => t.key === activeTab)?.feature
   const activeTabLocked = !!activeTabFeature && !hasFeature(planFeatures, activeTabFeature)
 
+  /**
+   * Botões de status (SPEC-20261105-1708): sem "Encerrar Rebuys" (levava ao intervalo de acerto, que trava rebuy e add-on —
+   * e não havia volta pela tela) e sem "Finalizar" (o torneio finaliza sozinho quando sobra um jogador). Quem já está no
+   * intervalo de acerto volta para Em andamento (o servidor aceita BreakSettlement → InProgress).
+   */
   function getStatusActions() {
     const actions: {
       label: string
@@ -301,30 +316,14 @@ export function TournamentDashboardPage() {
           message: 'Deseja iniciar o torneio? O timer de blinds será iniciado.',
         })
         break
-      case 'InProgress':
-        actions.push({
-          label: 'Encerrar Rebuys',
-          status: 'BreakSettlement',
-          icon: Lock,
-          variant: 'primary',
-          message:
-            'Deseja encerrar o período de rebuys/add-ons? Os jogadores serão notificados para acerto.',
-        })
-        actions.push({
-          label: 'Finalizar',
-          status: 'Finished',
-          icon: Lock,
-          variant: 'danger',
-          message: finishMessage,
-        })
-        break
       case 'BreakSettlement':
         actions.push({
-          label: 'Finalizar',
-          status: 'Finished',
-          icon: Lock,
-          variant: 'danger',
-          message: finishMessage,
+          label: 'Voltar para em andamento',
+          status: 'InProgress',
+          icon: RotateCcw,
+          variant: 'primary',
+          message:
+            'Voltar o torneio para Em andamento? Rebuy e add-on voltam a valer dentro dos períodos da estrutura. Se o relógio estiver pausado, ele volta a andar.',
         })
         break
     }
@@ -415,7 +414,7 @@ export function TournamentDashboardPage() {
             >
               <ArrowLeft className="h-5 w-5" />
             </Link>
-            <div>
+            <div className="min-w-0">
               <h1 className="text-xl font-bold text-text-primary">
                 {tournament.name}
               </h1>
@@ -425,20 +424,29 @@ export function TournamentDashboardPage() {
                   {tournament.homeGameName}
                 </p>
               )}
+              {/* Selos junto do nome, não ao lado dos botões (SPEC-20261105-1708): o status só quando diz algo que o
+                  painel não mostra (sem o "Iniciado"), e o formato knockout (SPEC-20261026-1909) */}
+              {(showStatusBadge || isKnockout(tournament)) && (
+                <div className="mt-1 flex flex-wrap items-center gap-2" data-dashboard-badges>
+                  {showStatusBadge && (
+                    <span data-tournament-status-badge={tournament.status}>
+                      <Badge color={statusColor}>{statusLabel}</Badge>
+                    </span>
+                  )}
+                  {isKnockout(tournament) && (
+                    <Badge color="purple" className="gap-1 tabular-nums">
+                      <Crosshair className="h-3.5 w-3.5" aria-hidden />
+                      <span data-knockout-badge={knockoutTypeOf(tournament)}>
+                        {KNOCKOUT_BADGES[knockoutTypeOf(tournament)]} · bounty {formatCurrency(tournament.bountyAmount ?? 0)}
+                      </span>
+                    </Badge>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
-            <Badge color={statusColor}>{statusLabel}</Badge>
-            {/* Formato knockout (SPEC-20261026-1909) */}
-            {isKnockout(tournament) && (
-              <Badge color="purple" className="gap-1 tabular-nums">
-                <Crosshair className="h-3.5 w-3.5" aria-hidden />
-                <span data-knockout-badge={knockoutTypeOf(tournament)}>
-                  {KNOCKOUT_BADGES[knockoutTypeOf(tournament)]} · bounty {formatCurrency(tournament.bountyAmount ?? 0)}
-                </span>
-              </Badge>
-            )}
+          <div className="flex items-center gap-2 flex-wrap" data-dashboard-actions>
             {/* Editar até o intervalo de acerto (SPEC-20261103-1927): com o torneio andando, mudar valores recalcula o devido
                 dos jogadores; finalizado e cancelado não se editam */}
             {!tournamentOver && (
@@ -480,11 +488,22 @@ export function TournamentDashboardPage() {
                 )}
               </Button>
             )}
+            {/* Tudo o que foi feito no torneio, com desfazer — o mesmo Histórico do terminal (SPEC-20261105-1708) */}
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setHistoryOpen(true)}
+              data-dashboard-history
+            >
+              <History className="h-4 w-4" />
+              Histórico
+            </Button>
             {statusActions.map((action) => (
               <Button
                 key={action.status}
                 variant={action.variant}
                 size="sm"
+                data-status-action={action.status}
                 onClick={() =>
                   setStatusConfirm({
                     status: action.status,
@@ -700,6 +719,17 @@ export function TournamentDashboardPage() {
         </>
         )}
       </div>
+
+      {/* Histórico do topo: tela cheia com busca e desfazer, como no terminal; no computador a lista fica centralizada */}
+      <HistorySheet
+        isOpen={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        tournamentId={tournament.id}
+        onUndo={historyActions.undoItem}
+        paymentsLocked={!can('Payments')}
+        entries={entries}
+        centered
+      />
 
       {/* Status change confirm dialog */}
       <ConfirmDialog

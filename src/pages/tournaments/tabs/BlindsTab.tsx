@@ -25,7 +25,14 @@ import { NumberInput } from '../../../components/ui/NumberInput'
 import { LoadingSpinner } from '../../../components/common/LoadingSpinner'
 import type { Tournament } from '../../../types/tournament.types'
 import type { TimerState } from '../../../types/blind.types'
-import { isLastLevel, isStructureFinished } from '../../../utils/timerDisplay'
+import {
+  formatClockTime,
+  isLastLevel,
+  isStructureFinished,
+  levelStartTimes,
+} from '../../../utils/timerDisplay'
+import type { LevelStart } from '../../../utils/timerDisplay'
+import { useCurrentLevelEnd } from '../../../hooks/useCurrentLevelEnd'
 import { TIMER_PLACEHOLDER } from '../../../hooks/useTimerQuery'
 import { apiErrorMessage } from '../../../components/dealer/terminalFormat'
 
@@ -42,6 +49,14 @@ interface BlindsTabProps {
 
 function formatNumber(n: number): string {
   return new Intl.NumberFormat('pt-BR').format(n)
+}
+
+/** Texto da coluna Início: o horário, "agora" no nível atual e traço nos que já passaram */
+function levelStartText(start: LevelStart | undefined, synced: boolean): string {
+  if (!synced || !start) return '--:--'
+  if (start.kind === 'current') return 'agora'
+  if (start.kind === 'past') return '—'
+  return formatClockTime(start.at)
 }
 
 export function BlindsTab({
@@ -65,6 +80,13 @@ export function BlindsTab({
   // relógio fica em 00:00 até o organizador acrescentar níveis aqui embaixo
   const lastLevel = isLastLevel(timerState)
   const structureFinished = isStructureFinished(timerState)
+
+  // Coluna Início (SPEC-20261105-1708): a que horas cada nível começa, a partir de agora e do nível atual. Relógio parado
+  // (pausado ou ainda não ligado): como se ele voltasse agora, com o aviso. Encerrado ou cancelado: sem a coluna
+  const currentLevelEnd = useCurrentLevelEnd(timerState)
+  const showStarts = tournament.status !== 'Finished' && tournament.status !== 'Cancelled'
+  const clockStopped = timerSynced && (!timerState.isRunning || timerState.isPaused)
+  const notStarted = tournament.status === 'Draft' || tournament.status === 'OpenForRegistration'
 
   const [editMode, setEditMode] = useState(false)
   const [draft, setDraft] = useState<TournamentBlindLevel[]>([])
@@ -354,7 +376,7 @@ export function BlindsTab({
       {loadingLevels && <LoadingSpinner text="Carregando blinds..." />}
 
       {!loadingLevels && blindLevels && (
-        <div className="rounded-xl border border-border-default bg-bg-secondary p-6">
+        <div className="rounded-xl border border-border-default bg-bg-secondary p-3 sm:p-6">
           <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
             <div>
               <h3 className="text-sm font-semibold text-text-secondary uppercase tracking-wider">
@@ -538,79 +560,134 @@ export function BlindsTab({
             </>
           ) : (
             blindLevels.length > 0 && (
-              <div className="overflow-x-auto rounded-lg border border-border-default">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-bg-tertiary">
-                      <th className="px-3 py-2 text-left text-xs font-medium text-text-secondary">
-                        Nível
-                      </th>
-                      <th className="px-3 py-2 text-right text-xs font-medium text-text-secondary">
-                        SB
-                      </th>
-                      <th className="px-3 py-2 text-right text-xs font-medium text-text-secondary">
-                        BB
-                      </th>
-                      <th className="px-3 py-2 text-right text-xs font-medium text-text-secondary">
-                        Ante
-                      </th>
-                      <th className="px-3 py-2 text-right text-xs font-medium text-text-secondary">
-                        Duração
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {blindLevels.map((level) => {
-                      const isCurrent =
-                        level.levelNumber === timerState.currentLevel
-                      return (
-                        <tr
-                          key={level.id ?? level.levelNumber}
-                          className={
-                            isCurrent
-                              ? 'bg-accent-blue-soft border-l-2 border-l-accent-blue'
-                              : level.isBreak
-                                ? 'bg-bg-zebra'
-                                : ''
-                          }
-                        >
-                          <td className="px-3 py-2 font-medium text-text-primary">
-                            {level.isBreak ? (
-                              <span className="flex items-center gap-1 text-accent-gold-deep">
-                                <Coffee className="h-3 w-3" />
-                                Intervalo
-                              </span>
-                            ) : (
-                              `Nível ${level.levelNumber}`
-                            )}
-                            {isCurrent && (
-                              <span className="ml-2 text-xs text-accent-blue">
-                                (atual)
-                              </span>
-                            )}
-                          </td>
-                          <td className="px-3 py-2 text-right text-text-primary tabular-nums">
-                            {level.isBreak ? '-' : formatNumber(level.smallBlind)}
-                          </td>
-                          <td className="px-3 py-2 text-right text-text-primary tabular-nums">
-                            {level.isBreak ? '-' : formatNumber(level.bigBlind)}
-                          </td>
-                          <td className="px-3 py-2 text-right text-text-primary tabular-nums">
-                            {level.isBreak
-                              ? '-'
-                              : level.ante > 0
-                                ? formatNumber(level.ante)
-                                : '-'}
-                          </td>
-                          <td className="px-3 py-2 text-right text-text-secondary tabular-nums">
-                            {level.durationMinutes} min
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
+              <>
+                {/* Relógio parado: os horários da coluna Início valem se ele voltar (ou começar) agora */}
+                {showStarts && clockStopped && (
+                  <p className="mb-2 text-xs text-accent-gold-deep" data-level-starts-paused>
+                    {notStarted
+                      ? 'Relógio parado: horários se ele começar agora.'
+                      : 'Relógio pausado: horários se ele voltar agora.'}
+                  </p>
+                )}
+                <div className="overflow-x-auto rounded-lg border border-border-default">
+                  {/* No celular (abaixo do sm) a tabela fica em 3 colunas para caber sem rolar de lado com o Início:
+                      Nível (com a duração embaixo), Início e Blinds ("SB / BB", o ante embaixo). Do sm para cima, as
+                      colunas de sempre: SB, BB, Ante e Duração */}
+                  <table className="w-full text-sm" data-blinds-table>
+                    <thead>
+                      <tr className="bg-bg-tertiary">
+                        <th className="px-2 py-2 text-left text-xs font-medium text-text-secondary sm:px-3">
+                          Nível
+                        </th>
+                        {showStarts && (
+                          <th className="px-2 py-2 text-right text-xs font-medium text-text-secondary sm:px-3">
+                            Início
+                          </th>
+                        )}
+                        <th className="px-2 py-2 text-right text-xs font-medium text-text-secondary sm:hidden">
+                          Blinds
+                        </th>
+                        <th className="hidden px-3 py-2 text-right text-xs font-medium text-text-secondary sm:table-cell">
+                          SB
+                        </th>
+                        <th className="hidden px-3 py-2 text-right text-xs font-medium text-text-secondary sm:table-cell">
+                          BB
+                        </th>
+                        <th className="hidden px-3 py-2 text-right text-xs font-medium text-text-secondary sm:table-cell">
+                          Ante
+                        </th>
+                        <th className="hidden px-3 py-2 text-right text-xs font-medium text-text-secondary sm:table-cell">
+                          Duração
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(() => {
+                        const starts = levelStartTimes(timerState.currentLevel, currentLevelEnd, blindLevels)
+                        return blindLevels.map((level) => {
+                          const isCurrent =
+                            level.levelNumber === timerState.currentLevel
+                          const start = starts.get(level.levelNumber)
+                          return (
+                            <tr
+                              key={level.id ?? level.levelNumber}
+                              className={
+                                isCurrent
+                                  ? 'bg-accent-blue-soft border-l-2 border-l-accent-blue'
+                                  : level.isBreak
+                                    ? 'bg-bg-zebra'
+                                    : ''
+                              }
+                            >
+                              <td className="px-2 py-2 font-medium text-text-primary sm:px-3">
+                                {level.isBreak ? (
+                                  <span className="flex items-center gap-1 text-accent-gold-deep">
+                                    <Coffee className="h-3 w-3" />
+                                    Intervalo
+                                  </span>
+                                ) : (
+                                  <span className="whitespace-nowrap">Nível {level.levelNumber}</span>
+                                )}
+                                {isCurrent && (
+                                  <span className="ml-2 whitespace-nowrap text-xs text-accent-blue">
+                                    (atual)
+                                  </span>
+                                )}
+                                <span className="block text-xs font-normal text-text-secondary tabular-nums sm:hidden">
+                                  {level.durationMinutes} min
+                                </span>
+                              </td>
+                              {showStarts && (
+                                <td
+                                  className={`whitespace-nowrap px-2 py-2 text-right tabular-nums sm:px-3 ${
+                                    start?.kind === 'at' ? 'text-text-primary' : 'text-text-secondary'
+                                  }`}
+                                  data-level-start={level.levelNumber}
+                                  data-level-start-kind={timerSynced ? (start?.kind ?? 'none') : 'none'}
+                                >
+                                  {levelStartText(start, timerSynced)}
+                                </td>
+                              )}
+                              {/* Celular: "SB / BB" (quebra na barra se não couber) e o ante embaixo */}
+                              <td className="px-2 py-2 text-right text-text-primary tabular-nums sm:hidden" data-level-blinds-mobile>
+                                {level.isBreak ? (
+                                  '-'
+                                ) : (
+                                  <>
+                                    <span className="whitespace-nowrap">{formatNumber(level.smallBlind)} /</span>{' '}
+                                    <span className="whitespace-nowrap">{formatNumber(level.bigBlind)}</span>
+                                    {level.ante > 0 && (
+                                      <span className="block text-xs text-text-secondary">
+                                        ante {formatNumber(level.ante)}
+                                      </span>
+                                    )}
+                                  </>
+                                )}
+                              </td>
+                              <td className="hidden px-3 py-2 text-right text-text-primary tabular-nums sm:table-cell">
+                                {level.isBreak ? '-' : formatNumber(level.smallBlind)}
+                              </td>
+                              <td className="hidden px-3 py-2 text-right text-text-primary tabular-nums sm:table-cell">
+                                {level.isBreak ? '-' : formatNumber(level.bigBlind)}
+                              </td>
+                              <td className="hidden px-3 py-2 text-right text-text-primary tabular-nums sm:table-cell">
+                                {level.isBreak
+                                  ? '-'
+                                  : level.ante > 0
+                                    ? formatNumber(level.ante)
+                                    : '-'}
+                              </td>
+                              <td className="hidden whitespace-nowrap px-3 py-2 text-right text-text-secondary tabular-nums sm:table-cell">
+                                {level.durationMinutes} min
+                              </td>
+                            </tr>
+                          )
+                        })
+                      })()}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )
           )}
         </div>

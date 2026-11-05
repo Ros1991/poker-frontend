@@ -90,6 +90,42 @@ export function secondsToBreak(
   return secs
 }
 
+/**
+ * Início previsto de um nível na aba Blinds do painel (SPEC-20261105-1708): `past` (já passou: traço), `current` (o nível
+ * atual: "agora") ou `at` com o instante (ms) em que ele começa.
+ */
+export type LevelStart = { kind: 'past' } | { kind: 'current' } | { kind: 'at'; at: number }
+
+/**
+ * Quando cada nível começa, a partir do fim do nível atual (`currentLevelEnd`, ms: agora + o que falta dele — com o
+ * relógio parado, como se ele voltasse agora) somando a duração dos níveis seguintes, intervalos incluídos. Os níveis vêm
+ * pelo `levelNumber` (a posição na estrutura, contando os intervalos — o mesmo `currentLevel` do relógio).
+ */
+export function levelStartTimes(
+  currentLevel: number,
+  currentLevelEnd: number,
+  levels: readonly BreakLevel[],
+): Map<number, LevelStart> {
+  const starts = new Map<number, LevelStart>()
+  let cursor = currentLevelEnd
+  for (const level of [...levels].sort((a, b) => a.levelNumber - b.levelNumber)) {
+    if (level.levelNumber < currentLevel) starts.set(level.levelNumber, { kind: 'past' })
+    else if (level.levelNumber === currentLevel) starts.set(level.levelNumber, { kind: 'current' })
+    else {
+      starts.set(level.levelNumber, { kind: 'at', at: cursor })
+      cursor += Math.max(0, level.durationMinutes) * 60_000
+    }
+  }
+  return starts
+}
+
+const CLOCK = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' })
+
+/** Hora local "HH:MM" (ex.: "21:35") de um instante em ms */
+export function formatClockTime(ms: number): string {
+  return CLOCK.format(new Date(ms))
+}
+
 /** Texto do "Próximo intervalo": "Agora" no intervalo, o tempo que falta, ou "—" sem intervalo pela frente */
 export function nextBreakText(isBreak: boolean, seconds: number | null): string {
   if (isBreak) return 'Agora'

@@ -33,6 +33,11 @@ const TOAST_HEIGHT = 64
 /** Folga mínima entre o toast e um controle do diálogo */
 const GAP = 8
 /**
+ * Quanto o X do toast passa acima do topo dele (SPEC-20261105-1708): o botão de 24 px sai 35% para fora (~8 px) e a área
+ * de toque dele (o ::after do globals.css) mais 10 px. Com diálogo aberto no celular, essa faixa também não cobre controle.
+ */
+const CLOSE_OVERHANG = 19
+/**
  * Peso de um controle do cabeçalho (X/"Voltar"), do rodapé ou de uma barra que faz as vezes de cabeçalho
  * (`data-dialog-toolbar`: a barra de cima do "Adicionar jogadores" no layout mínimo, com o celular deitado e o teclado
  * aberto) quando não há faixa livre: são os últimos a cobrir
@@ -144,11 +149,11 @@ function toastHeight(): number {
   return Math.max(TOAST_HEIGHT, ...shown)
 }
 
-/** Peso dos controles que um toast em [top, top + height] cobriria (com a folga) */
+/** Peso dos controles que um toast em [top, top + height] cobriria (com a folga e o X que sai por cima) */
 function coveredWeight(bands: Band[], top: number, height: number): number {
   let weight = 0
   for (const band of bands) {
-    if (band.bottom + GAP > top && band.top < top + height + GAP) weight += band.weight
+    if (band.bottom + GAP > top - CLOSE_OVERHANG && band.top < top + height + GAP) weight += band.weight
   }
   return weight
 }
@@ -164,7 +169,7 @@ function dialogToastTop(dialog: HTMLElement, current: number | undefined): numbe
   const fits = (top: number) => top >= EDGE && top + height + EDGE <= viewHeight
   if (current !== undefined && fits(current) && coveredWeight(bands, current, height) === 0) return current
 
-  const candidates = [EDGE, ...bands.map((band) => Math.ceil(band.bottom + GAP))]
+  const candidates = [EDGE, ...bands.map((band) => Math.ceil(band.bottom + GAP + CLOSE_OVERHANG))]
     .filter(fits)
     .sort((a, b) => a - b)
   let best = EDGE
@@ -285,7 +290,18 @@ export function useToasterPlacement(): Placement {
       if (entering) event.stopPropagation()
     }
 
+    // X tocado no celular (SPEC-20261105-1708): o toque gera o mouseover no toast antes do clique, o sonner expande a pilha
+    // e o tempo dos outros toasts parava até um toque fora. Fechado pelo X, recolhe como se fosse um toque fora.
+    const onCloseTap = (event: MouseEvent) => {
+      if (lastPointer === 'mouse') return
+      const target = event.target instanceof Element ? event.target : null
+      const list = target?.closest<HTMLElement>('[data-sonner-toaster]')
+      if (!list || !target?.closest('[data-close-button]')) return
+      window.setTimeout(() => collapse(list), 0)
+    }
+
     document.addEventListener('pointerdown', onPointerDown, true)
+    document.addEventListener('click', onCloseTap, true)
     document.addEventListener('mouseover', blockTouchExpand, true)
     document.addEventListener('mousemove', blockTouchExpand, true)
     document.addEventListener('mouseout', blockTouchExpand, true)
@@ -300,6 +316,7 @@ export function useToasterPlacement(): Placement {
       window.visualViewport?.removeEventListener('resize', update)
       document.removeEventListener('scroll', onScroll, true)
       document.removeEventListener('pointerdown', onPointerDown, true)
+      document.removeEventListener('click', onCloseTap, true)
       document.removeEventListener('mouseover', blockTouchExpand, true)
       document.removeEventListener('mousemove', blockTouchExpand, true)
       document.removeEventListener('mouseout', blockTouchExpand, true)

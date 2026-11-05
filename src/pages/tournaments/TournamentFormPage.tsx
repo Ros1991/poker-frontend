@@ -24,6 +24,7 @@ import { TimebankFields } from '../../components/tournament/TimebankFields'
 import { TIMEBANK_DEFAULT_SECONDS, timebankFieldErrors } from '../../utils/timebank'
 import { checkPixKey, toPixKeyPayload, type PixKeyType } from '../../utils/pix'
 import { bountyError, knockoutTypeOf } from '../../utils/knockout'
+import { suggestedRankingId, suggestedStructureId } from '../../utils/tournamentSuggestions'
 import { LoadingSpinner } from '../../components/common/LoadingSpinner'
 import { tournamentDashboardPath } from '../../constants/routes'
 import type { Tournament } from '../../types/tournament.types'
@@ -219,6 +220,37 @@ export function TournamentFormPage() {
     queryFn: () => blindStructuresApi.getAll({ homeGameId }),
     enabled: !!homeGameId,
   })
+
+  // Torneios do clube, só na criação, para sugerir a estrutura do último criado (SPEC-20261105-1708). A lista vem pela data
+  // do torneio (sem os cancelados); entre os 100 mais recentes, o último criado é o de `createdAt` mais novo
+  const { data: recentTournaments, isError: recentTournamentsFailed } = useQuery({
+    queryKey: ['tournaments', homeGameId, 'suggestion'],
+    queryFn: () => tournamentsApi.getAll(homeGameId!, { page: 1, pageSize: 100 }),
+    enabled: !isEditMode && !!homeGameId,
+    retry: false,
+  })
+
+  // Sugestões da criação (SPEC-20261105-1708), uma vez cada e só se o campo ainda está vazio: o ranking mais recente do
+  // clube (quando o plano tem rankings) e a estrutura do último torneio criado (ou a mais recente). A estrutura entra
+  // pelo mesmo campo da escolha na mão, então o pré-preenchimento abaixo aplica os padrões dela (valores, custos, timebank,
+  // knockout). Nunca na edição; a pessoa troca ou tira as duas à vontade.
+  const suggestionApplied = useRef({ structure: false, ranking: false })
+  useEffect(() => {
+    if (isEditMode || suggestionApplied.current.structure || !blindStructures) return
+    if (!recentTournaments && !recentTournamentsFailed) return
+    suggestionApplied.current.structure = true
+    if (getValues('blindStructureId')) return
+    const suggested = suggestedStructureId(recentTournaments?.data ?? [], blindStructures, homeGameId)
+    if (suggested) setValue('blindStructureId', suggested)
+  }, [isEditMode, blindStructures, recentTournaments, recentTournamentsFailed, homeGameId, getValues, setValue])
+
+  useEffect(() => {
+    if (isEditMode || suggestionApplied.current.ranking || !showRanking || !rankings) return
+    suggestionApplied.current.ranking = true
+    if (getValues('rankingId')) return
+    const suggested = suggestedRankingId(rankings)
+    if (suggested) setValue('rankingId', suggested)
+  }, [isEditMode, showRanking, rankings, getValues, setValue])
 
   // Custos padrão da estrutura escolhida (SPEC-20261023-1215). Na criação todos entram (prévia só leitura);
   // na edição só no caso "rascunho sem estrutura recebe a primeira" e se o torneio ainda não tem custo Padrão
