@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { ArrowRightLeft, CreditCard, Minus, Plus, PlusCircle, RefreshCw, Skull, Undo2 } from 'lucide-react'
+import { ArrowRightLeft, CheckCircle2, CreditCard, Minus, Plus, PlusCircle, RefreshCw, Skull, Undo2 } from 'lucide-react'
 import * as tournamentPlayersApi from '../../api/tournamentPlayers.api'
 import { Button } from '../ui/Button'
 import { cn } from '../../utils/cn'
@@ -19,11 +19,35 @@ import {
   entryTotalBreakdown,
   formatCurrency,
   isActiveStatus,
+  isPaidUp,
   joinNames,
   playerName,
   seatLabel,
   statusLabel,
 } from './terminalFormat'
+
+/**
+ * "Pagar" da Ficha; sem dívida e com pagamento feito vira "Pago" (SPEC-20261105-1707), como no card: o mesmo `onPay` abre o
+ * resumo de como foi pago
+ */
+function PayButton({ entry, onPay, className }: { entry: TournamentEntry; onPay: () => void; className?: string }) {
+  if (isPaidUp(entry))
+    return (
+      <Button
+        variant="secondary"
+        onClick={onPay}
+        className={cn('border-2 border-accent-green-deep bg-accent-green-soft text-accent-green-deep hover:bg-accent-green-soft', className)}
+        data-pay-state="paid"
+      >
+        <CheckCircle2 className="h-4 w-4" /> Pago
+      </Button>
+    )
+  return (
+    <Button variant="success" onClick={onPay} className={className} data-pay-state="due">
+      <CreditCard className="h-4 w-4" /> Pagar
+    </Button>
+  )
+}
 
 export interface PlayerDetailsProps {
   entry: TournamentEntry
@@ -228,11 +252,7 @@ export function PlayerDetails({
           <Button variant="secondary" onClick={onAddon} disabled={!rules.canAddon}>
             <PlusCircle className="h-4 w-4" /> Add-on
           </Button>
-          {showPayment && (
-            <Button variant="success" onClick={onPay}>
-              <CreditCard className="h-4 w-4" /> Pagar
-            </Button>
-          )}
+          {showPayment && <PayButton entry={entry} onPay={onPay} />}
           {showTables && (
             <Button variant="secondary" onClick={onMove}>
               <ArrowRightLeft className="h-4 w-4" /> Mover
@@ -251,9 +271,7 @@ export function PlayerDetails({
         (showPayment || showTables) && (
           <div className="mb-4 grid grid-cols-2 gap-2">
             {showPayment && (
-              <Button variant="success" onClick={onPay} className={showTables ? undefined : 'col-span-2'}>
-                <CreditCard className="h-4 w-4" /> Pagar
-              </Button>
+              <PayButton entry={entry} onPay={onPay} className={showTables ? undefined : 'col-span-2'} />
             )}
             {showTables && (
               <Button variant="secondary" onClick={onMove} className={showPayment ? undefined : 'col-span-2'}>
@@ -265,11 +283,7 @@ export function PlayerDetails({
       ) : (
         (showPayment || canUndoElimination) && (
           <div className="mb-4 grid grid-cols-2 gap-2">
-            {showPayment && (
-              <Button variant="success" onClick={onPay}>
-                <CreditCard className="h-4 w-4" /> Pagar
-              </Button>
-            )}
+            {showPayment && <PayButton entry={entry} onPay={onPay} />}
             {canUndoElimination && (
               <Button variant="secondary" onClick={onUndoElimination}>
                 <Undo2 className="h-4 w-4" /> Desfazer eliminação
