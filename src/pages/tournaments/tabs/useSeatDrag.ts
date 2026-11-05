@@ -46,6 +46,8 @@ interface Pending {
   origin: HTMLElement
   timer: ReturnType<typeof setTimeout> | null
   dragging: boolean
+  /** Alça (SPEC-20261105-1707): também no toque arrasta ao andar ~5 px, sem segurar */
+  immediate: boolean
 }
 
 function seatAt(x: number, y: number): SeatRef | null {
@@ -103,7 +105,9 @@ const speed = (depth: number) => Math.ceil(MAX_SCROLL_PX * Math.min(1, Math.max(
  * - o lugar sob o dedo (elementFromPoint em `[data-seat][data-table-id]`) fica destacado; soltar num lugar chama
  *   `onDrop` (quem usa decide: vazio move, ocupado troca); soltar fora ou no próprio lugar cancela;
  * - toque simples / clique sem arrastar segue sendo clique (abre "Mover jogador"); o clique que vem logo depois de
- *   um arrasto é engolido (`consumeClick`).
+ *   um arrasto é engolido (`consumeClick`);
+ * - `{ immediate: true }` (alça do card no terminal — SPEC-20261105-1707): o toque arrasta na hora, ao andar ~5 px,
+ *   sem segurar. Só serve num elemento com `touch-action: none` (senão o navegador começa a rolar e cancela o ponteiro).
  */
 export function useSeatDrag(onDrop: (source: SeatDragSource, target: SeatRef) => void) {
   const [drag, setDrag] = useState<SeatDragState | null>(null)
@@ -215,7 +219,7 @@ export function useSeatDrag(onDrop: (source: SeatDragSource, target: SeatRef) =>
   }, [scrollStep, update])
 
   const onPointerDown = useCallback(
-    (e: ReactPointerEvent<HTMLElement>, source: SeatDragSource) => {
+    (e: ReactPointerEvent<HTMLElement>, source: SeatDragSource, { immediate = false }: { immediate?: boolean } = {}) => {
       if (pendingRef.current) return
       if (e.pointerType === 'mouse' && e.button !== 0) return
       const origin = e.currentTarget
@@ -230,9 +234,10 @@ export function useSeatDrag(onDrop: (source: SeatDragSource, target: SeatRef) =>
         origin,
         timer: null,
         dragging: false,
+        immediate,
       }
       pendingRef.current = p
-      if (e.pointerType !== 'mouse') p.timer = setTimeout(begin, LONG_PRESS_MS)
+      if (e.pointerType !== 'mouse' && !immediate) p.timer = setTimeout(begin, LONG_PRESS_MS)
 
       const move = (ev: PointerEvent) => {
         const cur = pendingRef.current
@@ -241,7 +246,7 @@ export function useSeatDrag(onDrop: (source: SeatDragSource, target: SeatRef) =>
         cur.y = ev.clientY
         if (!cur.dragging) {
           const dist = Math.hypot(ev.clientX - cur.startX, ev.clientY - cur.startY)
-          if (cur.pointerType === 'mouse') {
+          if (cur.pointerType === 'mouse' || cur.immediate) {
             if (dist > MOUSE_SLOP_PX) begin()
           } else if (dist > TOUCH_SLOP_PX) {
             // Andou antes do tempo: é rolagem (a página rola sozinha); nada de arrastar

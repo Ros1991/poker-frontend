@@ -115,6 +115,8 @@ import imgTerminalPagar400 from '../../assets/manual/terminal-pagar-400.webp'
 import imgTerminalPagar750 from '../../assets/manual/terminal-pagar-750.webp'
 import imgTerminalPagarQr400 from '../../assets/manual/terminal-pagar-qr-400.webp'
 import imgTerminalPagarQr750 from '../../assets/manual/terminal-pagar-qr-750.webp'
+import imgTerminalPago400 from '../../assets/manual/terminal-pago-400.webp'
+import imgTerminalPago750 from '../../assets/manual/terminal-pago-750.webp'
 import imgTerminalRebuy400 from '../../assets/manual/terminal-rebuy-400.webp'
 import imgTerminalRebuy750 from '../../assets/manual/terminal-rebuy-750.webp'
 import imgTerminalSom400 from '../../assets/manual/terminal-som-400.webp'
@@ -586,6 +588,14 @@ export const MANUAL_IMAGES = {
     src: imgTerminalPagarQr400,
     full: imgTerminalPagarQr750,
     srcSet: `${imgTerminalPagarQr400} 400w, ${imgTerminalPagarQr750} 750w`,
+    width: 750,
+    height: 1520,
+    kind: 'phone',
+  },
+  'terminal-pago': {
+    src: imgTerminalPago400,
+    full: imgTerminalPago750,
+    srcSet: `${imgTerminalPago400} 400w, ${imgTerminalPago750} 750w`,
     width: 750,
     height: 1520,
     kind: 'phone',

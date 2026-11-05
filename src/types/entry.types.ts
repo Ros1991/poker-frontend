@@ -65,14 +65,18 @@ export interface CreateEntryRequest {
   personId: string
 }
 
-export interface RebuyRequest {
-  entryId: string
-  paid?: boolean
-}
-
 /** POST entries/{id}/addon (SPEC-20261027-1311): 1 a 10 por vez, até o máximo do torneio; ausente = 1 */
 export interface AddonRequest {
   quantity?: number
+  /** Fora do período (SPEC-20261105-1707): true depois de o usuário confirmar a pergunta do 409 `outside_window` */
+  confirmOutsideWindow?: boolean
+}
+
+/** POST entries/{id}/rebuy (SPEC-20261105-1707: com a confirmação de fora do período; o antigo { entryId, paid } não era usado) */
+export interface RebuyRequest {
+  quantity?: number
+  /** Fora do período: true depois de o usuário confirmar a pergunta do 409 `outside_window` */
+  confirmOutsideWindow?: boolean
 }
 
 export interface EliminateRequest {

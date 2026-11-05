@@ -8,7 +8,7 @@ import { hasFeature } from '../../hooks/usePlan'
 import type { EliminationResult, TournamentEntry } from '../../types/entry.types'
 import type { HistoryItem, HistoryKind } from '../../types/history.types'
 import type { Tournament } from '../../types/tournament.types'
-import { apiErrorMessage, formatCurrency, playerName } from './terminalFormat'
+import { apiErrorMessage, formatCurrency, outsideWindowError, playerName } from './terminalFormat'
 
 const UNDO_TOAST_MS = 10000
 const PAYMENT_KINDS: HistoryKind[] = ['Payment', 'Settlement']
@@ -187,43 +187,58 @@ export function useTerminalActions(
     [tournamentId, undoItem, undoItems],
   )
 
+  // Fora do período (SPEC-20261105-1707): o 409 `outside_window` não vira toast de erro — quem chamou (PlayerActionDialogs)
+  // pergunta "Lançar mesmo assim?" e repete com `confirmOutsideWindow`
   const rebuyMutation = useMutation({
-    mutationFn: async (entry: TournamentEntry) => {
+    mutationFn: async ({ entry, confirmOutsideWindow }: { entry: TournamentEntry; confirmOutsideWindow?: boolean }) => {
       const before = await snapshotRefIds(tournamentId, entry.id, ['Rebuy'])
-      await entriesApi.rebuy(tournamentId, entry.id)
+      await entriesApi.rebuy(tournamentId, entry.id, { quantity: 1, ...(confirmOutsideWindow ? { confirmOutsideWindow } : {}) })
       return before
     },
-    onSuccess: (before, entry) => {
+    onSuccess: (before, { entry, confirmOutsideWindow }) => {
       invalidateAll()
       void showUndoToast(
-        `Rebuy de ${playerName(entry)}${tournament ? ` (${formatCurrency(tournament.rebuyAmount)})` : ''}`,
+        `Rebuy de ${playerName(entry)}${tournament ? ` (${formatCurrency(tournament.rebuyAmount)})` : ''}${
+          confirmOutsideWindow ? ' · fora do período' : ''
+        }`,
         entry.id,
         ['Rebuy'],
         before,
       )
     },
-    onError: (err) => toast.error(apiErrorMessage(err, 'Erro ao registrar rebuy.')),
+    onError: (err) => {
+      if (outsideWindowError(err)) return
+      toast.error(apiErrorMessage(err, 'Erro ao registrar rebuy.'))
+    },
   })
 
   // Add-on com quantidade (SPEC-20261027-1311): cada add-on vira um lançamento; o "Desfazer" do toast desfaz os N
   const addonMutation = useMutation({
-    mutationFn: async (vars: { entry: TournamentEntry; quantity: number }) => {
+    mutationFn: async (vars: { entry: TournamentEntry; quantity: number; confirmOutsideWindow?: boolean }) => {
       const before = await snapshotRefIds(tournamentId, vars.entry.id, ['Addon'])
-      await entriesApi.addon(tournamentId, vars.entry.id, { quantity: vars.quantity })
+      await entriesApi.addon(tournamentId, vars.entry.id, {
+        quantity: vars.quantity,
+        ...(vars.confirmOutsideWindow ? { confirmOutsideWindow: true } : {}),
+      })
       return before
     },
-    onSuccess: (before, { entry, quantity }) => {
+    onSuccess: (before, { entry, quantity, confirmOutsideWindow }) => {
       invalidateAll()
       const value = tournament ? ` (${formatCurrency(tournament.addonAmount * quantity)})` : ''
       void showUndoToast(
-        `${quantity === 1 ? 'Add-on' : `${quantity} add-ons`} de ${playerName(entry)}${value}`,
+        `${quantity === 1 ? 'Add-on' : `${quantity} add-ons`} de ${playerName(entry)}${value}${
+          confirmOutsideWindow ? ' · fora do período' : ''
+        }`,
         entry.id,
         ['Addon'],
         before,
         quantity,
       )
     },
-    onError: (err) => toast.error(apiErrorMessage(err, 'Erro ao registrar add-on.')),
+    onError: (err) => {
+      if (outsideWindowError(err)) return
+      toast.error(apiErrorMessage(err, 'Erro ao registrar add-on.'))
+    },
   })
 
   const eliminateMutation = useMutation({

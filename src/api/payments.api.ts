@@ -31,6 +31,12 @@ export interface EntryPaymentItem {
   pixDestinationId: string | null
   description: string | null
   createdAt: string
+  /** "Payment" ou "Settlement" (abatimento) — SPEC-20261105-1707 (o "Pago" mostra como foi pago) */
+  type?: string
+  /** Destino do PIX (custo) e o favorecido dele; sem destino = o caixa */
+  pixDestinationDescription?: string | null
+  pixDestinationBeneficiary?: string | null
+  pixDestinationIsCashBox?: boolean
 }
 
 export async function getByEntry(

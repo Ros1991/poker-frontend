@@ -2,7 +2,7 @@ import { Fragment, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
-import { Users, Trophy, Clock, Skull, Coins, Hourglass, LayoutGrid, ArrowLeft, Crosshair } from 'lucide-react'
+import { Users, Trophy, Clock, Skull, Coins, Hourglass, LayoutGrid, ArrowLeft, Crosshair, Timer } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { buildPixPayload, normalizePixKey, PIX_KEY_TYPE_LABELS } from '../../utils/pix'
 import { bountyToReceive, isKnockout, isProgressive, KNOCKOUT_BADGES, knockoutTypeOf } from '../../utils/knockout'
@@ -368,6 +368,9 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
   // Knockout (SPEC-20261026-1909, todos os planos): selo do formato no topo e, no PKO, a cabeça de quem ainda joga
   const knockout = isKnockout(tournament)
   const pko = isProgressive(tournament)
+  // Timebank (SPEC-20261105-1707, substitui a D5 de 2026-10-29): relógio + quantos restam na linha de quem joga, só com
+  // timebank no torneio (o snapshot manda null sem ele)
+  const showTimebanks = tournament?.timebankCount != null
   // Lista de jogadores (SPEC-20261029-1720, D1 — desfaz as colunas Reb/Add/Deve da SPEC-20261028-1923): o nome a ~30 px
   // (24 px abaixo de 1600 px de largura) e, embaixo, a 2ª linha em texto corrido à esquerda, como no card do dealer. No
   // PKO a coluna de jogadores é um pouco mais larga (5fr de 16, revisão geral 2).
@@ -642,9 +645,30 @@ export function TvDisplayPage({ deviceToken, pairingCode, onLeave, onUnpaired }:
                       data-tv-entry={e.displayName}
                       className="flex min-w-0 flex-col gap-0.5 rounded-lg border border-border-default bg-bg-primary px-3 py-2"
                     >
-                      <span className={`truncate font-semibold leading-tight text-text-primary ${nameSize}`} data-tv-name>
-                        {e.displayName}
-                      </span>
+                      {showTimebanks && e.timebanksRemaining != null ? (
+                        // Nome e, à direita, o relógio com os timebanks (shrink-0: o nome é que se corta, nunca o número). O nome
+                        // com largura 0 + flex-1 não conta no tamanho mínimo da coluna: o relógio nunca alarga a coluna de jogadores
+                        // (ela fica na fração do grid e o nome comprido ganha as reticências)
+                        <span className="flex min-w-0 items-center gap-3">
+                          <span className={`w-0 min-w-0 flex-1 truncate font-semibold leading-tight text-text-primary ${nameSize}`} data-tv-name>
+                            {e.displayName}
+                          </span>
+                          <span
+                            className={`flex shrink-0 items-center gap-1 text-2xl font-bold leading-none tabular-nums max-[1599px]:text-xl ${
+                              e.timebanksRemaining > 0 ? 'text-accent-blue' : 'text-text-secondary'
+                            }`}
+                            aria-label={`${e.timebanksRemaining} ${e.timebanksRemaining === 1 ? 'timebank' : 'timebanks'}`}
+                            data-tv-timebanks={e.timebanksRemaining}
+                          >
+                            <Timer className="h-6 w-6 max-[1599px]:h-5 max-[1599px]:w-5" aria-hidden />
+                            {e.timebanksRemaining}
+                          </span>
+                        </span>
+                      ) : (
+                        <span className={`truncate font-semibold leading-tight text-text-primary ${nameSize}`} data-tv-name>
+                          {e.displayName}
+                        </span>
+                      )}
                       <span className="text-lg leading-snug tabular-nums text-text-secondary" data-tv-status>
                         {parts.map((part, i) => (
                           <Fragment key={part.kind}>

@@ -6,6 +6,7 @@ import type {
   AvailablePlayer,
   BulkCreateEntriesResult,
   AddonRequest,
+  RebuyRequest,
   TimebankResult,
 } from '../types/entry.types'
 
@@ -47,10 +48,14 @@ export async function bulkCreate(
   return response.data
 }
 
+/**
+ * Rebuy. Fora do período (SPEC-20261105-1707: depois do "rebuy até o nível N" ou no intervalo de acerto) o servidor
+ * responde 409 `outside_window` (ver `outsideWindowError`); repetir com `confirmOutsideWindow: true` lança mesmo assim.
+ */
 export async function rebuy(
   tournamentId: string,
   entryId: string,
-  data?: { quantity?: number },
+  data?: RebuyRequest,
 ): Promise<TournamentEntry> {
   const response = await apiClient.post<TournamentEntry>(
     `${base(tournamentId)}/${entryId}/rebuy`,
@@ -59,7 +64,10 @@ export async function rebuy(
   return response.data
 }
 
-/** Add-on (SPEC-20261027-1311): `quantity` add-ons de uma vez (1 a 10), até o máximo do torneio (400 acima dele) */
+/**
+ * Add-on (SPEC-20261027-1311): `quantity` add-ons de uma vez (1 a 10), até o máximo do torneio (400 acima dele). No
+ * intervalo de acerto, 409 `outside_window` sem `confirmOutsideWindow: true` (SPEC-20261105-1707).
+ */
 export async function addon(
   tournamentId: string,
   entryId: string,

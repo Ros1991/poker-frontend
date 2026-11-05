@@ -65,6 +65,8 @@ export interface TvTournamentInfo {
    * ficam só para o selo.
    */
   planFeatures?: PlanFeature[]
+  /** Timebank virtual (SPEC-20261105-1707): timebanks de cada jogador no início; null = torneio sem timebank */
+  timebankCount?: number | null
 }
 
 export interface TvBlindLevel {
@@ -91,6 +93,8 @@ export interface TvEntry {
   /** Knockout: cabeça atual (0 depois de eliminado) e bounties ganhos */
   bountyHead?: number
   bountyWon?: number
+  /** Timebanks que ainda tem (SPEC-20261105-1707); null no torneio sem timebank */
+  timebanksRemaining?: number | null
 }
 
 export interface TvTable {

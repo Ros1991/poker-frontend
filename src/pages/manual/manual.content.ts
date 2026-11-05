@@ -264,7 +264,7 @@ export const MANUAL_MODULES = [
           {
             title: 'Limites de rebuy e add-on',
             text: [
-              'Em Máx. de rebuys, diga quantos rebuys cada jogador pode fazer (0 = ilimitado) e, em Rebuy até o nível, até quando vale.',
+              'Em Máx. de rebuys, diga quantos rebuys cada jogador pode fazer (0 = ilimitado) e, em Rebuy até o nível, até quando vale. Passou do nível e alguém esqueceu um rebuy? Ele ainda pode ser lançado, com uma pergunta antes (veja Rebuy, no terminal).',
               'Com Permitir add-on marcado, Max add-ons diz quantos add-ons cada jogador pode comprar: 0 = ilimitado e o padrão é 1. O torneio herda esses limites da estrutura.',
             ],
             image: 'estrutura-addon',
@@ -426,7 +426,16 @@ export const MANUAL_MODULES = [
             ],
             tip: 'Mesas desequilibradas? O terminal avisa e sugere quem muda (Sortear quem muda ou Escolher eu mesmo).',
             image: 'terminal-mesa',
-            imageAlt: 'Terminal do dealer no celular: Terminal e Telão no topo, relógio, controles do nível e os cards dos jogadores da Mesa 1',
+            imageAlt: 'Terminal do dealer no celular: Terminal e Telão no topo, relógio, controles do nível e os cards dos jogadores da Mesa 1, cada um com a alça de arrastar acima da foto',
+          },
+          {
+            title: 'Troque jogadores de lugar arrastando',
+            text: [
+              'Acima da foto de cada jogador fica uma alça (os pontinhos). Ponha o dedo nela e arraste, sem precisar segurar: o card vai junto com o dedo e o jogador embaixo dele fica destacado em dourado.',
+              'Solte em cima de outro jogador da mesa e os dois trocam de lugar na hora, em todos os aparelhos. Soltou fora de um jogador? Nada muda. Tocar na alça sem arrastar não abre nada; o resto do card continua abrindo a Ficha.',
+            ],
+            tip: 'Para mudar alguém de mesa, use Mais › Mesas.',
+            feature: 'Tables',
           },
           {
             title: 'Inicie o torneio',
@@ -463,6 +472,7 @@ export const MANUAL_MODULES = [
               'Toque em Rebuy no card do jogador. A confirmação mostra a foto e o nome, para conferir que é a pessoa certa, e o valor.',
               'Confirme: o valor entra no que o jogador deve.',
             ],
+            tip: 'Esqueceu de lançar? Depois do Rebuy até o nível do torneio, ou com os rebuys encerrados no painel (Encerrar Rebuys), o terminal pergunta, por exemplo, O período de rebuy acabou no nível 6. Lançar mesmo assim? — toque em Sim, lançar e o Histórico marca o rebuy como fora do período. O máximo de rebuys de cada jogador continua valendo.',
             image: 'terminal-rebuy',
             imageAlt: 'Confirmação do rebuy com a foto redonda e o nome do jogador e o valor de R$ 50,00',
           },
@@ -472,6 +482,7 @@ export const MANUAL_MODULES = [
               'Toque em Add-on no card. A confirmação mostra a foto, quantos add-ons o jogador já comprou e o máximo do torneio (0 = sem limite, em Max add-ons).',
               'Quando cabe mais de um, escolha a quantidade com − e + antes de confirmar. Quem chegou ao máximo fica com o botão Add-on apagado.',
             ],
+            tip: 'Add-on esquecido depois do Encerrar Rebuys? A mesma pergunta aparece (Os add-ons já foram encerrados (intervalo de acerto). Lançar mesmo assim?) e o Sim, lançar lança, marcado no Histórico como fora do período.',
             image: 'terminal-addon',
             imageAlt: 'Confirmação do add-on com a foto redonda, Já comprou 0 de 2 add-ons, a quantidade 2 e Confirmar 2 add-ons por R$ 100,00',
           },
@@ -485,6 +496,17 @@ export const MANUAL_MODULES = [
             feature: 'Payments',
             image: 'terminal-pagar',
             imageAlt: 'Janela Registrar Pagamento com o jogador, os métodos Pix, Dinheiro e Misto, o valor e os destinos do PIX, o caixa primeiro',
+          },
+          {
+            title: 'Quem já pagou: Pago',
+            text: [
+              'Quando o jogador não deve mais nada, o botão Pagar do card vira Pago, em verde com contorno — dá para ver de longe quem já acertou (quem pagou a mais também fica Pago).',
+              'Toque em Pago para ver como foi pago: cada pagamento com a forma (PIX, dinheiro, misto ou abatimento), para onde foi (o caixa ou o custo e quem recebe), o valor e a hora. Errou? Estorne na própria linha. Um rebuy ou add-on novo volta o botão para Pagar.',
+            ],
+            tip: 'Precisa lançar mais um pagamento para quem já está Pago? Toque em Lançar outro pagamento, no rodapé.',
+            feature: 'Payments',
+            image: 'terminal-pago',
+            imageAlt: 'Janela Pago com a foto do jogador, Total e Pago, o aviso Não deve nada e a lista Como foi pago com PIX para um custo e dinheiro para o caixa, cada um com a hora e o estorno',
           },
           {
             title: 'QR do PIX com o valor',
@@ -512,7 +534,7 @@ export const MANUAL_MODULES = [
               'Embaixo do relógio fica a lista Quem está pensando?, com os jogadores da mesa e quantos timebanks cada um tem. Toque em quem está pensando quando quiser (já no começo, se você souber) e troque se errou.',
               'O organizador liga o timebank no cartão Timebank do torneio (ou deixa como padrão na estrutura de blinds): quantos timebanks cada jogador ganha e o tempo de ação, em segundos. Torneio sem timebank não mostra nada disso.',
             ],
-            tip: 'Quantos timebanks cada jogador ainda tem fica na Ficha dele, com −1 e +1 para tirar ou dar um (no terminal e na aba Jogadores do painel).',
+            tip: 'Quantos timebanks cada jogador ainda tem fica na Ficha dele, com −1 e +1 para tirar ou dar um (no terminal e na aba Jogadores do painel), e no telão da TV, com um relógio ao lado do nome.',
             image: 'terminal-timebank',
             imageAlt: 'Cronômetro em tela cheia com Tempo de ação · 30 s no topo, os segundos andando, a barra azul, o total, a lista Quem está pensando? com um jogador marcado e o botão Encerrar',
           },
@@ -824,12 +846,12 @@ export const MANUAL_MODULES = [
           {
             title: 'A TV troca sozinha',
             text: [
-              'O telão mostra o relógio, os blinds e o próximo nível, os jogadores por mesa com quem já pagou, o PIX do dia com QR e a premiação.',
+              'O telão mostra o relógio, os blinds e o próximo nível, os jogadores por mesa com quem já pagou, o PIX do dia com QR e a premiação. Com timebank no torneio, cada jogador tem ao lado do nome um relógio com quantos timebanks ainda tem.',
               'Pressione F (ou use o modo tela cheia da TV) para ocupar a tela inteira.',
             ],
             tip: 'No Mesa, o telão mostra o relógio, os jogadores e os eliminados.',
             image: 'tv-telao',
-            imageAlt: 'Telão do torneio na TV: relógio grande, blinds, jogadores por mesa, PIX com QR, premiação e o botão Ativar som no alto',
+            imageAlt: 'Telão do torneio na TV: relógio grande, blinds, jogadores por mesa com o relógio e os timebanks de cada um, PIX com QR, premiação e o botão Ativar som no alto',
           },
           {
             title: 'Som quando o nível muda',
