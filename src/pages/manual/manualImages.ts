@@ -69,6 +69,8 @@ import imgPainelCustos400 from '../../assets/manual/painel-custos-400.webp'
 import imgPainelCustos750 from '../../assets/manual/painel-custos-750.webp'
 import imgPainelFinanceiro400 from '../../assets/manual/painel-financeiro-400.webp'
 import imgPainelFinanceiro750 from '../../assets/manual/painel-financeiro-750.webp'
+import imgPainelHistorico400 from '../../assets/manual/painel-historico-400.webp'
+import imgPainelHistorico750 from '../../assets/manual/painel-historico-750.webp'
 import imgPainelJogadores400 from '../../assets/manual/painel-jogadores-400.webp'
 import imgPainelJogadores750 from '../../assets/manual/painel-jogadores-750.webp'
 import imgPainelMesas400 from '../../assets/manual/painel-mesas-400.webp'
@@ -400,6 +402,14 @@ export const MANUAL_IMAGES = {
     src: imgPainelFinanceiro400,
     full: imgPainelFinanceiro750,
     srcSet: `${imgPainelFinanceiro400} 400w, ${imgPainelFinanceiro750} 750w`,
+    width: 750,
+    height: 1520,
+    kind: 'phone',
+  },
+  'painel-historico': {
+    src: imgPainelHistorico400,
+    full: imgPainelHistorico750,
+    srcSet: `${imgPainelHistorico400} 400w, ${imgPainelHistorico750} 750w`,
     width: 750,
     height: 1520,
     kind: 'phone',

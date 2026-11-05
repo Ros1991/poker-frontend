@@ -321,11 +321,11 @@ export const MANUAL_MODULES = [
           {
             title: 'Crie o torneio',
             text: [
-              'Em Torneios (ou no Início), toque em Novo Torneio. Dê um nome, a data e escolha a estrutura: valores, limites de rebuy e add-on, custos e formato vêm preenchidos (e dá para mudar só neste torneio).',
-              'Escolha também o ranking da temporada, se houver, e toque em Criar torneio (no celular, o ✓ no topo).',
+              'Em Torneios (ou no Início), toque em Novo Torneio. Dê um nome e a data. A estrutura já vem escolhida — a do último torneio do clube (ou, sem ela, a estrutura mais recente) — com valores, limites de rebuy e add-on, custos e formato preenchidos. Dá para trocar a estrutura e mudar os valores só neste torneio.',
+              'O ranking mais recente do clube também já vem marcado, se houver; troque ou deixe em Nenhum e toque em Criar torneio (no celular, o ✓ no topo).',
             ],
             image: 'torneio-novo',
-            imageAlt: 'Formulário Novo Torneio com nome, data, PIX do dia e a estrutura Sexta 20 min escolhida',
+            imageAlt: 'Formulário Novo Torneio com nome, data, PIX do dia, a estrutura Sexta 20 min e o ranking Temporada 2026 já escolhidos',
           },
           {
             title: 'Quantos dealers?',
@@ -578,7 +578,7 @@ export const MANUAL_MODULES = [
   {
     slug: 'painel-do-home-game',
     title: 'Navegação e o painel do torneio',
-    summary: 'O Início, o menu, Configurações e o painel do torneio: jogadores, mesas, blinds, pagamentos, custos, financeiro, premiação, telão e ranking.',
+    summary: 'O Início, o menu, Configurações e o painel do torneio: jogadores, histórico, mesas, blinds, pagamentos, custos, financeiro, premiação, telão e ranking.',
     intro:
       'Tudo o que o terminal faz, e mais: inscrições, mesas, dinheiro, premiação e ranking. Funciona no celular e fica ainda melhor no computador.',
     icon: 'painel',
@@ -641,11 +641,12 @@ export const MANUAL_MODULES = [
           {
             title: 'Visão geral',
             text: [
-              'No topo: status, relógio, jogadores, rebuys, add-ons, premiação e total. Os botões mudam conforme o torneio anda: Editar, Iniciar Torneio, Pausar, Encerrar Rebuys e Finalizar (para encerrar antes da hora; quando sobra o campeão, ele se finaliza sozinho).',
+              'No topo: relógio, jogadores, rebuys, add-ons, premiação e total. Os botões mudam conforme o torneio anda: Editar, Iniciar Torneio, Pausar, Histórico e Cancelar torneio. Não há botão de finalizar: quando sobra o campeão, o torneio se finaliza sozinho.',
+              'Embaixo do nome aparece o selo do status quando ele importa: Rascunho, Finalizado ou Cancelado. Torneio com o selo Rebuys Finalizados tem Voltar para em andamento, que libera rebuy e add-on de novo.',
               'Ao lado ficam Telão (o relógio e os blinds no celular ou numa tela ao lado) e Dealer (o QR do terminal do dealer). Abaixo, as abas do torneio; no celular, elas ficam na barra de baixo, que rola de lado.',
             ],
             image: 'pc-painel-torneio',
-            imageAlt: 'Painel do torneio no computador: resumo no topo, botões, abas e os cards dos jogadores da Mesa 1',
+            imageAlt: 'Painel do torneio no computador: botões Editar, Pausar, Histórico e Cancelar torneio no topo, o resumo, Telão e Dealer, as abas e os cards dos jogadores da Mesa 1',
           },
           {
             title: 'Inscreva os jogadores',
@@ -668,9 +669,19 @@ export const MANUAL_MODULES = [
             imageAlt: 'Formulário Editar Torneio no celular de um torneio em andamento, com o aviso de que mudar valores recalcula o que cada jogador deve e de que a estrutura e o formato não mudam mais',
           },
           {
+            title: 'Histórico e desfazer',
+            text: [
+              'Toque em Histórico, no topo do painel, para ver tudo o que foi feito no torneio — inscrições, rebuys, add-ons, pagamentos, eliminações, timebank e mudanças nos valores —, com a hora e quem fez. Busque pelo nome do jogador e toque em Desfazer na linha para corrigir um engano.',
+              'Toque em Voltar para fechar. O histórico de um jogador só também está na ficha dele.',
+            ],
+            tip: 'Os avisos que aparecem na tela somem sozinhos. Para tirar um antes, arraste para o lado (no celular, com o dedo) ou toque no X do canto.',
+            image: 'painel-historico',
+            imageAlt: 'Histórico do painel no celular em tela cheia, com a busca, a hora de cada lançamento, quem fez e o botão Desfazer',
+          },
+          {
             title: 'Jogadores',
             text: [
-              'A lista é a mesma do terminal: cards por mesa com Rebuy, Add-on, Pagar e Eliminar, filtros (Jogando, Eliminados, Devendo) e o Histórico com desfazer.',
+              'A lista é a mesma do terminal: cards por mesa com Rebuy, Add-on, Pagar e Eliminar, a busca e os filtros (Jogando, Eliminados, Devendo).',
               'Toque em qualquer lugar do card do jogador, fora dos botões, para abrir a ficha dele.',
             ],
             image: 'painel-jogadores',
@@ -690,10 +701,11 @@ export const MANUAL_MODULES = [
             title: 'Blinds',
             text: [
               'O relógio do torneio, com anterior, pausar e próximo, e a estrutura com o nível atual em destaque.',
+              'A coluna Início mostra a que horas cada nível começa, contando de agora: o atual aparece como agora, os que já passaram ficam com traço e o intervalo entra na conta. Com o relógio pausado, os horários valem se ele voltar agora. Os horários se acertam sozinhos quando o nível muda.',
               'Editar Blinds muda só este torneio, sem mexer na estrutura padrão.',
             ],
             image: 'painel-blinds',
-            imageAlt: 'Aba Blinds com o relógio no nível 4 (100/200), o próximo nível 150/300, o botão Pausar e o começo da estrutura do torneio',
+            imageAlt: 'Aba Blinds no celular com a estrutura do torneio: o nível atual em destaque com agora na coluna Início e o horário de começo de cada nível seguinte',
           },
           {
             title: 'Pagamentos',
